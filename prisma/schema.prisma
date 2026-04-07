@@ -1,0 +1,195 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  WORKER
+}
+
+enum ShiftStatus {
+  OPEN
+  ASSIGNED
+  CLOSED
+  CANCELLED
+}
+
+enum BidStatus {
+  PENDING
+  SELECTED
+  NOT_SELECTED
+}
+
+enum BidDurationScope {
+  FULL
+  PARTIAL
+}
+
+enum NotificationType {
+  NEW_SHIFT
+  BID_SUBMITTED
+  BID_SELECTED
+  BID_NOT_SELECTED
+  SHIFT_CANCELLED
+}
+
+model User {
+  id         String   @id @default(cuid())
+  name       String
+  email      String   @unique
+  password   String
+  role       Role     @default(WORKER)
+  image      String?
+  department String?
+  position   String?
+  phone      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  bids           ShiftBid[]
+  assignedShifts Shift[]        @relation("AssignedWorker")
+  createdShifts  Shift[]        @relation("CreatedBy")
+  notifications  Notification[]
+  activities     ShiftActivity[] @relation("ActivityActor")
+  departmentMemberships DepartmentMembership[]
+
+  accounts Account[]
+  sessions Session[]
+}
+
+model Department {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  iconKey   String   @default("star")
+  wing      String?
+  sortOrder Int      @default(0)
+
+  memberships DepartmentMembership[]
+  shifts      Shift[]
+}
+
+model DepartmentMembership {
+  id           String     @id @default(cuid())
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title        String
+
+  @@unique([departmentId, userId])
+  @@index([userId])
+}
+
+model Shift {
+  id            String      @id @default(cuid())
+  title         String
+  unit          String
+  departmentId  String
+  department    Department  @relation(fields: [departmentId], references: [id])
+  roleNeeded    String
+  location      String
+  startsAt      DateTime
+  endsAt        DateTime
+  bidDeadlineAt DateTime
+  notes         String?
+  status        ShiftStatus @default(OPEN)
+
+  createdById String
+  createdBy   User   @relation("CreatedBy", fields: [createdById], references: [id])
+
+  assignedWorkerId String?
+  assignedWorker   User?   @relation("AssignedWorker", fields: [assignedWorkerId], references: [id])
+
+  bids          ShiftBid[]
+  notifications Notification[]
+  activities    ShiftActivity[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([departmentId])
+  @@index([startsAt])
+}
+
+model ShiftBid {
+  id              String           @id @default(cuid())
+  shiftId         String
+  shift           Shift            @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  workerId        String
+  worker          User             @relation(fields: [workerId], references: [id])
+  note            String?
+  hourlyRate      Decimal?         @db.Decimal(10, 2)
+  durationScope   BidDurationScope @default(FULL)
+  partialStartsAt DateTime?
+  partialEndsAt   DateTime?
+  status          BidStatus        @default(PENDING)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@unique([shiftId, workerId])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  message   String
+  read      Boolean          @default(false)
+  shiftId   String?
+  shift     Shift?           @relation(fields: [shiftId], references: [id], onDelete: SetNull)
+  createdAt DateTime         @default(now())
+}
+
+model ShiftActivity {
+  id        String   @id @default(cuid())
+  shiftId   String
+  shift     Shift    @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  actorId   String
+  actor     User     @relation("ActivityActor", fields: [actorId], references: [id])
+  action    String
+  details   String?
+  createdAt DateTime @default(now())
+}
+
+// NextAuth.js required models
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
