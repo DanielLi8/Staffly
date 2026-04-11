@@ -2,78 +2,95 @@
 
 Hospital callout coverage staffing platform. Administrators post urgent shifts, workers bid, and coordinators assign coverage — all in one responsive web app.
 
-## Quick Start
+## Live demo
 
-### 1. Prerequisites
+**Try it:** [Open the worker portal (sign in)](https://staffly-k01w5z9ts-danielli8s-projects.vercel.app/worker)
+
+Use the demo accounts below. Choose **Staff Member** or **Administrator** on the login page to match the account role.
+
+> Deployed on [Vercel](https://vercel.com). Demo data and credentials are for evaluation only.
+
+## Features
+
+- Role-based portals (admin vs worker) with NextAuth.js
+- Shift posting, bidding, and assignment workflow
+- In-app notifications; email via Resend (optional in local dev)
+
+## Tech stack
+
+Next.js 14 · TypeScript · Tailwind CSS · NextAuth.js v4 · Prisma · PostgreSQL · Resend · Vitest · Playwright
+
+## Local development
+
+### Prerequisites
 
 - Node.js 20+
-- pnpm (`npm i -g pnpm`)
-- Docker (for PostgreSQL) _or_ an existing PostgreSQL instance
+- [pnpm](https://pnpm.io) (`npm i -g pnpm`)
+- Docker (for PostgreSQL) *or* your own PostgreSQL instance
 
-### 2. Start PostgreSQL
+### 1. Start PostgreSQL
 
 ```bash
 docker-compose up -d
 ```
 
-### 3. Environment
+### 2. Environment
 
 ```bash
 cp .env.example .env
-# Edit .env — the defaults work with docker-compose
-# Generate NEXTAUTH_SECRET:
-openssl rand -base64 32
 ```
 
-### 4. Install & migrate
+Edit `.env`: set `NEXTAUTH_SECRET` (e.g. `openssl rand -base64 32`). Defaults match `docker-compose` for `DATABASE_URL`.
+
+### 3. Install, migrate, and seed
 
 ```bash
 pnpm install
-pnpm prisma migrate dev --name init
+pnpm prisma migrate dev
 pnpm prisma db seed
 ```
 
-### 5. Run
+### 4. Run the app
 
 ```bash
 pnpm dev
 ```
 
-Open http://localhost:3000
+Open [http://localhost:3000](http://localhost:3000).
 
-## Demo Accounts
+## Demo accounts
 
-| Role   | Email                 | Password   |
-|--------|-----------------------|------------|
-| Admin  | admin@staffly.com     | admin123   |
-| Admin  | admin2@staffly.com    | admin123   |
-| Worker | worker1@staffly.com   | worker123  |
-| Worker | worker2@staffly.com   | worker123  |
-| Worker | worker3@staffly.com   | worker123  |
+Use these after `pnpm prisma db seed`, or on the live demo (if seeded there).
 
-## Commands
+| Role        | Email               | Password   |
+|------------|---------------------|------------|
+| Admin      | admin@staffly.com   | admin123   |
+| Admin      | admin2@staffly.com  | admin123   |
+| Worker     | worker1@staffly.com | worker123  |
+| Worker     | worker2@staffly.com | worker123  |
+| Worker     | worker3@staffly.com | worker123  |
 
-```bash
-pnpm dev              # Development server (localhost:3000)
-pnpm build            # Production build
-pnpm lint             # ESLint
-pnpm test             # Vitest unit tests
-pnpm test:e2e         # Playwright e2e tests
-pnpm prisma studio    # Database browser
-```
+Select the matching portal tab (**Staff Member** / **Administrator**) before signing in.
 
-## Core Flow
+## Scripts
 
-1. **Admin logs in** → posts a callout shift with unit, role, dates, and bid deadline
-2. **All workers are notified** in-app and by email
-3. **Workers browse** open shifts and submit a bid with an optional note
-4. **Admin reviews bidders** on the shift detail page and clicks "Select" to assign
-5. **All bidders are notified** — winner gets a confirmation, others get a "not selected" update
+| Command        | Description                |
+|----------------|----------------------------|
+| `pnpm dev`     | Dev server (port 3000)     |
+| `pnpm build`   | Production build           |
+| `pnpm lint`    | ESLint                     |
+| `pnpm test`    | Vitest unit tests          |
+| `pnpm test:e2e`| Playwright E2E tests       |
+| `pnpm prisma studio` | Prisma database browser |
 
-## Tech Stack
+## Core flow
 
-Next.js 14 · TypeScript · Tailwind CSS · NextAuth.js v4 · Prisma · PostgreSQL · Resend · Vitest · Playwright
+1. **Admin** posts a callout shift (unit, role, dates, bid deadline).
+2. **Workers** are notified in-app and by email (when configured).
+3. **Workers** browse open shifts and submit a bid with an optional note.
+4. **Admin** reviews bidders on the shift detail page and selects assignee.
+5. **Bidders** are notified — winner confirmed, others notified as not selected.
 
-## UI Theme
+## UI theme
 
-Inspired by Unity Health Toronto: deep navy primary (#003087), red accent (#C41230), white/light-neutral surfaces, clean card layouts, accessible contrast.
+Inspired by Unity Health Toronto: deep navy primary (`#003087`), red accent (`#C41230`), light-neutral surfaces, accessible contrast.
