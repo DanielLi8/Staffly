@@ -2,6 +2,8 @@
 
 Hospital callout coverage staffing platform. Administrators post urgent shifts, workers bid, and coordinators assign coverage — all in one responsive web app.
 
+Check it out: https://staffly-k01w5z9ts-danielli8s-projects.vercel.app/worker
+
 ## Quick Start
 
 ### 1. Prerequisites
