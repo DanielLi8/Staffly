@@ -149,6 +149,9 @@ model Shift {
   department    Department  @relation(fields: [departmentId], references: [id])
   roleNeeded    String
   location      String
+  // Short, human-typeable code used to resolve an inbound SMS reply back to this
+  // shift (e.g. "reply YES 7K2M"). Null on shifts posted before Phase 3 outreach.
+  smsCode       String?  @unique
   startsAt      DateTime
   endsAt        DateTime
   bidDeadlineAt DateTime

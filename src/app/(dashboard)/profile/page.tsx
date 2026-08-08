@@ -5,6 +5,8 @@ import { Mail, User, Briefcase, Building2, Phone, Calendar } from "lucide-react"
 import { getSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PhoneVerification } from "@/features/profile/phone-verification";
+import { isVerifyConfigured } from "@/lib/outreach/twilio";
 
 export const metadata = { title: "Profile – Staffly" };
 
@@ -46,8 +48,27 @@ export default async function ProfilePage() {
           <ProfileRow icon={User} label="Full name" value={user.name} />
           <ProfileRow icon={Mail} label="Email" value={user.email} />
           <ProfileRow icon={Briefcase} label="Role" value={roleLabel} />
-          <ProfileRow icon={Phone} label="Phone" value={user.phone ?? "—"} />
           <ProfileRow icon={Calendar} label="Member since" value={format(user.createdAt, "MMMM d, yyyy")} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Text &amp; call alerts</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4 text-sm">
+          <div className="flex gap-3">
+            <Phone className="w-4 h-4 text-neutral-400 mt-0.5 shrink-0" aria-hidden />
+            <p className="text-neutral-500">
+              Verify your mobile number to get shift callouts by text and phone. Unverified
+              numbers only receive email and in-app alerts.
+            </p>
+          </div>
+          <PhoneVerification
+            initialPhone={user.phone}
+            verified={user.phoneVerifiedAt !== null}
+            available={isVerifyConfigured()}
+          />
         </CardContent>
       </Card>
 

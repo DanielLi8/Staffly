@@ -42,13 +42,16 @@ export async function notifyAdminOfNewBid(opts: {
   adminId: string;
   workerName: string;
   shift: Pick<Shift, "id" | "title">;
+  /** Optional channel hint, e.g. "by text" / "by phone", for outreach replies. */
+  via?: string | null;
 }): Promise<void> {
+  const suffix = opts.via ? ` ${opts.via}` : "";
   await db.notification.create({
     data: {
       userId: opts.adminId,
       type: "BID_SUBMITTED",
       title: "New Bid Received",
-      message: `${opts.workerName} bid on ${opts.shift.title}.`,
+      message: `${opts.workerName} bid on ${opts.shift.title}${suffix}.`,
       shiftId: opts.shift.id,
     },
   });
