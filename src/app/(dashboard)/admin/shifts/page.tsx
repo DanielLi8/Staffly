@@ -16,7 +16,7 @@ export default async function AdminShiftsPage({
   searchParams: { status?: string };
 }) {
   const session = await getSession();
-  if (!session || session.user.role !== "ADMIN") redirect("/worker/shifts");
+  if (!session || session.user.role !== "SCHEDULER") redirect("/worker/shifts");
 
   const activeStatus = searchParams.status ?? "OPEN";
   const validStatuses = ["OPEN", "ASSIGNED", "CLOSED", "CANCELLED", "all"] as const;

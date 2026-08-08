@@ -16,7 +16,7 @@ const placeBidSchema = z.object({
 });
 
 export async function placeBid(rawInput: unknown) {
-  const session = await requireAuth("WORKER");
+  const session = await requireAuth("STAFF");
   const parsed = placeBidSchema.parse(rawInput);
   const { shiftId, note, durationScope } = parsed;
 
@@ -97,7 +97,7 @@ export async function placeBid(rawInput: unknown) {
 }
 
 export async function withdrawBid(shiftId: string) {
-  const session = await requireAuth("WORKER");
+  const session = await requireAuth("STAFF");
 
   const bid = await db.shiftBid.findUnique({
     where: {

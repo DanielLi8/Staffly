@@ -8,8 +8,9 @@ datasource db {
 }
 
 enum Role {
-  ADMIN
-  WORKER
+  STAFF
+  SCHEDULER
+  UNIT_CLERK
 }
 
 enum ShiftStatus {
@@ -69,7 +70,7 @@ model User {
   name            String
   email           String    @unique
   password        String
-  role            Role      @default(WORKER)
+  role            Role      @default(STAFF)
   image           String?
   department      String?
   position        String?
@@ -78,10 +79,13 @@ model User {
   seniorityRank   Int?
   phoneVerifiedAt DateTime?
   hospitalId      String?
+  // The single department a UNIT_CLERK may view. Null for STAFF/SCHEDULER.
+  clerkDepartmentId String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
   hospital              Hospital?              @relation(fields: [hospitalId], references: [id])
+  clerkDepartment       Department?            @relation("ClerkDepartment", fields: [clerkDepartmentId], references: [id])
   bids                  ShiftBid[]
   assignedShifts        Shift[]                @relation("AssignedWorker")
   createdShifts         Shift[]                @relation("CreatedBy")
@@ -93,6 +97,8 @@ model User {
 
   accounts Account[]
   sessions Session[]
+
+  @@index([clerkDepartmentId])
 }
 
 model Hospital {
@@ -120,6 +126,7 @@ model Department {
   memberships    DepartmentMembership[]
   shifts         Shift[]
   availabilities Availability[]
+  clerks         User[]                 @relation("ClerkDepartment")
 }
 
 model DepartmentMembership {

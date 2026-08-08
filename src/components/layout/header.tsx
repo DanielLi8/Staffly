@@ -37,7 +37,7 @@ export function Header({ userName, role, viewMode }: HeaderProps) {
       <div className="flex-1" />
 
       {/* Admin view toggle */}
-      {role === "ADMIN" && (
+      {role === "SCHEDULER" && (
         <Button
           variant="outline"
           size="sm"

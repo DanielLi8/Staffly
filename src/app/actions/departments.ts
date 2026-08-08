@@ -13,7 +13,7 @@ const createDepartmentSchema = z.object({
 });
 
 export async function createDepartment(raw: unknown) {
-  await requireAuth("ADMIN");
+  await requireAuth("SCHEDULER");
   const data = createDepartmentSchema.parse(raw);
 
   const maxOrder = await db.department.aggregate({ _max: { sortOrder: true } });
@@ -39,7 +39,7 @@ const assignStaffSchema = z.object({
 });
 
 export async function assignStaffToDepartment(raw: unknown) {
-  await requireAuth("ADMIN");
+  await requireAuth("SCHEDULER");
   const data = assignStaffSchema.parse(raw);
 
   await db.departmentMembership.upsert({

@@ -7,7 +7,7 @@ import { getBidUiStatus } from "@/lib/bid-display";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id || session.user.role !== "WORKER") {
+  if (!session?.user?.id || session.user.role !== "STAFF") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
