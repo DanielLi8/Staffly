@@ -38,40 +38,88 @@ enum NotificationType {
   SHIFT_CANCELLED
 }
 
-model User {
-  id         String   @id @default(cuid())
-  name       String
-  email      String   @unique
-  password   String
-  role       Role     @default(WORKER)
-  image      String?
-  department String?
-  position   String?
-  phone      String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+enum AvailabilityStatus {
+  AVAILABLE
+  UNAVAILABLE
+  TENTATIVE
+}
 
-  bids           ShiftBid[]
-  assignedShifts Shift[]        @relation("AssignedWorker")
-  createdShifts  Shift[]        @relation("CreatedBy")
-  notifications  Notification[]
-  activities     ShiftActivity[] @relation("ActivityActor")
+enum Channel {
+  EMAIL
+  SMS
+  VOICE
+  IN_APP
+}
+
+enum DeliveryStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  FAILED
+  ANSWERED
+}
+
+enum OutreachResponse {
+  ACCEPTED
+  DECLINED
+}
+
+model User {
+  id              String    @id @default(cuid())
+  name            String
+  email           String    @unique
+  password        String
+  role            Role      @default(WORKER)
+  image           String?
+  department      String?
+  position        String?
+  phone           String?
+  hireDate        DateTime?
+  seniorityRank   Int?
+  phoneVerifiedAt DateTime?
+  hospitalId      String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  hospital              Hospital?              @relation(fields: [hospitalId], references: [id])
+  bids                  ShiftBid[]
+  assignedShifts        Shift[]                @relation("AssignedWorker")
+  createdShifts         Shift[]                @relation("CreatedBy")
+  notifications         Notification[]
+  activities            ShiftActivity[]        @relation("ActivityActor")
   departmentMemberships DepartmentMembership[]
+  availabilities        Availability[]
+  outreachAttempts      OutreachAttempt[]
 
   accounts Account[]
   sessions Session[]
 }
 
-model Department {
+model Hospital {
   id        String   @id @default(cuid())
   name      String
-  code      String   @unique
-  iconKey   String   @default("star")
-  wing      String?
-  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  memberships DepartmentMembership[]
+  users       User[]
+  departments Department[]
   shifts      Shift[]
+}
+
+model Department {
+  id        String  @id @default(cuid())
+  name      String
+  code      String  @unique
+  iconKey   String  @default("star")
+  wing      String?
+  sortOrder Int     @default(0)
+
+  hospitalId String?
+  hospital   Hospital? @relation(fields: [hospitalId], references: [id])
+
+  memberships    DepartmentMembership[]
+  shifts         Shift[]
+  availabilities Availability[]
 }
 
 model DepartmentMembership {
@@ -106,15 +154,20 @@ model Shift {
   assignedWorkerId String?
   assignedWorker   User?   @relation("AssignedWorker", fields: [assignedWorkerId], references: [id])
 
-  bids          ShiftBid[]
-  notifications Notification[]
-  activities    ShiftActivity[]
+  hospitalId String?
+  hospital   Hospital? @relation(fields: [hospitalId], references: [id])
+
+  bids             ShiftBid[]
+  notifications    Notification[]
+  activities       ShiftActivity[]
+  outreachAttempts OutreachAttempt[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([departmentId])
   @@index([startsAt])
+  @@index([status])
 }
 
 model ShiftBid {
@@ -146,6 +199,8 @@ model Notification {
   shiftId   String?
   shift     Shift?           @relation(fields: [shiftId], references: [id], onDelete: SetNull)
   createdAt DateTime         @default(now())
+
+  @@index([userId, createdAt])
 }
 
 model ShiftActivity {
@@ -157,6 +212,52 @@ model ShiftActivity {
   action    String
   details   String?
   createdAt DateTime @default(now())
+}
+
+model Availability {
+  id           String             @id @default(cuid())
+  userId       String
+  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  departmentId String?
+  department   Department?        @relation(fields: [departmentId], references: [id])
+  startsAt     DateTime
+  endsAt       DateTime
+  status       AvailabilityStatus @default(AVAILABLE)
+  createdAt    DateTime           @default(now())
+
+  @@index([userId, startsAt])
+  @@index([departmentId, startsAt])
+}
+
+model OutreachAttempt {
+  id                String            @id @default(cuid())
+  shiftId           String
+  shift             Shift             @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  userId            String
+  user              User              @relation(fields: [userId], references: [id])
+  channel           Channel
+  status            DeliveryStatus    @default(QUEUED)
+  response          OutreachResponse?
+  providerMessageId String?
+  respondedAt       DateTime?
+  createdAt         DateTime          @default(now())
+
+  @@index([shiftId])
+  @@index([providerMessageId])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  hospitalId String?
+  actorId    String
+  action     String
+  targetType String
+  targetId   String
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([hospitalId, createdAt])
+  @@index([targetType, targetId])
 }
 
 // NextAuth.js required models
