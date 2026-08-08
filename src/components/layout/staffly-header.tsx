@@ -9,12 +9,12 @@ import { UserMenu } from "@/components/layout/user-menu";
 
 interface StafflyHeaderProps {
   userName: string;
-  variant: "admin" | "worker";
+  variant: "admin" | "worker" | "clerk";
 }
 
 export function StafflyHeader({ userName, variant }: StafflyHeaderProps) {
   const pathname = usePathname();
-  const homeHref = variant === "admin" ? "/admin" : "/worker";
+  const homeHref = variant === "admin" ? "/admin" : variant === "clerk" ? "/clerk" : "/worker";
 
   const adminLinks = [
     {
@@ -44,7 +44,15 @@ export function StafflyHeader({ userName, variant }: StafflyHeaderProps) {
     },
   ];
 
-  const links = variant === "admin" ? adminLinks : workerLinks;
+  const clerkLinks = [
+    {
+      href: "/clerk",
+      label: "Department Schedule",
+      match: (p: string) => p.startsWith("/clerk"),
+    },
+  ];
+
+  const links = variant === "admin" ? adminLinks : variant === "clerk" ? clerkLinks : workerLinks;
 
   return (
     <header className="sticky top-0 z-40 border-b border-neutral-200/80 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80">

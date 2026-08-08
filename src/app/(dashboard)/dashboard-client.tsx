@@ -3,18 +3,27 @@
 import { usePathname } from "next/navigation";
 import { StafflyHeader } from "@/components/layout/staffly-header";
 import { StafflyFooter } from "@/components/layout/staffly-footer";
+import type { Role } from "@/types";
+
 interface DashboardClientProps {
   userName: string;
-  role: "ADMIN" | "WORKER";
+  role: Role;
   children: React.ReactNode;
 }
 
 export function DashboardClient({ userName, role, children }: DashboardClientProps) {
   const pathname = usePathname();
-  const variant =
-    pathname.startsWith("/admin") || (pathname === "/profile" && role === "ADMIN")
-      ? "admin"
-      : "worker";
+
+  let variant: "admin" | "worker" | "clerk";
+  if (pathname.startsWith("/admin")) {
+    variant = "admin";
+  } else if (pathname.startsWith("/clerk")) {
+    variant = "clerk";
+  } else if (pathname === "/profile") {
+    variant = role === "SCHEDULER" ? "admin" : role === "UNIT_CLERK" ? "clerk" : "worker";
+  } else {
+    variant = "worker";
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-staffly-bg">

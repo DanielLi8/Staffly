@@ -22,7 +22,7 @@ const createShiftSchema = z.object({
 export type CreateShiftInput = z.infer<typeof createShiftSchema>;
 
 export async function createShift(rawInput: unknown) {
-  const session = await requireAuth("ADMIN");
+  const session = await requireAuth("SCHEDULER");
   const data = createShiftSchema.parse(rawInput);
 
   if (data.endsAt <= data.startsAt) {
@@ -66,7 +66,7 @@ export async function createShift(rawInput: unknown) {
   });
 
   const workers = await db.user.findMany({
-    where: { role: "WORKER" },
+    where: { role: "STAFF" },
     select: { id: true, name: true, email: true },
   });
 
@@ -78,7 +78,7 @@ export async function createShift(rawInput: unknown) {
 }
 
 export async function assignWorker(shiftId: string, workerId: string) {
-  const session = await requireAuth("ADMIN");
+  const session = await requireAuth("SCHEDULER");
 
   const shift = await db.shift.findUnique({
     where: { id: shiftId },
@@ -128,7 +128,7 @@ export async function assignWorker(shiftId: string, workerId: string) {
 }
 
 export async function cancelShift(shiftId: string) {
-  const session = await requireAuth("ADMIN");
+  const session = await requireAuth("SCHEDULER");
 
   const shift = await db.shift.findUnique({ where: { id: shiftId } });
   if (!shift) throw new Error("Shift not found");

@@ -24,7 +24,12 @@ export default async function ProfilePage() {
 
   if (!user) redirect("/login");
 
-  const roleLabel = user.role === "ADMIN" ? "Administrator" : "Staff member";
+  const roleLabel =
+    user.role === "SCHEDULER"
+      ? "Scheduler"
+      : user.role === "UNIT_CLERK"
+        ? "Unit Clerk"
+        : "Staff member";
 
   return (
     <div className="max-w-xl space-y-6">

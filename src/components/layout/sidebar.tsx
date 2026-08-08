@@ -49,7 +49,7 @@ export function Sidebar({ role, viewMode }: SidebarProps) {
           </div>
           <span className="text-white font-bold text-lg">Staffly</span>
         </div>
-        {viewMode === "worker" && role === "ADMIN" && (
+        {viewMode === "worker" && role === "SCHEDULER" && (
           <span className="mt-2 inline-block text-xs bg-accent/20 text-accent-200 border border-accent/30 rounded px-2 py-0.5">
             Worker Preview
           </span>
@@ -83,7 +83,9 @@ export function Sidebar({ role, viewMode }: SidebarProps) {
       <div className="px-5 py-4 border-t border-primary-600">
         <div className="flex items-center gap-2 text-primary-300 text-xs">
           <Briefcase className="w-3.5 h-3.5" aria-hidden="true" />
-          <span>{role === "ADMIN" ? "Administrator" : "Worker"}</span>
+          <span>
+            {role === "SCHEDULER" ? "Scheduler" : role === "UNIT_CLERK" ? "Unit Clerk" : "Worker"}
+          </span>
         </div>
       </div>
     </aside>

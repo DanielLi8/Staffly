@@ -13,7 +13,7 @@ export function LoginForm() {
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [portalRole, setPortalRole] = useState<Role>("WORKER");
+  const [portalRole, setPortalRole] = useState<Role>("STAFF");
   const [remember, setRemember] = useState(false);
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState("");
@@ -60,27 +60,26 @@ export function LoginForm() {
         </div>
       )}
 
-      <div className="flex rounded-xl border border-neutral-200 p-1 bg-neutral-100/80">
-        <button
-          type="button"
-          onClick={() => setPortalRole("WORKER")}
-          className={cn(
-            "flex-1 py-2.5 text-sm font-semibold rounded-lg transition-colors",
-            portalRole === "WORKER" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-500"
-          )}
-        >
-          Staff Member
-        </button>
-        <button
-          type="button"
-          onClick={() => setPortalRole("ADMIN")}
-          className={cn(
-            "flex-1 py-2.5 text-sm font-semibold rounded-lg transition-colors",
-            portalRole === "ADMIN" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-500"
-          )}
-        >
-          Administrator
-        </button>
+      <div className="flex rounded-xl border border-neutral-200 p-1 bg-neutral-100/80 gap-1">
+        {(
+          [
+            ["STAFF", "Staff"],
+            ["SCHEDULER", "Scheduler"],
+            ["UNIT_CLERK", "Unit Clerk"],
+          ] as const
+        ).map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => setPortalRole(value)}
+            className={cn(
+              "flex-1 py-2.5 text-sm font-semibold rounded-lg transition-colors whitespace-nowrap",
+              portalRole === value ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-500"
+            )}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
       <div>

@@ -38,13 +38,14 @@ async function main() {
 
   const adminPassword = await bcrypt.hash("admin123", 12);
   const workerPassword = await bcrypt.hash("worker123", 12);
+  const clerkPassword = await bcrypt.hash("clerk123", 12);
 
   const admin = await prisma.user.create({
     data: {
       name: "Sarah Chen",
       email: "admin@staffly.com",
       password: adminPassword,
-      role: Role.ADMIN,
+      role: Role.SCHEDULER,
       department: "Staffing Office",
       position: "Staffing Coordinator",
       hospitalId: hospital.id,
@@ -57,11 +58,25 @@ async function main() {
       name: "James Okafor",
       email: "admin2@staffly.com",
       password: adminPassword,
-      role: Role.ADMIN,
+      role: Role.SCHEDULER,
       department: "Staffing Office",
       position: "Nurse Manager",
       hospitalId: hospital.id,
       hireDate: new Date("2012-09-15"),
+    },
+  });
+
+  // Read-only unit clerk, scoped to a single department (Emergency).
+  await prisma.user.create({
+    data: {
+      name: "Grace Adebayo",
+      email: "clerk@staffly.com",
+      password: clerkPassword,
+      role: Role.UNIT_CLERK,
+      department: "Emergency",
+      position: "Unit Clerk",
+      hospitalId: hospital.id,
+      clerkDepartmentId: deptER.id,
     },
   });
 
@@ -73,7 +88,7 @@ async function main() {
         name: "Maria Santos",
         email: "worker1@staffly.com",
         password: workerPassword,
-        role: Role.WORKER,
+        role: Role.STAFF,
         department: "Emergency",
         position: "Registered Nurse",
         hospitalId: hospital.id,
@@ -86,7 +101,7 @@ async function main() {
         name: "David Kim",
         email: "worker2@staffly.com",
         password: workerPassword,
-        role: Role.WORKER,
+        role: Role.STAFF,
         department: "ICU",
         position: "Registered Nurse",
         hospitalId: hospital.id,
@@ -98,7 +113,7 @@ async function main() {
         name: "Aisha Patel",
         email: "worker3@staffly.com",
         password: workerPassword,
-        role: Role.WORKER,
+        role: Role.STAFF,
         department: "Medical/Surgical",
         position: "Registered Nurse",
         hospitalId: hospital.id,
@@ -111,7 +126,7 @@ async function main() {
         name: "Thomas Nguyen",
         email: "worker4@staffly.com",
         password: workerPassword,
-        role: Role.WORKER,
+        role: Role.STAFF,
         department: "Emergency",
         position: "Personal Support Worker",
         hospitalId: hospital.id,
@@ -123,7 +138,7 @@ async function main() {
         name: "Priya Sharma",
         email: "worker5@staffly.com",
         password: workerPassword,
-        role: Role.WORKER,
+        role: Role.STAFF,
         department: "ICU",
         position: "Registered Nurse",
         hospitalId: hospital.id,
@@ -356,11 +371,12 @@ async function main() {
 
   console.log("✓ Seed complete");
   console.log("\nDemo accounts:");
-  console.log("  Admin:  admin@staffly.com  / admin123");
-  console.log("  Admin:  admin2@staffly.com / admin123");
-  console.log("  Worker: worker1@staffly.com / worker123 (Maria Santos – Emergency RN)");
-  console.log("  Worker: worker2@staffly.com / worker123 (David Kim – ICU RN)");
-  console.log("  Worker: worker3@staffly.com / worker123 (Aisha Patel – Med/Surg RN)");
+  console.log("  Scheduler:  admin@staffly.com  / admin123");
+  console.log("  Scheduler:  admin2@staffly.com / admin123");
+  console.log("  Unit Clerk: clerk@staffly.com  / clerk123 (Grace Adebayo – Emergency, read-only)");
+  console.log("  Staff:      worker1@staffly.com / worker123 (Maria Santos – Emergency RN)");
+  console.log("  Staff:      worker2@staffly.com / worker123 (David Kim – ICU RN)");
+  console.log("  Staff:      worker3@staffly.com / worker123 (Aisha Patel – Med/Surg RN)");
 }
 
 main()
