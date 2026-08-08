@@ -9,6 +9,8 @@ async function main() {
   console.log("Seeding database...");
 
   await prisma.notification.deleteMany();
+  await prisma.outreachAttempt.deleteMany();
+  await prisma.availability.deleteMany();
   await prisma.shiftActivity.deleteMany();
   await prisma.shiftBid.deleteMany();
   await prisma.shift.deleteMany();
@@ -17,9 +19,22 @@ async function main() {
   await prisma.account.deleteMany();
   await prisma.user.deleteMany();
 
+  // Single default hospital that all existing tenants belong to.
+  const hospital = await prisma.hospital.upsert({
+    where: { id: "clHospital_default" },
+    update: { name: "St. Michael's Hospital" },
+    create: { id: "clHospital_default", name: "St. Michael's Hospital" },
+  });
+
   const deptER = await prisma.department.findUniqueOrThrow({ where: { code: "ER" } });
   const deptICU = await prisma.department.findUniqueOrThrow({ where: { code: "ICU" } });
   const deptMED = await prisma.department.findUniqueOrThrow({ where: { code: "MED" } });
+
+  // Backfill the default hospital onto every existing department.
+  await prisma.department.updateMany({
+    where: { hospitalId: null },
+    data: { hospitalId: hospital.id },
+  });
 
   const adminPassword = await bcrypt.hash("admin123", 12);
   const workerPassword = await bcrypt.hash("worker123", 12);
@@ -32,6 +47,8 @@ async function main() {
       role: Role.ADMIN,
       department: "Staffing Office",
       position: "Staffing Coordinator",
+      hospitalId: hospital.id,
+      hireDate: new Date("2014-03-01"),
     },
   });
 
@@ -43,9 +60,13 @@ async function main() {
       role: Role.ADMIN,
       department: "Staffing Office",
       position: "Nurse Manager",
+      hospitalId: hospital.id,
+      hireDate: new Date("2012-09-15"),
     },
   });
 
+  // Realistic hire-date spread; a couple of explicit seniorityRank overrides so
+  // later phases can exercise both the rank-set and hireDate ordering paths.
   const workers = await Promise.all([
     prisma.user.create({
       data: {
@@ -55,6 +76,9 @@ async function main() {
         role: Role.WORKER,
         department: "Emergency",
         position: "Registered Nurse",
+        hospitalId: hospital.id,
+        hireDate: new Date("2016-06-01"),
+        seniorityRank: 1,
       },
     }),
     prisma.user.create({
@@ -65,6 +89,8 @@ async function main() {
         role: Role.WORKER,
         department: "ICU",
         position: "Registered Nurse",
+        hospitalId: hospital.id,
+        hireDate: new Date("2018-02-12"),
       },
     }),
     prisma.user.create({
@@ -75,6 +101,9 @@ async function main() {
         role: Role.WORKER,
         department: "Medical/Surgical",
         position: "Registered Nurse",
+        hospitalId: hospital.id,
+        hireDate: new Date("2015-11-20"),
+        seniorityRank: 2,
       },
     }),
     prisma.user.create({
@@ -85,6 +114,8 @@ async function main() {
         role: Role.WORKER,
         department: "Emergency",
         position: "Personal Support Worker",
+        hospitalId: hospital.id,
+        hireDate: new Date("2021-08-05"),
       },
     }),
     prisma.user.create({
@@ -95,6 +126,8 @@ async function main() {
         role: Role.WORKER,
         department: "ICU",
         position: "Registered Nurse",
+        hospitalId: hospital.id,
+        hireDate: new Date("2023-01-09"),
       },
     }),
   ]);
@@ -125,6 +158,7 @@ async function main() {
       notes: "ACLS certification required. Familiar with triage protocols.",
       status: ShiftStatus.OPEN,
       createdById: admin.id,
+      hospitalId: hospital.id,
     },
   });
 
@@ -171,6 +205,7 @@ async function main() {
       status: ShiftStatus.ASSIGNED,
       createdById: admin.id,
       assignedWorkerId: workers[1].id,
+      hospitalId: hospital.id,
     },
   });
 
@@ -222,6 +257,7 @@ async function main() {
       notes: "Overnight shift. Patient load approximately 6–8 patients.",
       status: ShiftStatus.OPEN,
       createdById: admin2.id,
+      hospitalId: hospital.id,
     },
   });
 
@@ -281,6 +317,39 @@ async function main() {
         message: `${workers[2].name} bid on Emergency RN – Day Shift Callout.`,
         shiftId: shift1.id,
         read: false,
+      },
+    ],
+  });
+
+  // Sample availability windows for a few workers.
+  await prisma.availability.createMany({
+    data: [
+      {
+        userId: workers[0].id,
+        departmentId: deptER.id,
+        startsAt: setMinutes(setHours(addDays(today, 1), 6), 0),
+        endsAt: setMinutes(setHours(addDays(today, 1), 18), 0),
+        status: "AVAILABLE",
+      },
+      {
+        userId: workers[1].id,
+        departmentId: deptICU.id,
+        startsAt: setMinutes(setHours(addDays(today, 2), 7), 0),
+        endsAt: setMinutes(setHours(addDays(today, 2), 19), 0),
+        status: "TENTATIVE",
+      },
+      {
+        userId: workers[3].id,
+        departmentId: deptER.id,
+        startsAt: setMinutes(setHours(addDays(today, 3), 8), 0),
+        endsAt: setMinutes(setHours(addDays(today, 3), 20), 0),
+        status: "UNAVAILABLE",
+      },
+      {
+        userId: workers[4].id,
+        startsAt: setMinutes(setHours(addDays(today, 1), 12), 0),
+        endsAt: setMinutes(setHours(addDays(today, 1), 23), 0),
+        status: "AVAILABLE",
       },
     ],
   });
