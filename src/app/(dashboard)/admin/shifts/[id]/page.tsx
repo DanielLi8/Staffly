@@ -5,8 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ShiftStatusBadge } from "@/components/ui/badge";
 import { Avatar } from "@/components/ui/avatar";
 import { BidderList } from "@/features/shifts/bidder-list";
+import { FillDashboardPanel } from "@/features/callout/fill-dashboard";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import { loadFillDashboard } from "@/lib/callout/dashboard";
 import { formatShiftDate, formatShiftRange, formatDate } from "@/lib/utils";
 import { CancelShiftButton } from "./cancel-shift-button";
 
@@ -27,12 +29,6 @@ export default async function AdminShiftDetailPage({ params }: { params: { id: s
       assignedWorker: {
         select: { id: true, name: true, email: true, image: true, department: true, position: true },
       },
-      bids: {
-        orderBy: { createdAt: "asc" },
-        include: {
-          worker: { select: { id: true, name: true, email: true, department: true, position: true } },
-        },
-      },
       activities: {
         orderBy: { createdAt: "asc" },
         include: { actor: { select: { id: true, name: true } } },
@@ -41,6 +37,11 @@ export default async function AdminShiftDetailPage({ params }: { params: { id: s
   });
 
   if (!shift) notFound();
+
+  // The live fill dashboard: cascade state, delivery tracking, and the
+  // seniority-ranked bidder list with overtime projections.
+  const dashboard = await loadFillDashboard(shift.id);
+  if (!dashboard) notFound();
 
   const shiftOpen = shift.status === "OPEN";
   const deadlinePassed = new Date() > shift.bidDeadlineAt;
@@ -69,6 +70,10 @@ export default async function AdminShiftDetailPage({ params }: { params: { id: s
         {shiftOpen && <CancelShiftButton shiftId={shift.id} />}
       </div>
 
+      {/* Live fill dashboard - full width: it is the scheduler's primary surface
+          while a callout is running, and its outreach table needs the room. */}
+      <FillDashboardPanel data={dashboard} />
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left: Shift details */}
         <div className="lg:col-span-2 space-y-6">
@@ -92,7 +97,7 @@ export default async function AdminShiftDetailPage({ params }: { params: { id: s
           <Card>
             <CardHeader>
               <CardTitle>
-                Bidders ({shift.bids.length})
+                Bidders ({dashboard.bidders.length})
                 {shiftOpen && deadlinePassed && (
                   <span className="ml-2 text-xs font-normal text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5">
                     Deadline passed
@@ -103,7 +108,7 @@ export default async function AdminShiftDetailPage({ params }: { params: { id: s
             <CardContent>
               <BidderList
                 shiftId={shift.id}
-                bids={shift.bids}
+                bidders={dashboard.bidders}
                 shiftOpen={shiftOpen}
               />
             </CardContent>

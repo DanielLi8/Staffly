@@ -42,6 +42,8 @@ cp .env.example .env
 
 Edit `.env`: set `NEXTAUTH_SECRET` (e.g. `openssl rand -base64 32`). Defaults match `docker-compose` for `DATABASE_URL`.
 
+Everything else in `.env.example` is optional. Without Resend the app skips emails, without Twilio it skips SMS/voice, and without Inngest the callout cascade still runs - posting a shift fires tier-1 outreach immediately and a scheduler can advance, hold, or stop the cascade by hand. Inngest only adds the automatic timed escalation between tiers.
+
 ### 3. Install, migrate, and seed
 
 ```bash

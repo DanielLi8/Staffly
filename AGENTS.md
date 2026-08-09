@@ -12,11 +12,21 @@ This file is the project's committed home for project-intrinsic agent knowledge:
 
 ## Multi-channel outreach (Phase 3)
 
-- All outreach lives in `src/lib/outreach/`. Channels (`sms.ts`/`voice.ts`/`email.ts`/`inapp.ts`) implement the `OutreachChannel` interface (`types.ts`); the dispatcher (`index.ts`) runs every applicable channel per recipient and records one `OutreachAttempt` row each. Wired into `createShift` via `outreachForNewShift(shiftId)`, which targets STAFF with a `DepartmentMembership` in the shift's department (not all staff).
+- All outreach lives in `src/lib/outreach/`. Channels (`sms.ts`/`voice.ts`/`email.ts`/`inapp.ts`) implement the `OutreachChannel` interface (`types.ts`); the dispatcher (`index.ts`) runs every applicable channel per recipient and records one `OutreachAttempt` row each. Who is dispatched to is decided upstream by the Phase 4 cascade; the dispatcher itself is a dumb pipe.
 - **Single accept path:** `submitBid()` in `src/lib/outreach/accept.ts` is the ONLY place a `ShiftBid` is created/updated + the scheduler notified. In-app `placeBid`, inbound SMS, and IVR all funnel through it. Acceptances are always bids (PENDING), never instant assignments.
 - **Credential-optional:** every Twilio touchpoint no-ops without env vars (mirrors `src/lib/email.ts`, which builds its Resend client lazily for the same reason). `isTwilioConfigured()`/`getTwilioClient()` in `twilio.ts` gate sending; SMS/voice only fire for a number with `phoneVerifiedAt` set (Twilio Verify at `/profile`).
 - **Webhooks** (`src/app/api/webhooks/twilio/*`): public + unauthenticated. Already excluded from the NextAuth `middleware` matcher (it only lists `/admin|/clerk|/worker|/profile`). EVERY handler MUST call `readVerifiedTwilioForm` (validates `X-Twilio-Signature`, fails closed → 403) before any DB write. `TWILIO_AUTH_TOKEN` stays server-only. Signature URL is rebuilt from `webhookBaseUrl()` (not the proxied host) so it matches the callback URLs we hand Twilio.
 - Inbound SMS resolves sender phone → verified `User`, parses a reply code (`codes.ts`: `YES <code>`=FULL, `PART <code>`=PARTIAL, bare code=FULL; carrier keywords handled) against `Shift.smsCode`. IVR pins shiftId+userId via signed query params. Tests: `tests/outreach/`.
+
+## Tiered callout cascade + fill dashboard (Phase 4)
+
+- The cascade lives in `src/lib/callout/`. **Postgres is the source of truth, not Inngest**: `CalloutCampaign` (one per shift, `status` = RUNNING/PAUSED/CANCELLED/FILLED/EXHAUSTED) holds all state, and every write goes through `campaign.ts`, which re-reads the row before acting. A scheduler "stop" writes CANCELLED and any running engine step reads that and no-ops. Keep it that way - it is what makes the engine swappable.
+- Policy is pure and unit-tested, on purpose: `tiers.ts` (who is in which tier, seniority-ordered via `rankBySeniority`), `decide.ts` (`decideNextStep` with an injected `now`), `overtime.ts` (`projectOvertime`, a simplified weekly-hours stand-in for a real collective-agreement rule). `campaign.ts`/`dashboard.ts` hold the DB access. Tests: `tests/callout/` (`fake-db.ts` is a narrow in-memory Prisma stand-in for the service-level tests).
+- Tiers widen 1 → available department staff, 2 → department staff who declared nothing (TENTATIVE counts as nothing), 3 → other departments. An overlapping `UNAVAILABLE` removes someone from the whole cascade. An empty tier is skipped immediately rather than waited out.
+- `OutreachAttempt.tier` + `@@unique([shiftId, tier, userId, channel])` is the idempotency key: re-running a tier never re-contacts anyone. `dispatchOutreach(shift, recipients, { tier })` enforces it.
+- **Credential-optional (mirrors Twilio):** `src/lib/inngest/client.ts` builds the client lazily and `sendCalloutEvent` no-ops without `INNGEST_EVENT_KEY`/`INNGEST_SIGNING_KEY`. Posting a shift, tier-1 outreach (fired synchronously in `startCalloutCampaign`), and advance/hold/stop all work with no Inngest account; only the automatic timed escalation is lost. `tests/callout/no-inngest.test.ts` guards this.
+- **No auto-expiry.** Past the shift start an unfilled callout raises a scheduler reminder (`CALLOUT_REMINDER`) and keeps going. Never close a shift on a timer.
+- Scheduler controls are `src/app/actions/callout.ts` (SCHEDULER-only via `requireActor` + `requireRole`); the dashboard is `src/features/callout/` on `/admin/shifts/[id]`.
 
 ## Local dev / verification
 
