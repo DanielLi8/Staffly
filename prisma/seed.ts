@@ -1,7 +1,15 @@
 import { PrismaClient, Role, ShiftStatus, BidStatus } from "@prisma/client";
 import { Prisma } from "@prisma/client";
 import bcrypt from "bcryptjs";
-import { addDays, addHours, setHours, setMinutes } from "date-fns";
+import {
+  addDays,
+  addHours,
+  addMinutes,
+  isSameDay,
+  setHours,
+  setMinutes,
+  startOfWeek,
+} from "date-fns";
 
 const prisma = new PrismaClient();
 
@@ -9,6 +17,7 @@ async function main() {
   console.log("Seeding database...");
 
   await prisma.notification.deleteMany();
+  await prisma.calloutCampaign.deleteMany();
   await prisma.outreachAttempt.deleteMany();
   await prisma.availability.deleteMany();
   await prisma.shiftActivity.deleteMany();
@@ -374,6 +383,114 @@ async function main() {
         endsAt: setMinutes(setHours(addDays(today, 1), 23), 0),
         status: "AVAILABLE",
       },
+      // Puts Aisha in tier 1 for the overnight Med/Surg callout (shift3).
+      {
+        userId: workers[2].id,
+        departmentId: deptMED.id,
+        startsAt: setMinutes(setHours(addDays(today, 2), 22), 0),
+        endsAt: setMinutes(setHours(addDays(today, 3), 8), 0),
+        status: "AVAILABLE",
+      },
+    ],
+  });
+
+  // Three 12h shifts already assigned to Maria in the SAME work week as shift1,
+  // so the fill dashboard's overtime flag has something to fire on: 36h booked
+  // + the 8h callout = 44h against the 40h weekly threshold.
+  const shift1WeekStart = startOfWeek(shift1Start, { weekStartsOn: 0 });
+  const otherDaysThisWeek = [0, 1, 2, 3, 4, 5, 6]
+    .map((offset) => addDays(shift1WeekStart, offset))
+    .filter((day) => !isSameDay(day, shift1Start))
+    .slice(0, 3);
+
+  for (const [index, day] of otherDaysThisWeek.entries()) {
+    const start = setMinutes(setHours(day, 7), 0);
+    await prisma.shift.create({
+      data: {
+        title: `${deptER.name} (${deptER.code}) – Registered Nurse`,
+        unit: "4B",
+        departmentId: deptER.id,
+        roleNeeded: "Registered Nurse",
+        location: "St. Michael's Hospital – 30 Bond St.",
+        startsAt: start,
+        endsAt: addHours(start, 12),
+        bidDeadlineAt: addHours(start, -12),
+        status: ShiftStatus.ASSIGNED,
+        createdById: admin.id,
+        assignedWorkerId: workers[0].id,
+        hospitalId: hospital.id,
+        notes: `Regular rostered coverage (${index + 1} of 3).`,
+      },
+    });
+  }
+
+  // Live callout cascades for the two open shifts, so the scheduler's fill
+  // dashboard has something real to show on first load.
+  //
+  // shift1 (Emergency) has already widened to tier 2: Maria declared herself
+  // AVAILABLE for that window (tier 1) and Thomas declared nothing (tier 2).
+  await prisma.calloutCampaign.create({
+    data: {
+      shiftId: shift1.id,
+      currentTier: 2,
+      status: "RUNNING",
+      startedAt: addHours(today, -1),
+      tier1EnteredAt: addHours(today, -1),
+      tier2EnteredAt: addMinutes(today, -20),
+    },
+  });
+
+  await prisma.outreachAttempt.createMany({
+    data: [
+      // Tier 1 - Maria, reached on every channel (SMS/voice recorded as QUEUED
+      // because the demo runs without Twilio credentials), and she bid back.
+      {
+        shiftId: shift1.id,
+        userId: workers[0].id,
+        tier: 1,
+        channel: "IN_APP",
+        status: "DELIVERED",
+        response: "ACCEPTED",
+        respondedAt: addMinutes(today, -40),
+      },
+      { shiftId: shift1.id, userId: workers[0].id, tier: 1, channel: "EMAIL", status: "SENT" },
+      { shiftId: shift1.id, userId: workers[0].id, tier: 1, channel: "SMS", status: "QUEUED" },
+      { shiftId: shift1.id, userId: workers[0].id, tier: 1, channel: "VOICE", status: "QUEUED" },
+      // Tier 2 - Thomas, contacted when the cascade widened; no response yet.
+      {
+        shiftId: shift1.id,
+        userId: workers[3].id,
+        tier: 2,
+        channel: "IN_APP",
+        status: "DELIVERED",
+      },
+      { shiftId: shift1.id, userId: workers[3].id, tier: 2, channel: "EMAIL", status: "SENT" },
+      { shiftId: shift1.id, userId: workers[3].id, tier: 2, channel: "SMS", status: "QUEUED" },
+      { shiftId: shift1.id, userId: workers[3].id, tier: 2, channel: "VOICE", status: "QUEUED" },
+    ],
+  });
+
+  // shift3 (Med/Surg, overnight) is still on tier 1.
+  await prisma.calloutCampaign.create({
+    data: {
+      shiftId: shift3.id,
+      currentTier: 1,
+      status: "RUNNING",
+      startedAt: addMinutes(today, -10),
+      tier1EnteredAt: addMinutes(today, -10),
+    },
+  });
+
+  await prisma.outreachAttempt.createMany({
+    data: [
+      {
+        shiftId: shift3.id,
+        userId: workers[2].id,
+        tier: 1,
+        channel: "IN_APP",
+        status: "DELIVERED",
+      },
+      { shiftId: shift3.id, userId: workers[2].id, tier: 1, channel: "EMAIL", status: "SENT" },
     ],
   });
 

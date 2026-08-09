@@ -57,6 +57,29 @@ export async function notifyAdminOfNewBid(opts: {
   });
 }
 
+/**
+ * In-app nudge to the scheduler who owns a callout: the cascade widened, ran out
+ * of tiers, or the shift start passed unfilled. Reminders, never auto-actions -
+ * the scheduler stays in control of the callout.
+ */
+export async function notifySchedulerOfCallout(opts: {
+  schedulerId: string;
+  type: "CALLOUT_ESCALATED" | "CALLOUT_REMINDER";
+  title: string;
+  message: string;
+  shiftId: string;
+}): Promise<void> {
+  await db.notification.create({
+    data: {
+      userId: opts.schedulerId,
+      type: opts.type,
+      title: opts.title,
+      message: opts.message,
+      shiftId: opts.shiftId,
+    },
+  });
+}
+
 export async function notifyWorkersOfAssignment(opts: {
   shift: Shift;
   selectedWorkerId: string;

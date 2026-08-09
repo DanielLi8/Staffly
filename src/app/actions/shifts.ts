@@ -8,8 +8,8 @@ import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 import { notifyWorkersOfAssignment } from "@/lib/notifications";
-import { outreachForNewShift } from "@/lib/outreach";
 import { generateShiftCode } from "@/lib/outreach/codes";
+import { markCampaignFilled, startCalloutCampaign } from "@/lib/callout/campaign";
 
 const createShiftSchema = z.object({
   unit: z.string().min(1, "Unit is required"),
@@ -94,10 +94,10 @@ export async function createShift(rawInput: unknown) {
     },
   });
 
-  // Targeted, tracked multi-channel outreach to eligible staff in this shift's
-  // department (replaces the old blast to every worker). Records OutreachAttempt
-  // rows; SMS/voice are skipped without Twilio credentials.
-  await outreachForNewShift(shift.id);
+  // Open the tiered callout cascade. Tier-1 outreach fires synchronously inside
+  // this call, so posting a shift reaches available department staff even with
+  // no Inngest account; Inngest only takes over the timed widening after that.
+  await startCalloutCampaign(shift.id);
 
   revalidatePath("/admin/shifts");
   revalidatePath("/admin");
@@ -143,6 +143,9 @@ export async function assignWorker(shiftId: string, workerId: string) {
     }),
   ]);
 
+  // The shift is filled, so the cascade must stop widening immediately.
+  await markCampaignFilled(shiftId, { actorId: session.user.id });
+
   await notifyWorkersOfAssignment({
     shift,
     selectedWorkerId: workerId,
@@ -174,6 +177,13 @@ export async function cancelShift(shiftId: string) {
       },
     }),
   ]);
+
+  // A cancelled shift must not keep escalating. The campaign service allows this
+  // even though the shift is no longer OPEN.
+  await db.calloutCampaign.updateMany({
+    where: { shiftId, status: { in: ["RUNNING", "PAUSED"] } },
+    data: { status: "CANCELLED", endedAt: new Date() },
+  });
 
   revalidatePath(`/admin/shifts/${shiftId}`);
   revalidatePath("/admin/shifts");

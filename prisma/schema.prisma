@@ -37,6 +37,8 @@ enum NotificationType {
   BID_SELECTED
   BID_NOT_SELECTED
   SHIFT_CANCELLED
+  CALLOUT_ESCALATED
+  CALLOUT_REMINDER
 }
 
 enum AvailabilityStatus {
@@ -63,6 +65,17 @@ enum DeliveryStatus {
 enum OutreachResponse {
   ACCEPTED
   DECLINED
+}
+
+/// Lifecycle of a tiered callout cascade. Postgres - not Inngest - is the source
+/// of truth: a scheduler "stop" writes CANCELLED here and any running engine step
+/// re-reads this and no-ops, which is what keeps the engine swappable.
+enum CampaignStatus {
+  RUNNING
+  PAUSED
+  CANCELLED
+  FILLED
+  EXHAUSTED
 }
 
 model User {
@@ -171,6 +184,7 @@ model Shift {
   notifications    Notification[]
   activities       ShiftActivity[]
   outreachAttempts OutreachAttempt[]
+  campaign         CalloutCampaign?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -246,14 +260,53 @@ model OutreachAttempt {
   userId            String
   user              User              @relation(fields: [userId], references: [id])
   channel           Channel
+  /// Cascade tier this attempt belongs to (1-3). 0 = untiered outreach, i.e. a
+  /// direct dispatch outside a CalloutCampaign.
+  tier              Int               @default(0)
   status            DeliveryStatus    @default(QUEUED)
   response          OutreachResponse?
   providerMessageId String?
   respondedAt       DateTime?
   createdAt         DateTime          @default(now())
 
+  /// Idempotency key for the cascade: re-running a tier must never re-contact
+  /// someone the tier already reached on that channel.
+  @@unique([shiftId, tier, userId, channel])
   @@index([shiftId])
   @@index([providerMessageId])
+}
+
+/// One tiered callout cascade per shift. Holds the authoritative campaign state
+/// that both the scheduler controls and the Inngest engine read and write.
+model CalloutCampaign {
+  id      String @id @default(cuid())
+  shiftId String @unique
+  shift   Shift  @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+
+  currentTier Int            @default(1)
+  status      CampaignStatus @default(RUNNING)
+
+  /// How long each tier stays open before the cascade widens. Per-campaign so a
+  /// scheduler-configurable or department-specific policy can vary them later.
+  tier1WindowMinutes Int @default(15)
+  tier2WindowMinutes Int @default(20)
+  tier3WindowMinutes Int @default(30)
+
+  startedAt      DateTime  @default(now())
+  tier1EnteredAt DateTime?
+  tier2EnteredAt DateTime?
+  tier3EnteredAt DateTime?
+  filledAt       DateTime?
+  endedAt        DateTime?
+
+  /// Set once when the shift start passes with the shift still unfilled. We raise
+  /// a scheduler reminder instead of auto-expiring the callout.
+  pastStartReminderAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
 }
 
 model AuditLog {

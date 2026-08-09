@@ -6,7 +6,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
  */
 const dbMock = vi.hoisted(() => ({
   notification: { create: vi.fn().mockResolvedValue({}) },
-  outreachAttempt: { create: vi.fn().mockResolvedValue({}) },
+  outreachAttempt: {
+    findMany: vi.fn().mockResolvedValue([]),
+    upsert: vi.fn().mockResolvedValue({}),
+  },
 }));
 vi.mock("@/lib/db", () => ({ db: dbMock }));
 
@@ -92,7 +95,7 @@ describe("dispatchOutreach without credentials", () => {
     expect(dbMock.notification.create).toHaveBeenCalledTimes(1);
 
     // One OutreachAttempt per applicable channel (verified phone => all four).
-    const rows = dbMock.outreachAttempt.create.mock.calls.map((c) => c[0].data);
+    const rows = dbMock.outreachAttempt.upsert.mock.calls.map((c) => c[0].create);
     const byChannel = Object.fromEntries(rows.map((r) => [r.channel, r]));
 
     expect(byChannel.IN_APP.status).toBe("DELIVERED");
@@ -111,7 +114,9 @@ describe("dispatchOutreach without credentials", () => {
       phoneVerifiedAt: null,
     };
     await dispatchOutreach(ctx.shift, [unverified]);
-    const channels = dbMock.outreachAttempt.create.mock.calls.map((c) => c[0].data.channel).sort();
+    const channels = dbMock.outreachAttempt.upsert.mock.calls
+      .map((c) => c[0].create.channel)
+      .sort();
     expect(channels).toEqual(["EMAIL", "IN_APP"]);
   });
 });
