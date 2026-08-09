@@ -1,6 +1,7 @@
 /**
  * Multi-channel outreach dispatcher. Given a shift, it reaches a set of staff
- * across in-app, email, SMS, and voice, recording an OutreachAttempt row per
+ * across in-app, SMS, and voice (email is currently disabled, see
+ * {@link EMAIL_CHANNEL_ENABLED}), recording an OutreachAttempt row per
  * attempt. Credential-free channels simply skip (see each channel).
  *
  * Phase 4 added the `tier` dimension: the escalation cascade dispatches one tier
@@ -20,8 +21,21 @@ export { submitBid } from "./accept";
 
 const APP_URL = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
 
-/** Channel order is cosmetic here (no tiering): in-app + email always fire. */
-const CHANNELS: OutreachChannel[] = [inAppChannel, emailChannel, smsChannel, voiceChannel];
+/**
+ * Email is disabled for shift outreach. The channel implementation and its
+ * templates are kept intact (src/lib/outreach/email.ts, src/lib/email.ts) so
+ * re-enabling is this one-line flip back to `true`. It also drives what the
+ * fill dashboard shows, so historical email attempts stay hidden while off.
+ */
+export const EMAIL_CHANNEL_ENABLED = false;
+
+/** Channel order is cosmetic here (no tiering): in-app always fires. */
+const CHANNELS: OutreachChannel[] = [
+  inAppChannel,
+  ...(EMAIL_CHANNEL_ENABLED ? [emailChannel] : []),
+  smsChannel,
+  voiceChannel,
+];
 
 /** Untiered outreach - a direct dispatch that is not part of a cascade. */
 export const NO_TIER = 0;

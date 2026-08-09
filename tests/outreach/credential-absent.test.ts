@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 /**
  * Hard constraint: with NO Twilio env vars the app must keep working. SMS/voice
- * sends are skipped (no throw, no network) while email + in-app still fire.
+ * sends are skipped (no throw, no network) while in-app still fires.
  */
 const dbMock = vi.hoisted(() => ({
   notification: { create: vi.fn().mockResolvedValue({}) },
@@ -88,25 +88,26 @@ describe("SMS/voice channels skip without credentials", () => {
 });
 
 describe("dispatchOutreach without credentials", () => {
-  it("still records email + in-app, and records SMS/voice as skipped QUEUED", async () => {
+  it("still records in-app, and records SMS/voice as skipped QUEUED", async () => {
     await dispatchOutreach(ctx.shift, [ctx.recipient]);
 
     // In-app notification still written.
     expect(dbMock.notification.create).toHaveBeenCalledTimes(1);
 
-    // One OutreachAttempt per applicable channel (verified phone => all four).
+    // One OutreachAttempt per applicable channel (verified phone => all three;
+    // email is disabled, see EMAIL_CHANNEL_ENABLED).
     const rows = dbMock.outreachAttempt.upsert.mock.calls.map((c) => c[0].create);
     const byChannel = Object.fromEntries(rows.map((r) => [r.channel, r]));
 
     expect(byChannel.IN_APP.status).toBe("DELIVERED");
-    expect(byChannel.EMAIL.status).toBe("SENT");
+    expect(byChannel.EMAIL).toBeUndefined();
     // Skipped sends are recorded QUEUED with no provider id.
     expect(byChannel.SMS.status).toBe("QUEUED");
     expect(byChannel.SMS.providerMessageId).toBeNull();
     expect(byChannel.VOICE.status).toBe("QUEUED");
   });
 
-  it("only records email + in-app for a recipient with an unverified phone", async () => {
+  it("only records in-app for a recipient with an unverified phone", async () => {
     const unverified = {
       ...ctx.recipient,
       id: "worker-2",
@@ -117,6 +118,6 @@ describe("dispatchOutreach without credentials", () => {
     const channels = dbMock.outreachAttempt.upsert.mock.calls
       .map((c) => c[0].create.channel)
       .sort();
-    expect(channels).toEqual(["EMAIL", "IN_APP"]);
+    expect(channels).toEqual(["IN_APP"]);
   });
 });
