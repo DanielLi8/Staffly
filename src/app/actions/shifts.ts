@@ -4,9 +4,12 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { differenceInHours } from "date-fns";
+import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
-import { notifyWorkersOfNewShift, notifyWorkersOfAssignment } from "@/lib/notifications";
+import { notifyWorkersOfAssignment } from "@/lib/notifications";
+import { outreachForNewShift } from "@/lib/outreach";
+import { generateShiftCode } from "@/lib/outreach/codes";
 
 const createShiftSchema = z.object({
   unit: z.string().min(1, "Unit is required"),
@@ -20,6 +23,34 @@ const createShiftSchema = z.object({
 });
 
 export type CreateShiftInput = z.infer<typeof createShiftSchema>;
+
+/**
+ * Create a shift with a unique short `smsCode` used by inbound SMS replies.
+ * Retries on the (astronomically unlikely) unique-collision so posting is never
+ * blocked by a code clash.
+ */
+async function createShiftWithUniqueCode(
+  data: Omit<Prisma.ShiftUncheckedCreateInput, "smsCode">
+) {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      return await db.shift.create({
+        data: { ...data, smsCode: generateShiftCode() },
+      });
+    } catch (err) {
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === "P2002" &&
+        attempt < 4
+      ) {
+        continue;
+      }
+      throw err;
+    }
+  }
+  // Unreachable: the loop either returns or throws.
+  throw new Error("Could not allocate a unique shift code");
+}
 
 export async function createShift(rawInput: unknown) {
   const session = await requireAuth("SCHEDULER");
@@ -40,20 +71,18 @@ export async function createShift(rawInput: unknown) {
 
   const title = `${dept.name} (${dept.code}) – ${data.roleNeeded}`;
 
-  const shift = await db.shift.create({
-    data: {
-      title,
-      unit: data.unit,
-      departmentId: data.departmentId,
-      roleNeeded: data.roleNeeded,
-      location: data.location,
-      startsAt: data.startsAt,
-      endsAt: data.endsAt,
-      bidDeadlineAt: data.bidDeadlineAt,
-      notes: data.notes,
-      status: "OPEN",
-      createdById: session.user.id,
-    },
+  const shift = await createShiftWithUniqueCode({
+    title,
+    unit: data.unit,
+    departmentId: data.departmentId,
+    roleNeeded: data.roleNeeded,
+    location: data.location,
+    startsAt: data.startsAt,
+    endsAt: data.endsAt,
+    bidDeadlineAt: data.bidDeadlineAt,
+    notes: data.notes,
+    status: "OPEN",
+    createdById: session.user.id,
   });
 
   await db.shiftActivity.create({
@@ -65,12 +94,10 @@ export async function createShift(rawInput: unknown) {
     },
   });
 
-  const workers = await db.user.findMany({
-    where: { role: "STAFF" },
-    select: { id: true, name: true, email: true },
-  });
-
-  await notifyWorkersOfNewShift(shift, workers);
+  // Targeted, tracked multi-channel outreach to eligible staff in this shift's
+  // department (replaces the old blast to every worker). Records OutreachAttempt
+  // rows; SMS/voice are skipped without Twilio credentials.
+  await outreachForNewShift(shift.id);
 
   revalidatePath("/admin/shifts");
   revalidatePath("/admin");

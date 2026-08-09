@@ -10,6 +10,14 @@ This file is the project's committed home for project-intrinsic agent knowledge:
 - Authorization layer lives in `src/lib/authz/` and is pure (no DB/session) so it is unit-testable. `shiftReadScope(actor)` returns a `Prisma.ShiftWhereInput`; `shiftListWhere(actor, callerFilter)` AND-s the scope in **unconditionally** so a caller filter can never widen it. Any new schedule/shift-list query MUST go through `shiftListWhere` - this is the security boundary, enforced at the data layer, not the UI. Access-control tests: `tests/authz/`.
 - Build `Actor` from a session with `actorFromSession`/`requireActor` in `src/lib/auth.ts`. Role→home routing lives in `src/middleware.ts` (`homeFor`) and `src/app/page.tsx`.
 
+## Multi-channel outreach (Phase 3)
+
+- All outreach lives in `src/lib/outreach/`. Channels (`sms.ts`/`voice.ts`/`email.ts`/`inapp.ts`) implement the `OutreachChannel` interface (`types.ts`); the dispatcher (`index.ts`) runs every applicable channel per recipient and records one `OutreachAttempt` row each. Wired into `createShift` via `outreachForNewShift(shiftId)`, which targets STAFF with a `DepartmentMembership` in the shift's department (not all staff).
+- **Single accept path:** `submitBid()` in `src/lib/outreach/accept.ts` is the ONLY place a `ShiftBid` is created/updated + the scheduler notified. In-app `placeBid`, inbound SMS, and IVR all funnel through it. Acceptances are always bids (PENDING), never instant assignments.
+- **Credential-optional:** every Twilio touchpoint no-ops without env vars (mirrors `src/lib/email.ts`, which builds its Resend client lazily for the same reason). `isTwilioConfigured()`/`getTwilioClient()` in `twilio.ts` gate sending; SMS/voice only fire for a number with `phoneVerifiedAt` set (Twilio Verify at `/profile`).
+- **Webhooks** (`src/app/api/webhooks/twilio/*`): public + unauthenticated. Already excluded from the NextAuth `middleware` matcher (it only lists `/admin|/clerk|/worker|/profile`). EVERY handler MUST call `readVerifiedTwilioForm` (validates `X-Twilio-Signature`, fails closed → 403) before any DB write. `TWILIO_AUTH_TOKEN` stays server-only. Signature URL is rebuilt from `webhookBaseUrl()` (not the proxied host) so it matches the callback URLs we hand Twilio.
+- Inbound SMS resolves sender phone → verified `User`, parses a reply code (`codes.ts`: `YES <code>`=FULL, `PART <code>`=PARTIAL, bare code=FULL; carrier keywords handled) against `Shift.smsCode`. IVR pins shiftId+userId via signed query params. Tests: `tests/outreach/`.
+
 ## Local dev / verification
 
 - `docker-compose up -d` (Postgres), copy `.env.example` → `.env`, `pnpm install`, `pnpm prisma migrate deploy`, `pnpm prisma db seed`. Demo accounts printed by the seed; `clerk@staffly.com / clerk123` is the read-only Emergency clerk.

@@ -94,6 +94,10 @@ async function main() {
         hospitalId: hospital.id,
         hireDate: new Date("2016-06-01"),
         seniorityRank: 1,
+        // Demo: a verified number so new-shift outreach records SMS/voice attempts
+        // (skipped without Twilio creds, but visible in the OutreachAttempt table).
+        phone: "+14165550101",
+        phoneVerifiedAt: new Date("2026-07-01"),
       },
     }),
     prisma.user.create({
@@ -131,6 +135,8 @@ async function main() {
         position: "Personal Support Worker",
         hospitalId: hospital.id,
         hireDate: new Date("2021-08-05"),
+        phone: "+14165550104",
+        phoneVerifiedAt: new Date("2026-07-05"),
       },
     }),
     prisma.user.create({
@@ -166,6 +172,7 @@ async function main() {
       unit: "4B",
       departmentId: deptER.id,
       roleNeeded: "Registered Nurse",
+      smsCode: "ER4B",
       location: "St. Michael's Hospital – 30 Bond St.",
       startsAt: shift1Start,
       endsAt: addHours(shift1Start, 8),
@@ -265,6 +272,7 @@ async function main() {
       unit: "5C",
       departmentId: deptMED.id,
       roleNeeded: "Registered Nurse",
+      smsCode: "MD5C",
       location: "St. Joseph's Health Centre – 30 The Queensway",
       startsAt: shift3Start,
       endsAt: addHours(shift3Start, 8),

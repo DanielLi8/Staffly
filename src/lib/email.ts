@@ -1,6 +1,5 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM = process.env.EMAIL_FROM ?? "Staffly <noreply@staffly.com>";
 
 export interface EmailPayload {
@@ -9,8 +8,18 @@ export interface EmailPayload {
   html: string;
 }
 
+// Construct the client lazily: the Resend constructor throws without a key, so
+// building it eagerly would crash any module that imports this one in the
+// credential-free demo. Built only when a key is present.
+function getResend(): Resend | null {
+  const key = process.env.RESEND_API_KEY;
+  if (!key) return null;
+  return new Resend(key);
+}
+
 export async function sendEmail(payload: EmailPayload): Promise<void> {
-  if (!process.env.RESEND_API_KEY) {
+  const resend = getResend();
+  if (!resend) {
     console.warn("[email] RESEND_API_KEY not set — skipping email send.");
     return;
   }
