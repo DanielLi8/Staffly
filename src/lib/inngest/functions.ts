@@ -7,6 +7,11 @@
  * scheduler's hold/stop/advance - or a fill arriving by SMS - is honoured on the
  * very next step no matter what this function believed a minute ago.
  *
+ * That durability is what the posting delay rests on. The FIRST wait of a fresh
+ * campaign is the ~1 minute before tier-1 outreach may go out; Inngest holds it
+ * across a restart or a finished serverless invocation, and the shift being
+ * pulled inside it means nobody is ever contacted.
+ *
  * Swapping Inngest for another scheduler means reimplementing this file and
  * nothing else.
  */
@@ -25,13 +30,15 @@ import { CALLOUT_CONTROL_EVENT, CALLOUT_STARTED_EVENT, getInngest } from "./clie
 const MAX_ITERATIONS = 64;
 
 /** Bound on how long a single wait may block, so a held campaign still re-checks. */
-const MAX_WAIT_MINUTES = 60;
+const MAX_WAIT_SECONDS = 60 * 60;
 
 interface CascadeSnapshot {
   status: string;
   shiftStatus: string;
   tierEnteredAt: string | null;
   windowMinutes: number;
+  /** Set while the opening outreach is still held back; see CampaignState. */
+  dispatchDueAt: string | null;
 }
 
 /** Read the authoritative campaign state, flattened for a durable step result. */
@@ -44,16 +51,24 @@ async function readSnapshot(shiftId: string): Promise<CascadeSnapshot | null> {
     shiftStatus: campaign.shift.status,
     tierEnteredAt: state.tierEnteredAt ? state.tierEnteredAt.toISOString() : null,
     windowMinutes: windowMinutesForTier(campaign, campaign.currentTier),
+    dispatchDueAt: state.dispatchDueAt ? state.dispatchDueAt.toISOString() : null,
   };
 }
 
-/** Minutes left in the current tier window, clamped into a sane wait range. */
-function remainingWindowMinutes(snapshot: CascadeSnapshot): number {
-  const elapsedMs = snapshot.tierEnteredAt
-    ? Date.now() - new Date(snapshot.tierEnteredAt).getTime()
-    : 0;
-  const remaining = Math.ceil(snapshot.windowMinutes - elapsedMs / 60_000);
-  return Math.max(1, Math.min(MAX_WAIT_MINUTES, remaining));
+/**
+ * How long the next durable wait should be, in seconds.
+ *
+ * Before anyone has been contacted that is whatever is left of the posting
+ * delay - THE thing that makes the delay real, because Inngest owns the clock
+ * and hands it back after a restart. After that it is the rest of the current
+ * tier window. Both are clamped so a held campaign still re-checks periodically.
+ */
+function nextWaitSeconds(snapshot: CascadeSnapshot): number {
+  const remainingMs = snapshot.dispatchDueAt
+    ? new Date(snapshot.dispatchDueAt).getTime() - Date.now()
+    : snapshot.windowMinutes * 60_000 -
+      (snapshot.tierEnteredAt ? Date.now() - new Date(snapshot.tierEnteredAt).getTime() : 0);
+  return Math.max(1, Math.min(MAX_WAIT_SECONDS, Math.ceil(remainingMs / 1000)));
 }
 
 export function calloutCascadeFunction() {
@@ -85,19 +100,20 @@ export function calloutCascadeFunction() {
           return { shiftId, outcome: `halted:${snapshot.status}` };
         }
 
-        // 2. Wait out what remains of this tier's window, but wake early on any
-        //    control event (fill / manual advance / hold / stop). The timeout IS
-        //    the tier window - racing the wait against it, rather than sleeping
-        //    blindly first, is what lets a mid-window stop take effect at once.
+        // 2. Wait out the posting delay, or what remains of this tier's window,
+        //    but wake early on any control event (fill / manual advance / hold /
+        //    stop). The timeout IS the deadline - racing the wait against it,
+        //    rather than sleeping blindly first, is what lets a stop inside the
+        //    posting delay take effect before a single message is sent.
         await step.waitForEvent(`await-control-${i}`, {
           event: CALLOUT_CONTROL_EVENT,
-          timeout: `${remainingWindowMinutes(snapshot)}m`,
+          timeout: `${nextWaitSeconds(snapshot)}s`,
           match: "data.shiftId",
         });
 
         // 3. Decide and apply against freshly-read state. A control event that
         //    arrived early simply means we re-evaluate sooner; the pure decision
-        //    function still says WAIT if the window has not actually elapsed.
+        //    function still says WAIT if the deadline has not actually passed.
         const decision = await step.run(`step-${i}`, () => stepCampaign(shiftId));
         if (!decision) return { shiftId, outcome: "no-campaign" };
         if (

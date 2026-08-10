@@ -94,9 +94,9 @@ export async function createShift(rawInput: unknown) {
     },
   });
 
-  // Open the tiered callout cascade. Tier-1 outreach fires synchronously inside
-  // this call, so posting a shift reaches available department staff even with
-  // no Inngest account; Inngest only takes over the timed widening after that.
+  // Open the tiered callout cascade. Outreach is deliberately NOT sent here:
+  // the campaign records when tier 1 falls due (~1 minute out) and Inngest's
+  // durable timer sends it, so a shift pulled inside that window reaches nobody.
   await startCalloutCampaign(shift.id);
 
   revalidatePath("/admin/shifts");
