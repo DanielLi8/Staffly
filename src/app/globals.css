@@ -41,14 +41,6 @@
     @apply bg-white rounded-xl border border-neutral-200/80 shadow-card;
   }
 
-  .nav-link {
-    @apply text-sm font-medium text-neutral-600 hover:text-primary-700 transition-colors pb-3 border-b-2 border-transparent -mb-px;
-  }
-
-  .nav-link-active {
-    @apply text-primary-700 border-primary-700;
-  }
-
   .status-open {
     @apply bg-primary-50 text-primary-800 border-primary-200;
   }
