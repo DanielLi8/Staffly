@@ -4,7 +4,7 @@ Hospital callout coverage staffing platform. Administrators post urgent shifts, 
 
 ## Live demo
 
-**Try it:** [Open the portal (sign in)](https://staffly-k01w5z9ts-danielli8s-projects.vercel.app/worker](https://staffly-gamma.vercel.app/))
+**Try it:** [Open the portal (sign in)](https://staffly-gamma.vercel.app/)
 
 Use the demo accounts below. Choose **Staff Member** or **Administrator** on the login page to match the account role.
 
