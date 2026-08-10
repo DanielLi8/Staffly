@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ShiftStatusBadge, BidStatusBadge } from "@/components/ui/badge";
 import { BidForm } from "@/features/shifts/bid-form";
 import { db } from "@/lib/db";
-import { getSession } from "@/lib/auth";
+import { getSession, actorFromSession } from "@/lib/auth";
+import { workerAvailableShiftWhere } from "@/lib/authz";
 import { formatShiftDate, formatShiftRange } from "@/lib/utils";
 
 export async function generateMetadata({ params }: { params: { id: string } }) {
@@ -19,8 +20,8 @@ export default async function WorkerShiftDetailPage({ params }: { params: { id: 
   if (!session) redirect("/login");
 
   const [shift, existingBid] = await Promise.all([
-    db.shift.findUnique({
-      where: { id: params.id },
+    db.shift.findFirst({
+      where: { AND: [workerAvailableShiftWhere(actorFromSession(session)), { id: params.id }] },
       include: {
         createdBy: { select: { name: true } },
         department: { select: { id: true, name: true, code: true } },

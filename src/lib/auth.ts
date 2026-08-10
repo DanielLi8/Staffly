@@ -5,6 +5,7 @@ import { db } from "./db";
 import { getServerSession } from "next-auth";
 import type { Role } from "@prisma/client";
 import type { Actor } from "./authz";
+import { loginThrottle } from "./login-throttle";
 
 // Fail fast with an actionable message. Left to NextAuth's own handling, a
 // missing/empty secret doesn't crash - it silently auto-derives a dev secret
@@ -28,19 +29,34 @@ export const authOptions: NextAuthOptions = {
         portalRole: { label: "Portal role", type: "text" },
         remember: { label: "Remember", type: "text" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, request) {
         if (!credentials?.email || !credentials?.password) return null;
+
+        const forwardedFor = request.headers?.["x-forwarded-for"]?.split(",")[0]?.trim();
+        const key = `${forwardedFor || "unknown"}:${credentials.email.toLowerCase()}`;
+        if (!loginThrottle.isAllowed(key)) return null;
 
         const user = await db.user.findUnique({
           where: { email: credentials.email },
         });
-        if (!user) return null;
+        if (!user) {
+          loginThrottle.recordFailure(key);
+          return null;
+        }
 
         const isValid = await bcrypt.compare(credentials.password, user.password);
-        if (!isValid) return null;
+        if (!isValid) {
+          loginThrottle.recordFailure(key);
+          return null;
+        }
 
         const portal = credentials.portalRole as Role | undefined;
-        if (portal && user.role !== portal) return null;
+        if (portal && user.role !== portal) {
+          loginThrottle.recordFailure(key);
+          return null;
+        }
+
+        loginThrottle.reset(key);
 
         return {
           id: user.id,

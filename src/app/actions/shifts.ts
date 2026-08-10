@@ -92,7 +92,7 @@ export async function createShift(rawInput: unknown): Promise<CreateShiftFailure
   }
   const data = parsed.data;
 
-  const timeErrors = validateShiftTimes(data);
+  const timeErrors = validateShiftTimes(data, new Date());
   if (Object.keys(timeErrors).length > 0) {
     return failure(timeErrors);
   }

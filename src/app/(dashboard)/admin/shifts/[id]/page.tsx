@@ -11,6 +11,7 @@ import { getSession } from "@/lib/auth";
 import { loadFillDashboard } from "@/lib/callout/dashboard";
 import { formatShiftDate, formatShiftRange, formatDate } from "@/lib/utils";
 import { CancelShiftButton } from "./cancel-shift-button";
+import { canCancelShift } from "@/lib/shift-status";
 
 export async function generateMetadata({ params }: { params: { id: string } }) {
   const shift = await db.shift.findUnique({ where: { id: params.id }, select: { title: true } });
@@ -67,7 +68,7 @@ export default async function AdminShiftDetailPage({ params }: { params: { id: s
             Unit {shift.unit} · {shift.department.name} · Posted by {shift.createdBy.name}
           </p>
         </div>
-        {shiftOpen && <CancelShiftButton shiftId={shift.id} />}
+        {canCancelShift(shift.status) && <CancelShiftButton shiftId={shift.id} />}
       </div>
 
       {/* Live fill dashboard - full width: it is the scheduler's primary surface

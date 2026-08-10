@@ -106,9 +106,6 @@ export function LoginForm() {
           <label htmlFor="password" className="text-[11px] font-bold uppercase tracking-wide text-neutral-500">
             Password
           </label>
-          <button type="button" className="text-xs text-blue-600 hover:underline">
-            Forgot Password?
-          </button>
         </div>
         <div className="relative mt-1.5">
           <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" aria-hidden />

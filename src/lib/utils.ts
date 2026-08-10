@@ -1,6 +1,7 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { format, formatDistanceToNow, isToday, isTomorrow } from "date-fns";
+import { formatDistanceToNow } from "date-fns";
+import { hospitalCalendarDay, hospitalDate, hospitalDateLong, hospitalDateTime, hospitalTime } from "./timezone";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -8,13 +9,16 @@ export function cn(...inputs: ClassValue[]) {
 
 export function formatShiftDate(date: Date | string): string {
   const d = new Date(date);
-  if (isToday(d)) return `Today, ${format(d, "h:mm a")}`;
-  if (isTomorrow(d)) return `Tomorrow, ${format(d, "h:mm a")}`;
-  return format(d, "EEE, MMM d · h:mm a");
+  const today = hospitalDate(new Date());
+  const tomorrow = hospitalDate(new Date(Date.now() + 86400000));
+  const day = hospitalDate(d);
+  if (day === today) return `Today, ${hospitalTime(d)}`;
+  if (day === tomorrow) return `Tomorrow, ${hospitalTime(d)}`;
+  return hospitalDateTime(d).replace(", ", ", ") .replace(" at ", " · ");
 }
 
 export function formatShiftRange(start: Date | string, end: Date | string): string {
-  return `${format(new Date(start), "h:mm a")} – ${format(new Date(end), "h:mm a")}`;
+  return `${hospitalTime(start)} – ${hospitalTime(end)}`;
 }
 
 export function formatRelative(date: Date | string): string {
@@ -22,15 +26,15 @@ export function formatRelative(date: Date | string): string {
 }
 
 export function formatDate(date: Date | string): string {
-  return format(new Date(date), "MMM d, yyyy");
+  return hospitalDateLong(date);
 }
 
 export function formatCalendarDay(date: Date | string): string {
-  return format(new Date(date), "EEEE, MMMM d");
+  return hospitalCalendarDay(date);
 }
 
 export function formatTimeRange(start: Date | string, end: Date | string): string {
-  return `${format(new Date(start), "HH:mm")} - ${format(new Date(end), "HH:mm")}`;
+  return `${hospitalTime(start, false)} - ${hospitalTime(end, false)}`;
 }
 
 export function getInitials(name: string): string {

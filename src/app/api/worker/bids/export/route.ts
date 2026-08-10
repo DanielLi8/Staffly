@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { format } from "date-fns";
+import { hospitalDate, hospitalTime } from "@/lib/timezone";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { getBidUiStatus } from "@/lib/bid-display";
+import { csvCell } from "@/lib/csv";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -31,12 +32,12 @@ export async function GET() {
             ? "Not Selected"
             : "Pending";
     return [
-      `"${b.shift.department.name.replace(/"/g, '""')}"`,
-      `"${b.shift.roleNeeded.replace(/"/g, '""')}"`,
-      format(b.shift.startsAt, "yyyy-MM-dd"),
-      format(b.shift.startsAt, "HH:mm"),
-      format(b.shift.endsAt, "HH:mm"),
-      status,
+      csvCell(b.shift.department.name),
+      csvCell(b.shift.roleNeeded),
+      csvCell(hospitalDate(b.shift.startsAt)),
+      csvCell(hospitalTime(b.shift.startsAt, false)),
+      csvCell(hospitalTime(b.shift.endsAt, false)),
+      csvCell(status),
     ].join(",");
   });
 

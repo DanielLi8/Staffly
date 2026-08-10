@@ -1,5 +1,5 @@
 import { Channel } from "@prisma/client";
-import { format } from "date-fns";
+import { hospitalDateTime } from "@/lib/timezone";
 import { db } from "@/lib/db";
 import type { OutreachChannel, OutreachContext } from "./types";
 
@@ -13,7 +13,7 @@ export const inAppChannel: OutreachChannel = {
     return true;
   },
   async send({ shift, recipient }: OutreachContext) {
-    const when = format(shift.startsAt, "EEE, MMM d · h:mm a");
+        const when = hospitalDateTime(shift.startsAt);
     await db.notification.create({
       data: {
         userId: recipient.id,

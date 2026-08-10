@@ -61,6 +61,19 @@ describe("validateShiftTimes", () => {
       validateShiftTimes({ ...valid, bidDeadlineAt: subHours(start, 4) })
     ).toEqual({});
   });
+
+  it("rejects a deadline that has passed even when the shift is in the future", () => {
+    expect(
+      validateShiftTimes(
+        {
+          startsAt: new Date("2026-08-12T18:00:00Z"),
+          endsAt: new Date("2026-08-13T02:00:00Z"),
+          bidDeadlineAt: new Date("2026-08-10T11:59:00Z"),
+        },
+        new Date("2026-08-10T12:00:00Z")
+      ).bidDeadlineAt
+    ).toBe(SHIFT_TIME_MESSAGES.deadlineInPast);
+  });
 });
 
 describe("parseTimeInput", () => {

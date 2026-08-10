@@ -1,4 +1,4 @@
-import { format } from "date-fns";
+import { hospitalDate, hospitalTime } from "@/lib/timezone";
 
 /**
  * Typeable clock-time entry for the shift form. Native `datetime-local` inputs
@@ -41,12 +41,12 @@ export function parseTimeInput(value: string): ParsedTime | null {
 
 /** Renders a Date as the AM/PM text the time inputs expect (`7:00 AM`). */
 export function formatTimeInput(date: Date): string {
-  return format(date, "h:mm a");
+  return hospitalTime(date);
 }
 
 /** Renders a Date as the `yyyy-MM-dd` value a native date input expects. */
 export function formatDateInput(date: Date): string {
-  return format(date, "yyyy-MM-dd");
+  return hospitalDate(date);
 }
 
 /**

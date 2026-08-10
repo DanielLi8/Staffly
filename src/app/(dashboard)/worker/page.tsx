@@ -1,14 +1,16 @@
 import Link from "next/link";
 import { Clock } from "lucide-react";
 import { db } from "@/lib/db";
-import { getSession } from "@/lib/auth";
+import { getSession, actorFromSession } from "@/lib/auth";
+import { workerAvailableShiftWhere } from "@/lib/authz";
 import { redirect } from "next/navigation";
 import { shiftCardInclude } from "@/lib/shift-include";
 import type { ShiftWithRelations } from "@/types";
-import { endOfWeek, format, startOfWeek } from "date-fns";
+import { endOfWeek, startOfWeek } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
 import { getBidUiStatus } from "@/lib/bid-display";
 import { cn } from "@/lib/utils";
+import { hospitalCalendarDay, hospitalTime } from "@/lib/timezone";
 
 export const metadata = { title: "Staffly Portal – Dashboard" };
 
@@ -22,7 +24,7 @@ export default async function WorkerDashboardPage() {
 
   const [openShifts, myBids, scheduledWeek, notifications] = await Promise.all([
     db.shift.findMany({
-      where: { status: "OPEN" },
+      where: workerAvailableShiftWhere(actorFromSession(session)),
       orderBy: { startsAt: "asc" },
       take: 6,
       include: shiftCardInclude,
@@ -119,7 +121,7 @@ export default async function WorkerDashboardPage() {
                       className="rounded-xl border border-neutral-200/80 bg-white p-3 shadow-sm"
                     >
                       <p className="text-xs font-semibold text-neutral-800">
-                        {bid.shift.department.code} · {format(bid.shift.startsAt, "MMM d")}
+                        {bid.shift.department.code} · {hospitalCalendarDay(bid.shift.startsAt)}
                       </p>
                       <div className="flex items-center gap-1.5 mt-2">
                         <span
@@ -186,9 +188,9 @@ function WorkerShiftHighlight({ shift }: { shift: ShiftWithRelations }) {
       <p className="font-semibold text-neutral-900">{shift.roleNeeded}</p>
       <p className="text-xs text-neutral-500 mt-0.5">Internal shift</p>
       <div className="flex gap-4 mt-3 text-sm text-neutral-600">
-        <span>{format(shift.startsAt, "EEEE, MMM d")}</span>
+        <span>{hospitalCalendarDay(shift.startsAt)}</span>
         <span>
-          {format(shift.startsAt, "HH:mm")} – {format(shift.endsAt, "HH:mm")}
+          {hospitalTime(shift.startsAt, false)} – {hospitalTime(shift.endsAt, false)}
         </span>
       </div>
       <div className="flex gap-3 mt-4">
