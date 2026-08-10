@@ -143,7 +143,7 @@ describe("the delay elapses and the outreach goes out", () => {
     const decision = await stepCampaign(state.shift.id, around(0));
 
     expect(decision?.action).toBe("DISPATCH");
-    expect(state.attempts.map((a) => a.userId)).toEqual(["tier1-nurse", "tier1-nurse"]);
+    expect(state.attempts.map((a) => a.userId)).toEqual(["tier1-nurse"]);
     expect(state.attempts.every((a) => a.tier === 1)).toBe(true);
     // The tier-1 window starts when the outreach actually went out, not at post.
     expect(state.campaign?.tier1EnteredAt).toBeInstanceOf(Date);
@@ -171,7 +171,7 @@ describe("the delay elapses and the outreach goes out", () => {
     await stepCampaign(state.shift.id, around(0));
 
     expect(state.campaign?.currentTier).toBe(2);
-    expect(state.attempts.map((a) => a.userId)).toEqual(["tier2-nurse", "tier2-nurse"]);
+    expect(state.attempts.map((a) => a.userId)).toEqual(["tier2-nurse"]);
   });
 });
 
