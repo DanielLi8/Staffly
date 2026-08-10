@@ -6,7 +6,8 @@
  * Inngest engine is a caller like any other; a scheduler pressing "Stop" writes
  * CANCELLED and the next engine step reads that and no-ops. Consequently the
  * whole cascade - posting, tier-1 outreach, advance, hold, stop - works with no
- * Inngest account. What Inngest adds is the timer, nothing more.
+ * Inngest account. What Inngest adds is the timers, nothing more: the posting
+ * delay before tier 1, and the tier windows after it.
  *
  * The policy this file leans on is pure and tested elsewhere:
  *   - who is in which tier: ./tiers
@@ -17,12 +18,25 @@ import { db } from "@/lib/db";
 import { dispatchOutreach, loadOutreachShift } from "@/lib/outreach";
 import type { OutreachRecipient } from "@/lib/outreach/types";
 import { notifySchedulerOfCallout } from "@/lib/notifications";
-import { sendCalloutEvent } from "@/lib/inngest/client";
+import { isInngestConfigured, sendCalloutEvent } from "@/lib/inngest/client";
 import { buildTierRoster, nextTier, MAX_TIER, type Tier, type TierCandidate } from "./tiers";
 import { decideNextStep, type CampaignDecision, type CampaignState } from "./decide";
 
 /** Statuses from which no further escalation may happen. */
 const TERMINAL: CampaignStatus[] = ["CANCELLED", "FILLED", "EXHAUSTED"];
+
+/**
+ * How long a freshly posted shift sits before ANY outreach leaves the building.
+ *
+ * Deliberate, not incidental: an SMS and an automated phone call are things you
+ * cannot take back, and a shift is most likely to be corrected or pulled in the
+ * seconds right after it is posted. The delay buys the scheduler that window.
+ *
+ * It is enforced by a DURABLE timer (Inngest), never an in-process one, so a
+ * serverless invocation ending - or the box restarting - cannot lose it. See
+ * `startCalloutCampaign` for what happens with no Inngest account.
+ */
+export const TIER1_DISPATCH_DELAY_SECONDS = 60;
 
 export interface CampaignActor {
   /** Who to attribute the activity entry to. */
@@ -81,6 +95,7 @@ export async function loadCampaignSnapshot(shiftId: string) {
 export function toCampaignState(campaign: {
   status: CampaignStatus;
   currentTier: number;
+  tier1DispatchAt: Date | null;
   tier1EnteredAt: Date | null;
   tier2EnteredAt: Date | null;
   tier3EnteredAt: Date | null;
@@ -94,6 +109,7 @@ export function toCampaignState(campaign: {
     currentTier: campaign.currentTier,
     tierEnteredAt: tierEnteredAt(campaign, campaign.currentTier),
     windowMinutes: windowMinutesForTier(campaign, campaign.currentTier),
+    dispatchDueAt: campaign.tier1DispatchAt,
     pastStartReminderAt: campaign.pastStartReminderAt,
   };
 }
@@ -179,8 +195,17 @@ async function logCalloutActivity(
 /**
  * Start (or re-attach to) the cascade for a freshly posted shift.
  *
- * Tier-1 outreach fires SYNCHRONOUSLY here, before any Inngest involvement, so
- * the credential-free demo reaches real people the moment a shift is posted.
+ * Tier-1 outreach is NOT sent here. The campaign opens with `tier1DispatchAt`
+ * set one delay into the future and nobody contacted; Inngest's durable timer
+ * then calls `dispatchOpeningTier` when it falls due. Deferring in the database
+ * rather than in the process is the whole point - the pending send survives a
+ * restart, and the shift being pulled inside the window cancels it for good.
+ *
+ * WITHOUT an Inngest account there is no durable timer to hand the wait to, so
+ * we fall back to today's behaviour and dispatch immediately. That keeps the
+ * credential-free demo working end to end (see tests/callout/no-inngest.test.ts);
+ * what it costs is the delay itself, not the outreach. We will not fake it with
+ * an in-process timer, which a serverless invocation would simply drop.
  */
 export async function startCalloutCampaign(shiftId: string): Promise<{ campaignId: string } | null> {
   const shift = await db.shift.findUnique({
@@ -190,31 +215,79 @@ export async function startCalloutCampaign(shiftId: string): Promise<{ campaignI
   if (!shift) return null;
 
   const now = new Date();
+  const dispatchAt = new Date(now.getTime() + TIER1_DISPATCH_DELAY_SECONDS * 1000);
   const campaign = await db.calloutCampaign.upsert({
     where: { shiftId },
-    create: { shiftId, currentTier: 1, status: "RUNNING", startedAt: now, tier1EnteredAt: now },
+    create: {
+      shiftId,
+      currentTier: 1,
+      status: "RUNNING",
+      startedAt: now,
+      tier1DispatchAt: dispatchAt,
+    },
     update: {},
+  });
+
+  await logCalloutActivity(
+    shiftId,
+    shift.createdById,
+    "CALLOUT_STARTED",
+    `Callout opened. Tier 1 outreach is held for ${TIER1_DISPATCH_DELAY_SECONDS}s; nobody has been contacted yet.`
+  );
+
+  // Best effort: hands the timer to Inngest when it is configured.
+  await sendCalloutEvent("callout/started", { shiftId, campaignId: campaign.id });
+
+  if (!isInngestConfigured()) {
+    await dispatchOpeningTier(shiftId, { actorId: shift.createdById, automatic: true });
+  }
+
+  return { campaignId: campaign.id };
+}
+
+/**
+ * Send the opening tier's outreach, once its delay has elapsed.
+ *
+ * This is where the deferral becomes a real guarantee rather than a pause: the
+ * campaign row is RE-READ here, so a shift stopped, filled, or cancelled inside
+ * the delay window ends the callout with nobody contacted at all. Clearing
+ * `tier1DispatchAt` in the same breath makes it fire exactly once, however many
+ * times an engine step is retried.
+ */
+export async function dispatchOpeningTier(
+  shiftId: string,
+  actor: CampaignActor
+): Promise<CampaignControlResult> {
+  const campaign = await loadCampaignSnapshot(shiftId);
+  if (!campaign) return { ok: false, reason: "NO_CAMPAIGN" };
+  if (TERMINAL.includes(campaign.status)) return { ok: false, reason: "TERMINAL" };
+  if (campaign.shift.status !== "OPEN") return { ok: false, reason: "SHIFT_CLOSED" };
+  // Already sent, or held by a scheduler. Not an error - the engine retries.
+  if (!campaign.tier1DispatchAt || campaign.status !== "RUNNING") {
+    return { ok: true, status: campaign.status, currentTier: campaign.currentTier };
+  }
+
+  const now = new Date();
+  const updated = await db.calloutCampaign.update({
+    where: { shiftId },
+    data: { tier1DispatchAt: null, tier1EnteredAt: now },
   });
 
   const targeted = await runTierOutreach(shiftId, 1);
   await logCalloutActivity(
     shiftId,
-    shift.createdById,
-    "CALLOUT_STARTED",
+    actor.actorId,
+    "CALLOUT_TIER1_SENT",
     `Tier 1 callout opened to ${targeted} available department staff.`
   );
 
   // An empty tier has nobody to wait for, so widen immediately instead of
   // burning a whole window on silence.
   if (targeted === 0) {
-    await advanceCampaignTier(shiftId, { actorId: shift.createdById, automatic: true });
+    return advanceCampaignTier(shiftId, actor);
   }
 
-  // Best effort: hands the timer to Inngest when it is configured. Everything
-  // above already happened regardless.
-  await sendCalloutEvent("callout/started", { shiftId, campaignId: campaign.id });
-
-  return { campaignId: campaign.id };
+  return { ok: true, status: updated.status, currentTier: updated.currentTier };
 }
 
 /**
@@ -241,6 +314,19 @@ export async function advanceCampaignTier(
   }
 
   const now = new Date();
+
+  // Widening while the opening outreach is still held back: whoever is asking
+  // wants MORE reach, so tier 1 goes out now rather than being skipped entirely.
+  // Done inline (not via dispatchOpeningTier) so an empty tier 1 cannot recurse
+  // back into this function and double-advance.
+  if (campaign.tier1DispatchAt) {
+    await db.calloutCampaign.update({
+      where: { shiftId },
+      data: { tier1DispatchAt: null, tier1EnteredAt: now },
+    });
+    await runTierOutreach(shiftId, 1);
+  }
+
   const updated = await db.calloutCampaign.update({
     where: { shiftId },
     data: {
@@ -299,16 +385,27 @@ export async function resumeCampaign(
   if (TERMINAL.includes(campaign.status)) return { ok: false, reason: "TERMINAL" };
   if (campaign.shift.status !== "OPEN") return { ok: false, reason: "SHIFT_CLOSED" };
 
+  const now = new Date();
   const tier = (Math.min(Math.max(campaign.currentTier, 1), MAX_TIER) as Tier);
+  // Held before anyone was contacted: what restarts is the posting delay, not a
+  // tier window. Stamping a tier entry here would strand the pending dispatch.
+  const pending = campaign.tier1DispatchAt !== null;
   const updated = await db.calloutCampaign.update({
     where: { shiftId },
-    data: { status: "RUNNING", [TIER_ENTERED_FIELD[tier]]: new Date() },
+    data: pending
+      ? {
+          status: "RUNNING",
+          tier1DispatchAt: new Date(now.getTime() + TIER1_DISPATCH_DELAY_SECONDS * 1000),
+        }
+      : { status: "RUNNING", [TIER_ENTERED_FIELD[tier]]: now },
   });
   await logCalloutActivity(
     shiftId,
     actor.actorId,
     "CALLOUT_RESUMED",
-    `Cascade resumed on tier ${tier}.`
+    pending
+      ? `Cascade resumed; tier 1 outreach re-held for ${TIER1_DISPATCH_DELAY_SECONDS}s.`
+      : `Cascade resumed on tier ${tier}.`
   );
   await sendCalloutEvent("callout/control", { shiftId, reason: "resumed" });
   return { ok: true, status: updated.status, currentTier: updated.currentTier };
@@ -441,6 +538,9 @@ export async function applyDecision(
     await raisePastStartReminder(shiftId);
   }
   switch (decision.action) {
+    case "DISPATCH":
+      await dispatchOpeningTier(shiftId, actor);
+      break;
     case "ADVANCE":
       await advanceCampaignTier(shiftId, actor);
       break;

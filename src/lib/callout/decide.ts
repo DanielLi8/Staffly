@@ -11,6 +11,8 @@ import { MAX_TIER, nextTier, type Tier } from "./tiers";
 export type CampaignAction =
   /** Nothing to do yet - keep waiting out the current tier window. */
   | "WAIT"
+  /** The opening delay has elapsed: send the held-back tier-1 outreach now. */
+  | "DISPATCH"
   /** Widen to `toTier` and fire that tier's outreach. */
   | "ADVANCE"
   /** Final tier's window elapsed with the shift still open. */
@@ -22,7 +24,7 @@ export type CampaignAction =
 
 export interface CampaignDecision {
   action: CampaignAction;
-  /** Set only for ADVANCE. */
+  /** Set for ADVANCE and DISPATCH. */
   toTier?: Tier;
   /**
    * The shift start has passed while the shift is still unfilled and no reminder
@@ -41,6 +43,13 @@ export interface CampaignState {
   tierEnteredAt: Date | null;
   /** Window length in minutes for the CURRENT tier. */
   windowMinutes: number;
+  /**
+   * When the held-back opening outreach falls due. Non-null means NOBODY has
+   * been contacted yet: the campaign is inside its posting delay, and the only
+   * two outcomes are DISPATCH once the delay elapses or nothing at all if the
+   * shift is pulled first. Null once tier 1 has gone out.
+   */
+  dispatchDueAt: Date | null;
   pastStartReminderAt: Date | null;
 }
 
@@ -64,7 +73,10 @@ export function windowElapsed(state: CampaignState, now: Date): boolean {
  *   1. A filled/closed shift always wins - stop escalating immediately.
  *   2. A terminal or paused campaign halts; a scheduler "hold"/"stop" is
  *      authoritative and the engine must not override it.
- *   3. Otherwise: window elapsed -> widen a tier, or EXHAUST past the last tier.
+ *   3. A campaign still inside its posting delay either waits or DISPATCHes.
+ *      Both (1) and (2) are checked first, which is what makes "cancel before
+ *      anyone is contacted" work: the shift is pulled, so we never reach here.
+ *   4. Otherwise: window elapsed -> widen a tier, or EXHAUST past the last tier.
  *
  * The past-start reminder is orthogonal and rides along on whichever action
  * results, so a late callout both notifies the scheduler and keeps escalating.
@@ -102,7 +114,21 @@ export function decideNextStep(input: {
   // No auto-expiry: past the shift start we nudge a human, we never close it.
   const remindPastStart = now >= shift.startsAt && campaign.pastStartReminderAt === null;
 
-  // (3) Time-driven widening.
+  // (3) The opening outreach is still held back. Nothing else can happen to a
+  //     campaign that has not contacted anyone yet, so this short-circuits.
+  if (campaign.dispatchDueAt) {
+    if (now < campaign.dispatchDueAt) {
+      return { action: "WAIT", remindPastStart, reason: "Opening outreach not due yet." };
+    }
+    return {
+      action: "DISPATCH",
+      toTier: 1,
+      remindPastStart,
+      reason: "Posting delay elapsed; sending tier-1 outreach.",
+    };
+  }
+
+  // (4) Time-driven widening.
   if (!windowElapsed(campaign, now)) {
     return { action: "WAIT", remindPastStart, reason: "Tier window still open." };
   }

@@ -5,6 +5,11 @@ import { createFakeDb, createFakeState, type FakeStaff, type FakeState } from ".
  * Manual cascade control: advance / hold / resume / stop, plus the DB-authoritative
  * guarantee that a stopped campaign cannot be resurrected by a stale caller or by
  * the engine.
+ *
+ * Inngest is stubbed as UNCONFIGURED so `startCalloutCampaign` takes its
+ * credential-free path and dispatches tier 1 at once, putting every test below
+ * straight into the state it wants to steer. The deferred path that a configured
+ * deployment takes is covered by tests/callout/dispatch-delay.test.ts.
  */
 
 const holder = vi.hoisted(() => ({ db: null as unknown as Record<string, unknown> }));
@@ -15,6 +20,11 @@ vi.mock("@/lib/db", () => ({
       get: (_target, prop: string) => (holder.db as Record<string, unknown>)[prop],
     }
   ),
+}));
+
+vi.mock("@/lib/inngest/client", () => ({
+  isInngestConfigured: () => false,
+  sendCalloutEvent: vi.fn().mockResolvedValue({ sent: false }),
 }));
 
 import {

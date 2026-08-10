@@ -7,12 +7,14 @@
 import {
   AlertTriangle,
   CheckCircle2,
+  Hourglass,
   Mail,
   MessageSquare,
   Phone,
   Bell,
   XCircle,
 } from "lucide-react";
+import { format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -91,6 +93,19 @@ export function FillDashboardPanel({ data }: { data: FillDashboard }) {
       </CardHeader>
 
       <CardContent className="space-y-6">
+        {campaign.openingDispatchAt && (
+          <div
+            role="status"
+            className="flex items-start gap-2 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-800"
+          >
+            <Hourglass className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden="true" />
+            <span>
+              Outreach is held until {format(campaign.openingDispatchAt, "h:mm:ss a")} - nobody
+              has been contacted yet. Stop the cascade before then and no message goes out.
+            </span>
+          </div>
+        )}
+
         {campaign.pastStartReminderAt && (
           <div
             role="status"

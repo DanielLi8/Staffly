@@ -43,6 +43,8 @@ export interface FakeCampaign {
   tier2WindowMinutes: number;
   tier3WindowMinutes: number;
   startedAt: Date;
+  /** Non-null while the opening outreach is still held back after posting. */
+  tier1DispatchAt: Date | null;
   tier1EnteredAt: Date | null;
   tier2EnteredAt: Date | null;
   tier3EnteredAt: Date | null;
@@ -181,6 +183,7 @@ export function createFakeDb(state: FakeState) {
           tier2WindowMinutes: 20,
           tier3WindowMinutes: 30,
           startedAt: create.startedAt ?? new Date(),
+          tier1DispatchAt: create.tier1DispatchAt ?? null,
           tier1EnteredAt: create.tier1EnteredAt ?? null,
           tier2EnteredAt: null,
           tier3EnteredAt: null,

@@ -15,9 +15,22 @@ function campaign(overrides: Partial<CampaignState> = {}): CampaignState {
     currentTier: 1,
     tierEnteredAt: TIER_ENTERED,
     windowMinutes: 15,
+    dispatchDueAt: null,
     pastStartReminderAt: null,
     ...overrides,
   };
+}
+
+/**
+ * A campaign in the state a freshly posted shift leaves it in: nobody contacted,
+ * tier 1 due one minute out.
+ */
+function justPosted(overrides: Partial<CampaignState> = {}): CampaignState {
+  return campaign({
+    tierEnteredAt: null,
+    dispatchDueAt: new Date(TIER_ENTERED.getTime() + 60_000),
+    ...overrides,
+  });
 }
 
 /** `minutes` after the current tier was entered. */
@@ -36,6 +49,73 @@ describe("windowElapsed", () => {
 
   it("is false while the tier has not been entered yet", () => {
     expect(windowElapsed(campaign({ tierEnteredAt: null }), at(999))).toBe(false);
+  });
+});
+
+describe("decideNextStep - the posting delay holds the opening outreach", () => {
+  /** The delay is one minute, so `at(1)` is exactly when it falls due. */
+  it("waits while the delay is still running", () => {
+    const decision = decideNextStep({ now: at(0.5), campaign: justPosted(), shift: OPEN_SHIFT });
+    expect(decision.action).toBe("WAIT");
+  });
+
+  it("dispatches tier 1 the moment the delay elapses", () => {
+    const decision = decideNextStep({ now: at(1), campaign: justPosted(), shift: OPEN_SHIFT });
+    expect(decision.action).toBe("DISPATCH");
+    expect(decision.toTier).toBe(1);
+  });
+
+  it("never widens straight past an undispatched tier 1, however late the engine runs", () => {
+    const decision = decideNextStep({ now: at(600), campaign: justPosted(), shift: OPEN_SHIFT });
+    expect(decision.action).toBe("DISPATCH");
+  });
+
+  /* The cancel-within-window guarantee, at the level of the pure rule: whatever
+     pulls the shift or the campaign wins over a due dispatch. */
+  it("does not dispatch once the shift has been cancelled inside the window", () => {
+    const decision = decideNextStep({
+      now: at(1),
+      campaign: justPosted(),
+      shift: { status: "CANCELLED", startsAt: SHIFT_START },
+    });
+    expect(decision.action).toBe("HALT");
+  });
+
+  it("does not dispatch once the shift has been filled inside the window", () => {
+    const decision = decideNextStep({
+      now: at(1),
+      campaign: justPosted(),
+      shift: { status: "ASSIGNED", startsAt: SHIFT_START },
+    });
+    expect(decision.action).toBe("FILL");
+  });
+
+  it("does not dispatch for a campaign stopped inside the window", () => {
+    const decision = decideNextStep({
+      now: at(1),
+      campaign: justPosted({ status: "CANCELLED" }),
+      shift: OPEN_SHIFT,
+    });
+    expect(decision.action).toBe("HALT");
+  });
+
+  it("does not dispatch for a campaign held inside the window", () => {
+    const decision = decideNextStep({
+      now: at(1),
+      campaign: justPosted({ status: "PAUSED" }),
+      shift: OPEN_SHIFT,
+    });
+    expect(decision.action).toBe("WAIT");
+  });
+
+  it("still flags a past-start reminder while holding the opening outreach", () => {
+    const decision = decideNextStep({
+      now: at(121),
+      campaign: justPosted({ dispatchDueAt: new Date(TIER_ENTERED.getTime() + 200 * 60_000) }),
+      shift: OPEN_SHIFT,
+    });
+    expect(decision.action).toBe("WAIT");
+    expect(decision.remindPastStart).toBe(true);
   });
 });
 

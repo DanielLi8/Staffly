@@ -292,6 +292,13 @@ model CalloutCampaign {
   tier2WindowMinutes Int @default(20)
   tier3WindowMinutes Int @default(30)
 
+  /// When the opening (tier-1) outreach becomes due. A freshly posted shift sets
+  /// this a short delay ahead of now instead of paging anyone immediately, so a
+  /// mis-posted shift can be pulled before a single SMS or call lands. It is
+  /// CLEARED the moment tier-1 goes out, so `tier1DispatchAt != null` is exactly
+  /// "nobody has been contacted yet" - the flag the durable timer acts on.
+  tier1DispatchAt DateTime?
+
   startedAt      DateTime  @default(now())
   tier1EnteredAt DateTime?
   tier2EnteredAt DateTime?

@@ -5,7 +5,9 @@
  * Inngest is ONLY the timer. Posting a shift, tier-1 outreach, and every
  * scheduler control (advance / hold / stop) are plain database writes that work
  * with no Inngest account at all - see src/lib/callout/campaign.ts. What is lost
- * without keys is the *automatic* timed escalation and the past-start reminder.
+ * without keys is everything that needs a clock: the *automatic* timed
+ * escalation, the past-start reminder, and the ~1 minute delay before tier-1
+ * outreach (posting then dispatches immediately, as it did before the delay).
  */
 import { Inngest } from "inngest";
 

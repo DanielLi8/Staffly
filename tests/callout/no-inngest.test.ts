@@ -6,8 +6,10 @@ import { createFakeDb, createFakeState, type FakeStaff, type FakeState } from ".
  *
  * With INNGEST_EVENT_KEY / INNGEST_SIGNING_KEY unset, posting a shift must still
  * open the callout and fire tier-1 outreach, and a scheduler must still be able
- * to advance, hold, and stop the cascade by hand. Only the AUTOMATIC timed
- * escalation is lost.
+ * to advance, hold, and stop the cascade by hand. What is lost is everything
+ * needing a clock: the AUTOMATIC timed escalation, and the ~1 minute posting
+ * delay - with no durable timer to hold it, tier 1 goes out immediately rather
+ * than being deferred into a wait nothing would ever come back for.
  */
 
 const holder = vi.hoisted(() => ({ db: null as unknown as Record<string, unknown> }));
@@ -114,6 +116,9 @@ describe("posting a shift with no Inngest account", () => {
     expect(state.campaign).not.toBeNull();
     expect(state.campaign?.status).toBe("RUNNING");
     expect(state.campaign?.currentTier).toBe(1);
+
+    // Nothing is left pending on a timer that will never fire.
+    expect(state.campaign?.tier1DispatchAt).toBeNull();
 
     // Tier 1 was actually reached, on the credential-free channels.
     const tier1 = state.attempts.filter((a) => a.tier === 1);

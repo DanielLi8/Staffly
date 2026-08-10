@@ -74,6 +74,12 @@ export interface FillDashboard {
     startedAt: Date;
     currentTierEnteredAt: Date | null;
     currentWindowMinutes: number;
+    /**
+     * Set while the opening outreach is still held back after posting. Non-null
+     * means nobody has been contacted yet and the shift can still be pulled
+     * without anyone hearing about it.
+     */
+    openingDispatchAt: Date | null;
     filledAt: Date | null;
     endedAt: Date | null;
     pastStartReminderAt: Date | null;
@@ -204,6 +210,7 @@ export async function loadFillDashboard(
           startedAt: campaign.startedAt,
           currentTierEnteredAt: tierEnteredAt(campaign, campaign.currentTier),
           currentWindowMinutes: windowMinutesForTier(campaign, campaign.currentTier),
+          openingDispatchAt: campaign.tier1DispatchAt,
           filledAt: campaign.filledAt,
           endedAt: campaign.endedAt,
           pastStartReminderAt: campaign.pastStartReminderAt,
