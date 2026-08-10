@@ -6,6 +6,18 @@ import { getServerSession } from "next-auth";
 import type { Role } from "@prisma/client";
 import type { Actor } from "./authz";
 
+// Fail fast with an actionable message. Left to NextAuth's own handling, a
+// missing/empty secret doesn't crash - it silently auto-derives a dev secret
+// that differs between the API route bundle and the page bundle in the App
+// Router, so a login appears to succeed and then silently fails to survive
+// the first navigation (bounced back to /login, no error). Never rely on
+// that fallback here.
+if (!process.env.NEXTAUTH_SECRET) {
+  throw new Error(
+    "NEXTAUTH_SECRET is not set. Generate one with `openssl rand -base64 32` and set it in .env - see .env.example."
+  );
+}
+
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
