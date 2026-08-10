@@ -3,26 +3,50 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { differenceInHours } from "date-fns";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 import { notifyWorkersOfAssignment } from "@/lib/notifications";
 import { generateShiftCode } from "@/lib/outreach/codes";
 import { markCampaignFilled, startCalloutCampaign } from "@/lib/callout/campaign";
+import { validateShiftTimes, type ShiftFieldErrors } from "@/lib/shifts/validation";
 
 const createShiftSchema = z.object({
   unit: z.string().min(1, "Unit is required"),
   departmentId: z.string().min(1, "Department is required"),
   roleNeeded: z.string().min(1, "Role is required"),
   location: z.string().min(1, "Location is required"),
-  startsAt: z.coerce.date({ required_error: "Start time is required" }),
-  endsAt: z.coerce.date({ required_error: "End time is required" }),
-  bidDeadlineAt: z.coerce.date({ required_error: "Bid deadline is required" }),
+  startsAt: z.coerce.date({
+    required_error: "Start time is required",
+    invalid_type_error: "Enter a valid start date and time",
+  }),
+  endsAt: z.coerce.date({
+    required_error: "End time is required",
+    invalid_type_error: "Enter a valid end date and time",
+  }),
+  bidDeadlineAt: z.coerce.date({
+    required_error: "Bid deadline is required",
+    invalid_type_error: "Enter a valid bid deadline date and time",
+  }),
   notes: z.string().optional(),
 });
 
 export type CreateShiftInput = z.infer<typeof createShiftSchema>;
+
+/**
+ * Validation is returned, never thrown. Next.js replaces a thrown server-action
+ * error with an opaque "digest" message in production, so a routine bad input
+ * would otherwise reach the scheduler looking like a crash.
+ */
+export interface CreateShiftFailure {
+  ok: false;
+  fieldErrors: ShiftFieldErrors;
+  formError?: string;
+}
+
+function failure(fieldErrors: ShiftFieldErrors, formError?: string): CreateShiftFailure {
+  return { ok: false, fieldErrors, formError };
+}
 
 /**
  * Create a shift with a unique short `smsCode` used by inbound SMS replies.
@@ -52,22 +76,29 @@ async function createShiftWithUniqueCode(
   throw new Error("Could not allocate a unique shift code");
 }
 
-export async function createShift(rawInput: unknown) {
+export async function createShift(rawInput: unknown): Promise<CreateShiftFailure> {
   const session = await requireAuth("SCHEDULER");
-  const data = createShiftSchema.parse(rawInput);
 
-  if (data.endsAt <= data.startsAt) {
-    throw new Error("End time must be after start time");
+  const parsed = createShiftSchema.safeParse(rawInput);
+  if (!parsed.success) {
+    const fieldErrors: ShiftFieldErrors = {};
+    for (const issue of parsed.error.issues) {
+      const field = issue.path[0];
+      if (typeof field === "string" && !fieldErrors[field]) {
+        fieldErrors[field] = issue.message;
+      }
+    }
+    return failure(fieldErrors, "Please correct the highlighted fields.");
   }
-  if (data.bidDeadlineAt >= data.startsAt) {
-    throw new Error("Bid deadline must be before shift start");
-  }
-  if (differenceInHours(data.startsAt, data.bidDeadlineAt) < 4) {
-    throw new Error("Bids must be submitted at least 4 hours before the shift starts.");
+  const data = parsed.data;
+
+  const timeErrors = validateShiftTimes(data);
+  if (Object.keys(timeErrors).length > 0) {
+    return failure(timeErrors);
   }
 
   const dept = await db.department.findUnique({ where: { id: data.departmentId } });
-  if (!dept) throw new Error("Department not found");
+  if (!dept) return failure({ departmentId: "Department not found" });
 
   const title = `${dept.name} (${dept.code}) – ${data.roleNeeded}`;
 
