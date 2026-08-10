@@ -15,6 +15,7 @@ import type {
 import { startOfWeek, endOfWeek } from "date-fns";
 import { db } from "@/lib/db";
 import { rankBySeniority } from "@/lib/seniority";
+import { EMAIL_CHANNEL_ENABLED } from "@/lib/outreach";
 import { buildTierRoster, TIERS, type Tier } from "./tiers";
 import { loadTierCandidates, tierEnteredAt, windowMinutesForTier } from "./campaign";
 import {
@@ -136,13 +137,19 @@ export async function loadFillDashboard(
 
   const campaign = shift.campaign;
 
+  // Disabled channels stay out of the view model entirely, so historical email
+  // attempts do not surface in the UI while the channel is off.
+  const outreachAttempts = shift.outreachAttempts.filter(
+    (a) => EMAIL_CHANNEL_ENABLED || a.channel !== "EMAIL"
+  );
+
   /* --- tier rosters, so the dashboard can show reach vs. remaining pool ---- */
   const candidates = await loadTierCandidates(shift);
   const roster = buildTierRoster(shift, candidates);
 
   const attemptsByUser = new Map<string, ChannelAttempt[]>();
   const tierByUser = new Map<string, number>();
-  for (const attempt of shift.outreachAttempts) {
+  for (const attempt of outreachAttempts) {
     const list = attemptsByUser.get(attempt.userId) ?? [];
     list.push({
       channel: attempt.channel,
@@ -155,7 +162,7 @@ export async function loadFillDashboard(
   }
 
   const bidByWorker = new Map(shift.bids.map((b) => [b.workerId, b]));
-  const nameByUser = new Map(shift.outreachAttempts.map((a) => [a.userId, a.user.name]));
+  const nameByUser = new Map(outreachAttempts.map((a) => [a.userId, a.user.name]));
 
   const reached: ReachedStaff[] = Array.from(attemptsByUser.entries())
     .map(([userId, channels]): ReachedStaff => ({
@@ -169,7 +176,7 @@ export async function loadFillDashboard(
     .sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name));
 
   const reachedIdsByTier = new Map<number, Set<string>>();
-  for (const attempt of shift.outreachAttempts) {
+  for (const attempt of outreachAttempts) {
     const set = reachedIdsByTier.get(attempt.tier) ?? new Set<string>();
     set.add(attempt.userId);
     reachedIdsByTier.set(attempt.tier, set);

@@ -117,8 +117,8 @@ describe("posting a shift with no Inngest account", () => {
 
     // Tier 1 was actually reached, on the credential-free channels.
     const tier1 = state.attempts.filter((a) => a.tier === 1);
-    expect(tier1.map((a) => a.userId)).toEqual(["tier1-nurse", "tier1-nurse"]);
-    expect(tier1.map((a) => a.channel).sort()).toEqual(["EMAIL", "IN_APP"]);
+    expect(tier1.map((a) => a.userId)).toEqual(["tier1-nurse"]);
+    expect(tier1.map((a) => a.channel).sort()).toEqual(["IN_APP"]);
 
     // Nobody outside tier 1 was contacted yet.
     expect(state.attempts.filter((a) => a.tier !== 1)).toEqual([]);

@@ -46,7 +46,7 @@ export function PhoneVerification({ initialPhone, verified, available }: PhoneVe
         <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5" aria-hidden />
         <span>
           Phone verification is unavailable in this environment. You&apos;ll still receive
-          email and in-app alerts.
+          in-app alerts.
         </span>
       </div>
     );

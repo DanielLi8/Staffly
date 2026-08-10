@@ -61,7 +61,7 @@ export default async function ProfilePage() {
             <Phone className="w-4 h-4 text-neutral-400 mt-0.5 shrink-0" aria-hidden />
             <p className="text-neutral-500">
               Verify your mobile number to get shift callouts by text and phone. Unverified
-              numbers only receive email and in-app alerts.
+              numbers only receive in-app alerts.
             </p>
           </div>
           <PhoneVerification
