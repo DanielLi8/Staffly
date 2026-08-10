@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Settings, Search, HelpCircle } from "lucide-react";
+import { Search, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { UserMenu } from "@/components/layout/user-menu";
@@ -12,60 +12,84 @@ interface StafflyHeaderProps {
   variant: "admin" | "worker" | "clerk";
 }
 
+interface NavLink {
+  href: string;
+  label: string;
+  match: (pathname: string) => boolean;
+}
+
+const adminLinks: NavLink[] = [
+  {
+    href: "/admin",
+    label: "Shifts",
+    match: (p) => p === "/admin" || (p.startsWith("/admin/shifts") && !p.startsWith("/admin/workers")),
+  },
+  { href: "/admin/departments", label: "Departments", match: (p) => p.startsWith("/admin/departments") },
+];
+
+const workerLinks: NavLink[] = [
+  {
+    href: "/worker",
+    label: "Shifts",
+    match: (p) => p === "/worker" || (p.startsWith("/worker/shifts") && !p.includes("/bids")),
+  },
+  {
+    href: "/worker/bids",
+    label: "Shift Bids",
+    match: (p) => p.startsWith("/worker/bids") || p.startsWith("/worker/my-bids"),
+  },
+  {
+    href: "/worker/schedule",
+    label: "Schedule",
+    match: (p) => p.startsWith("/worker/schedule"),
+  },
+];
+
+const clerkLinks: NavLink[] = [
+  {
+    href: "/clerk",
+    label: "Department Schedule",
+    match: (p) => p.startsWith("/clerk"),
+  },
+];
+
 export function StafflyHeader({ userName, variant }: StafflyHeaderProps) {
   const pathname = usePathname();
   const homeHref = variant === "admin" ? "/admin" : variant === "clerk" ? "/clerk" : "/worker";
-
-  const adminLinks = [
-    {
-      href: "/admin",
-      label: "Shifts",
-      match: (p: string) => p === "/admin" || (p.startsWith("/admin/shifts") && !p.startsWith("/admin/workers")),
-    },
-    { href: "/admin/departments", label: "Departments", match: (p: string) => p.startsWith("/admin/departments") },
-  ];
-
-  const workerLinks = [
-    {
-      href: "/worker",
-      label: "Shifts",
-      match: (p: string) =>
-        p === "/worker" || (p.startsWith("/worker/shifts") && !p.includes("/bids")),
-    },
-    {
-      href: "/worker/bids",
-      label: "Shift Bids",
-      match: (p: string) => p.startsWith("/worker/bids") || p.startsWith("/worker/my-bids"),
-    },
-    {
-      href: "/worker/schedule",
-      label: "Schedule",
-      match: (p: string) => p.startsWith("/worker/schedule"),
-    },
-  ];
-
-  const clerkLinks = [
-    {
-      href: "/clerk",
-      label: "Department Schedule",
-      match: (p: string) => p.startsWith("/clerk"),
-    },
-  ];
-
   const links = variant === "admin" ? adminLinks : variant === "clerk" ? clerkLinks : workerLinks;
 
   return (
     <header className="sticky top-0 z-40 border-b border-neutral-200/80 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80">
-      <div className="max-w-6xl mx-auto px-4 lg:px-8 h-14 flex items-center gap-4">
-        <Link href={homeHref} className="flex items-center gap-2 shrink-0">
-          <span className="font-display text-xl font-bold text-primary-700 tracking-tight">Staffly</span>
+      <div className="mx-auto flex h-16 w-full max-w-6xl items-stretch gap-4 px-4 lg:gap-6 lg:px-8">
+        <Link
+          href={homeHref}
+          className="-ml-1 flex shrink-0 items-center rounded-lg px-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40"
+        >
+          <span className="font-display text-xl font-bold leading-none tracking-tight text-primary-700">
+            Staffly
+          </span>
         </Link>
 
-        <nav className="hidden md:flex items-center gap-8 ml-4 border-b border-transparent -mb-px" aria-label="Primary">
+        {/* Desktop primary nav. Links fill the header height so the active
+            underline lands flush on the header's bottom border. */}
+        <nav className="hidden items-stretch gap-6 md:flex lg:gap-8" aria-label="Primary">
           {links.map((l) => {
             const active = l.match(pathname);
             return (
-              <Link key={l.href} href={l.href} className={cn("nav-link", active && "nav-link-active")}>
+              <Link
+                key={l.href}
+                href={l.href}
+                className={cn(
+                  // The transparent top border balances the underline so the
+                  // label stays optically centered against the wordmark.
+                  "inline-flex items-center whitespace-nowrap border-y-2 border-t-transparent text-sm font-medium transition-colors",
+                  "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40",
+                  active
+                    ? "border-b-primary-700 text-primary-700"
+                    : "border-b-transparent text-neutral-600 hover:border-b-neutral-300 hover:text-primary-700"
+                )}
+                aria-current={active ? "page" : undefined}
+              >
                 {l.label}
               </Link>
             );
@@ -73,14 +97,17 @@ export function StafflyHeader({ userName, variant }: StafflyHeaderProps) {
         </nav>
 
         {variant === "worker" && (
-          <div className="hidden lg:flex flex-1 max-w-md mx-4">
-            <label className="relative w-full">
+          <div className="hidden min-w-0 flex-1 items-center justify-center lg:flex">
+            <label className="relative w-full max-w-sm">
               <span className="sr-only">Search shifts</span>
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" aria-hidden />
+              <Search
+                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400"
+                aria-hidden
+              />
               <input
                 type="search"
                 placeholder="Search shifts..."
-                className="w-full h-9 pl-9 pr-3 rounded-lg border border-neutral-200 bg-neutral-50 text-sm placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-300"
+                className="h-9 w-full rounded-lg border border-neutral-200 bg-neutral-50 pl-9 pr-3 text-sm placeholder:text-neutral-400 focus:border-primary-300 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
                 readOnly
                 onFocus={(e) => {
                   e.currentTarget.blur();
@@ -91,46 +118,44 @@ export function StafflyHeader({ userName, variant }: StafflyHeaderProps) {
           </div>
         )}
 
-        <div className="flex-1 md:flex-none" />
-
-        <div className="flex items-center gap-1 sm:gap-2">
+        {/* Account cluster, always anchored to the top-right. */}
+        <div className="ml-auto flex shrink-0 items-center gap-1">
           <NotificationBell />
           <button
             type="button"
-            className="p-2 rounded-lg text-neutral-500 hover:bg-neutral-100 hover:text-primary-700 transition-colors"
+            className="hidden h-9 w-9 items-center justify-center rounded-lg text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-primary-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40 sm:inline-flex"
             aria-label="Help"
           >
-            <HelpCircle className="w-5 h-5" />
+            <HelpCircle className="h-5 w-5" aria-hidden />
           </button>
-          <Link
-            href="/profile"
-            className="p-2 rounded-lg text-neutral-500 hover:bg-neutral-100 hover:text-primary-700 transition-colors"
-            aria-label="Profile settings"
-          >
-            <Settings className="w-5 h-5" />
-          </Link>
-          <div className="flex items-center gap-2 pl-3 border-l border-neutral-200 ml-1">
-            <UserMenu userName={userName} />
-          </div>
+          <div className="mx-1 hidden h-6 w-px bg-neutral-200 sm:block" aria-hidden />
+          <UserMenu userName={userName} />
         </div>
       </div>
 
-      <div className="md:hidden border-t border-neutral-100 px-4 py-2 flex gap-4 overflow-x-auto">
-        {links.map((l) => {
-          const active = l.match(pathname);
-          return (
-            <Link
-              key={l.href}
-              href={l.href}
-              className={cn(
-                "text-sm font-medium whitespace-nowrap pb-1 border-b-2",
-                active ? "text-primary-700 border-primary-700" : "text-neutral-500 border-transparent"
-              )}
-            >
-              {l.label}
-            </Link>
-          );
-        })}
+      {/* Mobile primary nav */}
+      <div className="md:hidden">
+        <nav
+          className="flex gap-5 overflow-x-auto border-t border-neutral-100 px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          aria-label="Primary"
+        >
+          {links.map((l) => {
+            const active = l.match(pathname);
+            return (
+              <Link
+                key={l.href}
+                href={l.href}
+                className={cn(
+                  "inline-flex shrink-0 items-center whitespace-nowrap border-b-2 py-2.5 text-sm font-medium transition-colors",
+                  active ? "border-b-primary-700 text-primary-700" : "border-b-transparent text-neutral-500"
+                )}
+                aria-current={active ? "page" : undefined}
+              >
+                {l.label}
+              </Link>
+            );
+          })}
+        </nav>
       </div>
     </header>
   );
