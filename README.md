@@ -60,6 +60,55 @@ pnpm dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
+## Secrets & deployment
+
+### Where secrets live in production
+
+Production values are **not** kept in the repo. They live in the Vercel project under **Settings → Environment Variables**, where they are encrypted at rest. Mark every secret as **Sensitive** so it becomes write-only - it can be read by the running app but never displayed again in the dashboard or CLI.
+
+Scope values per environment:
+
+- **Production** - live keys (real database, live Twilio credentials).
+- **Preview / Development** - **test** keys: Twilio test credentials and a non-production database, so a preview deploy can never send a real SMS or voice call, or touch production data.
+
+### The `NEXT_PUBLIC_` rule
+
+Anything prefixed `NEXT_PUBLIC_` is inlined into the browser bundle at build time and shipped to every visitor. **Never** put a secret behind that prefix. All of Staffly's secrets are server-only and must stay unprefixed.
+
+### Current environment variables
+
+| Variable | Secret? | Required | Differs per environment |
+|----------|---------|----------|--------------------------|
+| `DATABASE_URL` | Secret | Yes | Yes - prod DB vs. a separate preview/local DB |
+| `NEXTAUTH_SECRET` | Secret | Yes | Yes - use a distinct value per environment |
+| `NEXTAUTH_URL` | Public (a URL) | Yes | Yes - deployment URL vs. `http://localhost:3000` |
+| `RESEND_API_KEY` | Secret | Optional | Yes - live vs. test key |
+| `EMAIL_FROM` | Public | Optional | Usually not |
+| `TWILIO_ACCOUNT_SID` | Secret | Optional | Yes - live vs. test account |
+| `TWILIO_AUTH_TOKEN` | Secret (highly sensitive - also validates inbound webhook signatures) | Optional | Yes |
+| `TWILIO_PHONE_NUMBER` | Secret | Optional | Yes - live number vs. Twilio test number |
+| `TWILIO_VERIFY_SERVICE_SID` | Secret | Optional | Yes |
+| `TWILIO_WEBHOOK_BASE_URL` | Public (a URL) | Optional | Yes - public callback host, e.g. an ngrok tunnel in dev |
+
+The escalation-cascade phase adds `INNGEST_EVENT_KEY` and `INNGEST_SIGNING_KEY` (both secret, both optional - see `.env.example`).
+
+### Syncing values locally
+
+```bash
+npm i -g vercel        # or use npx vercel
+vercel login
+vercel link            # links this repo to the Vercel project, creates .vercel/
+vercel env pull .env.local
+```
+
+`vercel env pull` writes the cloud values into `.env.local`. Both `.vercel/` and `.env.local` are gitignored - the only env file tracked in git is `.env.example`, which holds no real values.
+
+To set a value from the CLI:
+
+```bash
+vercel env add <NAME> <production|preview|development>
+```
+
 ## Demo accounts
 
 Use these after `pnpm prisma db seed`, or on the live demo (if seeded there).

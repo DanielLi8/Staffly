@@ -2,6 +2,14 @@ node_modules/
 .next/
 dist/
 build/
+# local env files - never commit real secrets (only .env.example is tracked)
 .env
+.env*.local
+.env.development
+.env.production
+!.env.example
+
+# vercel cli link metadata
+.vercel/
 .DS_Store
 *.tsbuildinfo
