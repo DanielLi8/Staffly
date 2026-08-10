@@ -1,5 +1,5 @@
 import { Channel } from "@prisma/client";
-import { format } from "date-fns";
+import { hospitalDateTime } from "@/lib/timezone";
 import { sendEmail, newShiftEmailHtml } from "@/lib/email";
 import type { OutreachChannel, OutreachContext } from "./types";
 
@@ -21,7 +21,7 @@ export const emailChannel: OutreachChannel = {
         workerName: recipient.name,
         shiftTitle: shift.title,
         unit: shift.unit,
-        date: format(shift.startsAt, "EEE, MMM d · h:mm a"),
+        date: hospitalDateTime(shift.startsAt),
         appUrl,
       }),
     });

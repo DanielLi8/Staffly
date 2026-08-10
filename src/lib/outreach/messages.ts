@@ -3,13 +3,13 @@
  * and date/time - NO patient/clinical detail (never the shift's `notes`). Pure
  * string builders so they are trivially testable.
  */
-import { format } from "date-fns";
+import { hospitalDateTime, hospitalTime } from "@/lib/timezone";
 import type { OutreachShift } from "./types";
 
 export function formatShiftWhen(shift: Pick<OutreachShift, "startsAt" | "endsAt">): string {
-  const day = format(shift.startsAt, "EEE MMM d");
-  const start = format(shift.startsAt, "h:mm a");
-  const end = format(shift.endsAt, "h:mm a");
+  const day = hospitalDateTime(shift.startsAt).split(" · ")[0];
+  const start = hospitalTime(shift.startsAt);
+  const end = hospitalTime(shift.endsAt);
   return `${day}, ${start}–${end}`;
 }
 

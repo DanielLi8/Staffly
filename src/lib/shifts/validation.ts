@@ -13,6 +13,7 @@ export const SHIFT_TIME_MESSAGES = {
   endBeforeStart: "End time must be after start time",
   deadlineAfterStart: "Bid deadline must be before the shift start",
   deadlineTooClose: `Bid deadline must be at least ${MIN_BID_LEAD_HOURS} hours before the shift starts`,
+  deadlineInPast: "Bid deadline must be in the future",
 } as const;
 
 export type ShiftTimeField = "startsAt" | "endsAt" | "bidDeadlineAt";
@@ -30,14 +31,16 @@ export function validateShiftTimes({
   startsAt,
   endsAt,
   bidDeadlineAt,
-}: ShiftTimes): ShiftFieldErrors {
+}: ShiftTimes, now = new Date()): ShiftFieldErrors {
   const errors: ShiftFieldErrors = {};
 
   if (endsAt <= startsAt) {
     errors.endsAt = SHIFT_TIME_MESSAGES.endBeforeStart;
   }
 
-  if (bidDeadlineAt >= startsAt) {
+  if (bidDeadlineAt <= now) {
+    errors.bidDeadlineAt = SHIFT_TIME_MESSAGES.deadlineInPast;
+  } else if (bidDeadlineAt >= startsAt) {
     errors.bidDeadlineAt = SHIFT_TIME_MESSAGES.deadlineAfterStart;
   } else if (differenceInHours(startsAt, bidDeadlineAt) < MIN_BID_LEAD_HOURS) {
     errors.bidDeadlineAt = SHIFT_TIME_MESSAGES.deadlineTooClose;

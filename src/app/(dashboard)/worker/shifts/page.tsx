@@ -2,7 +2,8 @@ import { CalendarClock } from "lucide-react";
 import { ShiftCard } from "@/features/shifts/shift-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { db } from "@/lib/db";
-import { getSession } from "@/lib/auth";
+import { getSession, actorFromSession } from "@/lib/auth";
+import { workerAvailableShiftWhere } from "@/lib/authz";
 import { redirect } from "next/navigation";
 import { shiftCardInclude } from "@/lib/shift-include";
 import type { ShiftWithRelations } from "@/types";
@@ -14,7 +15,7 @@ export default async function WorkerShiftsPage() {
   if (!session) redirect("/login");
 
   const shifts = await db.shift.findMany({
-    where: { status: "OPEN" },
+    where: workerAvailableShiftWhere(actorFromSession(session)),
     orderBy: { startsAt: "asc" },
     include: shiftCardInclude,
   });

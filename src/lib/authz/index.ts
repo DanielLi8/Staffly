@@ -81,3 +81,7 @@ export function shiftListWhere(
 ): Prisma.ShiftWhereInput {
   return { AND: [shiftReadScope(actor), callerFilter] };
 }
+
+export function workerAvailableShiftWhere(actor: Actor, now = new Date()): Prisma.ShiftWhereInput {
+  return shiftListWhere(actor, { status: "OPEN", bidDeadlineAt: { gt: now } });
+}

@@ -1,6 +1,6 @@
 import { db } from "./db";
 import { sendEmail, newShiftEmailHtml, assignmentEmailHtml } from "./email";
-import { format } from "date-fns";
+import { hospitalDateTime } from "@/lib/timezone";
 import type { Shift, User } from "@prisma/client";
 
 const APP_URL = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
@@ -9,7 +9,7 @@ export async function notifyWorkersOfNewShift(
   shift: Shift,
   workers: Pick<User, "id" | "name" | "email">[]
 ): Promise<void> {
-  const shiftDate = format(new Date(shift.startsAt), "EEE, MMM d · h:mm a");
+  const shiftDate = hospitalDateTime(shift.startsAt);
 
   await Promise.allSettled(
     workers.map(async (worker) => {
@@ -86,7 +86,7 @@ export async function notifyWorkersOfAssignment(opts: {
   allBidderIds: string[];
 }): Promise<void> {
   const { shift, selectedWorkerId, allBidderIds } = opts;
-  const shiftDate = format(new Date(shift.startsAt), "EEE, MMM d · h:mm a");
+  const shiftDate = hospitalDateTime(shift.startsAt);
 
   const workers = await db.user.findMany({
     where: { id: { in: allBidderIds } },
