@@ -29,6 +29,11 @@ This file is the project's committed home for project-intrinsic agent knowledge:
 - **No auto-expiry.** Past the shift start an unfilled callout raises a scheduler reminder (`CALLOUT_REMINDER`) and keeps going. Never close a shift on a timer.
 - Scheduler controls are `src/app/actions/callout.ts` (SCHEDULER-only via `requireActor` + `requireRole`); the dashboard is `src/features/callout/` on `/admin/shifts/[id]`.
 
+## Server-action validation
+
+- **Never `throw` for user-input validation in a server action.** Next.js replaces thrown server-action errors with an opaque `digest` message in production, so a routine bad input reaches the user looking like a crash (issue #7). Return a typed failure instead - see `CreateShiftFailure` in `src/app/actions/shifts.ts` - and render it as inline field errors. `throw` stays for auth and genuinely unexpected faults; the client shows a generic retry message for those.
+- Keep the rules pure and shared so the client can block a bad submit with the *same* messages the server would return: `src/lib/shifts/validation.ts` (shift-time rules) and `src/lib/shifts/time.ts` (typeable AM/PM time entry, replacing `datetime-local`). Tests: `tests/validation/shift-times.test.ts`, `tests/features/shift-form.test.tsx`.
+
 ## Local dev / verification
 
 - `docker-compose up -d` (Postgres), copy `.env.example` → `.env`, `pnpm install`, `pnpm prisma migrate deploy`, `pnpm prisma db seed`. Demo accounts printed by the seed; `clerk@staffly.com / clerk123` is the read-only Emergency clerk.
