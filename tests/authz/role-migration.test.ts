@@ -39,6 +39,6 @@ describe("phase 2 role migration", () => {
 
   it("adds the nullable clerkDepartmentId FK to User", () => {
     expect(sql).toMatch(/ALTER TABLE "User" ADD COLUMN "clerkDepartmentId" TEXT/);
-    expect(sql).toMatch(/"User_clerkDepartmentId_fkey".*REFERENCES "Department"\("id"\)/s);
+    expect(sql).toMatch(/"User_clerkDepartmentId_fkey".[\s\S]*REFERENCES "Department"\("id"\)/);
   });
 });
