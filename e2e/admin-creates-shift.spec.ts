@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test";
 test.describe("Admin creates a shift", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/login");
-    await page.getByRole("button", { name: "Administrator" }).click();
+    await page.getByRole("button", { name: "Scheduler" }).click();
     await page.fill('input[id="email"]', "admin@staffly.com");
     await page.fill('input[id="password"]', "admin123");
     await page.getByRole("button", { name: "Sign In to Portal" }).click();
@@ -26,7 +26,7 @@ test.describe("Admin creates a shift", () => {
 test.describe("Worker bidding flow", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/login");
-    await page.getByRole("button", { name: "Staff Member" }).click();
+    await page.getByRole("button", { name: "Staff" }).click();
     await page.fill('input[id="email"]', "worker1@staffly.com");
     await page.fill('input[id="password"]', "worker123");
     await page.getByRole("button", { name: "Sign In to Portal" }).click();
