@@ -39,6 +39,7 @@ This file is the project's committed home for project-intrinsic agent knowledge:
 
 - `docker-compose up -d` (Postgres), copy `.env.example` → `.env`, `pnpm install`, `pnpm prisma migrate deploy`, `pnpm prisma db seed`. Demo accounts printed by the seed; `clerk@staffly.com / clerk123` is the read-only Emergency clerk.
 - `pnpm build` runs `prisma migrate deploy` first (keeps Vercel deploys migrated). Validate with `pnpm lint`, `pnpm test`, `pnpm build`.
+- Link to the deployed app **only** via the production alias `https://staffly-gamma.vercel.app` - it always follows the newest production deploy. Never commit a deployment-specific URL (`staffly-<hash>-danielli8s-projects.vercel.app`); those are immutable and go stale on the next merge. No workflow keeps the README link fresh, and none is needed.
 
 ## Maintaining this file
 
