@@ -37,7 +37,11 @@ export function BidderList({ shiftId, bidders, shiftOpen }: BidderListProps) {
     setError("");
     startTransition(async () => {
       try {
-        await assignWorker(shiftId, workerId);
+        const result = await assignWorker(shiftId, workerId);
+        if (!result.ok) {
+          setError(result.error);
+          setConfirmId(null);
+        }
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : "Failed to assign worker.");
         setConfirmId(null);

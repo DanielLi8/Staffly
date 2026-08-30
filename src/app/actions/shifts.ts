@@ -136,7 +136,18 @@ export async function createShift(rawInput: unknown): Promise<CreateShiftFailure
   redirect(`/admin/shifts/${shift.id}`);
 }
 
-export async function assignWorker(shiftId: string, workerId: string) {
+export type AssignWorkerResult = { ok: true } | { ok: false; error: string };
+
+/**
+ * The status check below returns a typed failure rather than throwing: a
+ * shift can go from OPEN to CANCELLED between the bidder list rendering and
+ * an admin clicking Select (another tab, another admin, or a stale page),
+ * and a thrown Server Action error renders as an opaque digest in
+ * production (the same anti-pattern issue #7 names elsewhere in this repo) -
+ * confusing to a real admin. "Shift not found" and "worker has not bid" stay
+ * thrown: they aren't reachable through normal UI use of this action.
+ */
+export async function assignWorker(shiftId: string, workerId: string): Promise<AssignWorkerResult> {
   const session = await requireAuth("ADMIN");
 
   const shift = await db.shift.findUnique({
@@ -145,7 +156,9 @@ export async function assignWorker(shiftId: string, workerId: string) {
   });
 
   if (!shift) throw new Error("Shift not found");
-  if (shift.status !== "OPEN") throw new Error("Shift is no longer open");
+  if (shift.status !== "OPEN") {
+    return { ok: false, error: "This shift is no longer open and can't be assigned." };
+  }
 
   const bidderIds = shift.bids.map((b) => b.workerId);
   if (!bidderIds.includes(workerId)) {
@@ -187,6 +200,8 @@ export async function assignWorker(shiftId: string, workerId: string) {
   revalidatePath(`/admin/shifts/${shiftId}`);
   revalidatePath("/admin/shifts");
   revalidatePath("/admin");
+
+  return { ok: true };
 }
 
 const editShiftTimeSchema = z.object({
@@ -226,6 +241,16 @@ export async function editShiftTime(
 
   const shift = await db.shift.findUnique({ where: { id: data.shiftId } });
   if (!shift) throw new Error("Shift not found");
+
+  // A CANCELLED or CLOSED shift is a terminal state: the product rule is that the only way to
+  // change a shift past that point is to create an entirely new request, not edit the old one.
+  if (shift.status === "CANCELLED" || shift.status === "CLOSED") {
+    return {
+      ok: false,
+      fieldErrors: {},
+      formError: `This shift is ${shift.status === "CANCELLED" ? "cancelled" : "closed"} and can no longer be edited.`,
+    };
+  }
 
   if (data.endsAt <= data.startsAt) {
     return { ok: false, fieldErrors: { endsAt: SHIFT_TIME_MESSAGES.endBeforeStart } };
@@ -281,4 +306,5 @@ export async function cancelShift(shiftId: string) {
   revalidatePath(`/admin/shifts/${shiftId}`);
   revalidatePath("/admin/shifts");
   revalidatePath("/admin");
+  revalidatePath("/admin/schedule");
 }

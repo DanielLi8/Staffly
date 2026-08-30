@@ -26,6 +26,7 @@ export default async function WorkerSchedulePage({
   const shifts = await db.shift.findMany({
     where: {
       assignedWorkerId: session.user.id,
+      status: { not: "CANCELLED" },
       startsAt: { gte: rangeStart, lt: rangeEnd },
     },
     include: { department: { select: { name: true, code: true } } },

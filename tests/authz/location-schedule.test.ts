@@ -69,13 +69,14 @@ describe("canViewLocationSchedule - unknown role", () => {
 });
 
 describe("locationScheduleShiftWhere", () => {
-  it("scopes to the department, the date range, and only assigned shifts", () => {
+  it("scopes to the department, the date range, only assigned shifts, and excludes cancelled shifts", () => {
     const gte = new Date("2026-08-10T00:00:00Z");
     const lt = new Date("2026-08-17T00:00:00Z");
     expect(locationScheduleShiftWhere(ER, { gte, lt })).toEqual({
       departmentId: ER,
       startsAt: { gte, lt },
       assignedWorkerId: { not: null },
+      status: { not: "CANCELLED" },
     });
   });
 

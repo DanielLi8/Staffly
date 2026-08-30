@@ -199,7 +199,7 @@ function InfoRow({
       <Icon className="w-4 h-4 text-neutral-400 mt-0.5 flex-shrink-0" aria-hidden="true" />
       <div>
         <p className="text-xs text-neutral-400 font-medium uppercase tracking-wide">{label}</p>
-        <p className="text-neutral-800">{children}</p>
+        <div className="text-neutral-800">{children}</div>
       </div>
     </div>
   );
