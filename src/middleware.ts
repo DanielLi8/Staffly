@@ -4,7 +4,7 @@ import type { Role } from "@prisma/client";
 
 /** The landing area for each role after login / when redirected off a foreign area. */
 function homeFor(role: Role | undefined): string {
-  if (role === "SCHEDULER") return "/admin";
+  if (role === "ADMIN") return "/admin";
   if (role === "UNIT_CLERK") return "/clerk";
   return "/worker/shifts";
 }
@@ -15,7 +15,7 @@ export default withAuth(
     const role = req.nextauth.token?.role as Role | undefined;
 
     // /admin is the merged scheduler + admin area.
-    if (pathname.startsWith("/admin") && role !== "SCHEDULER") {
+    if (pathname.startsWith("/admin") && role !== "ADMIN") {
       return NextResponse.redirect(new URL(homeFor(role), req.url));
     }
 

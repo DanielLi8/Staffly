@@ -9,7 +9,7 @@ datasource db {
 
 enum Role {
   STAFF
-  SCHEDULER
+  ADMIN
   UNIT_CLERK
 }
 
@@ -92,7 +92,7 @@ model User {
   seniorityRank   Int?
   phoneVerifiedAt DateTime?
   hospitalId      String?
-  // The single department a UNIT_CLERK may view. Null for STAFF/SCHEDULER.
+  // The single department a UNIT_CLERK may view. Null for STAFF/ADMIN.
   clerkDepartmentId String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt

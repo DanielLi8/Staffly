@@ -9,13 +9,13 @@ const ER = "clDept_emergency";
 const ICU = "clDept_icu";
 const MED = "clDept_med";
 
-describe("canViewLocationSchedule - SCHEDULER", () => {
-  const scheduler: Actor = { id: "s", role: "SCHEDULER", clerkDepartmentId: null };
+describe("canViewLocationSchedule - ADMIN", () => {
+  const admin: Actor = { id: "s", role: "ADMIN", clerkDepartmentId: null };
 
   it("may view every department", () => {
-    expect(canViewLocationSchedule(scheduler, ER)).toBe(true);
-    expect(canViewLocationSchedule(scheduler, ICU)).toBe(true);
-    expect(canViewLocationSchedule(scheduler, MED)).toBe(true);
+    expect(canViewLocationSchedule(admin, ER)).toBe(true);
+    expect(canViewLocationSchedule(admin, ICU)).toBe(true);
+    expect(canViewLocationSchedule(admin, MED)).toBe(true);
   });
 });
 

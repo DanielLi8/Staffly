@@ -57,7 +57,7 @@ export default async function ClerkSchedulePage() {
             <p className="text-sm text-neutral-500 mt-2 max-w-xl">
               {department
                 ? `Read-only schedule for ${department.name} (${department.code}).`
-                : "No department is assigned to your account. Contact a scheduler for access."}
+                : "No department is assigned to your account. Contact an admin for access."}
             </p>
           </div>
         </div>

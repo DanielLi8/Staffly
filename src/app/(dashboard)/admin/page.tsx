@@ -14,7 +14,7 @@ export const metadata = { title: "Clinical Operations – Staffly" };
 
 export default async function AdminDashboardPage() {
   const session = await getSession();
-  if (!session || session.user.role !== "SCHEDULER") redirect("/worker/shifts");
+  if (!session || session.user.role !== "ADMIN") redirect("/worker/shifts");
 
   const [openShifts, assignedShifts] = await Promise.all([
     db.shift.findMany({

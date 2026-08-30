@@ -78,7 +78,7 @@ async function createShiftWithUniqueCode(
 }
 
 export async function createShift(rawInput: unknown): Promise<CreateShiftFailure> {
-  const session = await requireAuth("SCHEDULER");
+  const session = await requireAuth("ADMIN");
 
   const parsed = createShiftSchema.safeParse(rawInput);
   if (!parsed.success) {
@@ -137,7 +137,7 @@ export async function createShift(rawInput: unknown): Promise<CreateShiftFailure
 }
 
 export async function assignWorker(shiftId: string, workerId: string) {
-  const session = await requireAuth("SCHEDULER");
+  const session = await requireAuth("ADMIN");
 
   const shift = await db.shift.findUnique({
     where: { id: shiftId },
@@ -209,7 +209,7 @@ export interface EditShiftTimeFailure {
 export async function editShiftTime(
   rawInput: unknown
 ): Promise<EditShiftTimeFailure | { ok: true }> {
-  const session = await requireAuth("SCHEDULER");
+  const session = await requireAuth("ADMIN");
 
   const parsed = editShiftTimeSchema.safeParse(rawInput);
   if (!parsed.success) {
@@ -251,7 +251,7 @@ export async function editShiftTime(
 }
 
 export async function cancelShift(shiftId: string) {
-  const session = await requireAuth("SCHEDULER");
+  const session = await requireAuth("ADMIN");
 
   const shift = await db.shift.findUnique({ where: { id: shiftId } });
   if (!shift) throw new Error("Shift not found");

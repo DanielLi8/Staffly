@@ -10,7 +10,7 @@ export const metadata = { title: "Workers – Staffly" };
 
 export default async function AdminWorkersPage() {
   const session = await getSession();
-  if (!session || session.user.role !== "SCHEDULER") redirect("/worker/shifts");
+  if (!session || session.user.role !== "ADMIN") redirect("/worker/shifts");
 
   const workers = await db.user.findMany({
     where: { role: "STAFF" },

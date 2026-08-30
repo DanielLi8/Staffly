@@ -27,8 +27,8 @@ export default async function ProfilePage() {
   if (!user) redirect("/login");
 
   const roleLabel =
-    user.role === "SCHEDULER"
-      ? "Scheduler"
+    user.role === "ADMIN"
+      ? "Admin"
       : user.role === "UNIT_CLERK"
         ? "Unit Clerk"
         : "Staff member";

@@ -37,7 +37,7 @@ export default async function LoginPage() {
         <div className="mt-8 p-4 rounded-xl bg-primary-50/80 border border-primary-100 text-xs text-neutral-600">
           <p className="font-semibold text-primary-800 mb-2">Demo accounts</p>
           <p>
-            Scheduler: <span className="font-mono">admin@staffly.com</span> /{" "}
+            Admin: <span className="font-mono">admin@staffly.com</span> /{" "}
             <span className="font-mono">admin123</span>
           </p>
           <p className="mt-1">

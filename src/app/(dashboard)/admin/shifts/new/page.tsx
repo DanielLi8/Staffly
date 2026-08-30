@@ -9,7 +9,7 @@ export const metadata = { title: "Create New Shift – Staffly" };
 
 export default async function NewShiftPage() {
   const session = await getSession();
-  if (!session || session.user.role !== "SCHEDULER") redirect("/worker/shifts");
+  if (!session || session.user.role !== "ADMIN") redirect("/worker/shifts");
 
   const departments = await db.department.findMany({
     orderBy: { sortOrder: "asc" },

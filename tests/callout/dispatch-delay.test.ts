@@ -33,7 +33,7 @@ vi.mock("@/lib/inngest/client", () => ({
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
 vi.mock("@/lib/auth", () => ({
-  requireAuth: vi.fn().mockResolvedValue({ user: { id: "scheduler-1", role: "SCHEDULER" } }),
+  requireAuth: vi.fn().mockResolvedValue({ user: { id: "scheduler-1", role: "ADMIN" } }),
 }));
 
 import { createShift } from "@/app/actions/shifts";
