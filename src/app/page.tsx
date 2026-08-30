@@ -12,9 +12,5 @@ export default async function RootPage() {
     redirect("/admin");
   }
 
-  if (session.user.role === "UNIT_CLERK") {
-    redirect("/clerk");
-  }
-
   redirect("/worker/shifts");
 }

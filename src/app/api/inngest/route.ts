@@ -6,7 +6,7 @@
  * nothing ever calls this route. Registering it unconditionally keeps the build
  * and the route table identical with and without an Inngest account.
  *
- * Not in the NextAuth middleware matcher (which lists only /admin|/clerk|/worker
+ * Not in the NextAuth middleware matcher (which lists only /admin|/worker
  * |/profile), so it stays reachable; Inngest authenticates itself with
  * INNGEST_SIGNING_KEY, which the serve handler enforces.
  */

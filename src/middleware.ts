@@ -5,7 +5,6 @@ import type { Role } from "@prisma/client";
 /** The landing area for each role after login / when redirected off a foreign area. */
 function homeFor(role: Role | undefined): string {
   if (role === "ADMIN") return "/admin";
-  if (role === "UNIT_CLERK") return "/clerk";
   return "/worker/shifts";
 }
 
@@ -16,17 +15,6 @@ export default withAuth(
 
     // /admin is the merged scheduler + admin area.
     if (pathname.startsWith("/admin") && role !== "ADMIN") {
-      return NextResponse.redirect(new URL(homeFor(role), req.url));
-    }
-
-    // /clerk is the read-only, department-scoped unit clerk area.
-    if (pathname.startsWith("/clerk") && role !== "UNIT_CLERK") {
-      return NextResponse.redirect(new URL(homeFor(role), req.url));
-    }
-
-    // The worker area (open shifts, bidding) is for staff; schedulers may preview
-    // it, but a unit clerk must never reach it - it would expose other departments.
-    if (pathname.startsWith("/worker") && role === "UNIT_CLERK") {
       return NextResponse.redirect(new URL(homeFor(role), req.url));
     }
 
@@ -41,5 +29,5 @@ export default withAuth(
 );
 
 export const config = {
-  matcher: ["/admin/:path*", "/clerk/:path*", "/worker/:path*", "/profile"],
+  matcher: ["/admin/:path*", "/worker/:path*", "/profile"],
 };

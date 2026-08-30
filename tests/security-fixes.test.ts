@@ -39,7 +39,7 @@ describe("security and QA fixes", () => {
   });
 
   it("scopes worker availability to open, deadline-passing shifts", () => {
-    expect(workerAvailableShiftWhere({ id: "worker", role: "STAFF", clerkDepartmentId: null }, now)).toEqual({
+    expect(workerAvailableShiftWhere({ id: "worker", role: "STAFF" }, now)).toEqual({
       AND: [
         { OR: [{ status: "OPEN" }, { assignedWorkerId: "worker" }, { bids: { some: { workerId: "worker" } } }] },
         { status: "OPEN", bidDeadlineAt: { gt: now } },

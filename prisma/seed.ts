@@ -47,7 +47,6 @@ async function main() {
 
   const adminPassword = await bcrypt.hash("admin123", 12);
   const workerPassword = await bcrypt.hash("worker123", 12);
-  const clerkPassword = await bcrypt.hash("clerk123", 12);
 
   const admin = await prisma.user.create({
     data: {
@@ -72,20 +71,6 @@ async function main() {
       position: "Nurse Manager",
       hospitalId: hospital.id,
       hireDate: new Date("2012-09-15"),
-    },
-  });
-
-  // Read-only unit clerk, scoped to a single department (Emergency).
-  await prisma.user.create({
-    data: {
-      name: "Grace Adebayo",
-      email: "clerk@staffly.com",
-      password: clerkPassword,
-      role: Role.UNIT_CLERK,
-      department: "Emergency",
-      position: "Unit Clerk",
-      hospitalId: hospital.id,
-      clerkDepartmentId: deptER.id,
     },
   });
 
@@ -571,7 +556,6 @@ async function main() {
   console.log("\nDemo accounts:");
   console.log("  Admin:      admin@staffly.com  / admin123");
   console.log("  Admin:      admin2@staffly.com / admin123");
-  console.log("  Unit Clerk: clerk@staffly.com  / clerk123 (Grace Adebayo – Emergency, read-only)");
   console.log("  Staff:      worker1@staffly.com / worker123 (Maria Santos – Emergency RN)");
   console.log("  Staff:      worker2@staffly.com / worker123 (David Kim – ICU RN)");
   console.log("  Staff:      worker3@staffly.com / worker123 (Aisha Patel – Med/Surg RN)");
