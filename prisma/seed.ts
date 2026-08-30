@@ -494,6 +494,79 @@ async function main() {
     ],
   });
 
+  // Phase 5: a realistic month of already-worked/assigned shifts for September
+  // 2026, so the schedule views have real data to browse instead of the
+  // handful of live-callout demo shifts above. Boundaries match
+  // classifyShiftType (src/lib/shifts/shift-type.ts) exactly: Day 07:00-15:00,
+  // Evening 15:00-23:00, Night 23:00-07:00 (rolls into the next calendar day).
+  const SHIFT_TYPE_START_HOUR = { DAY: 7, EVENING: 15, NIGHT: 23 } as const;
+  type SeptShiftType = keyof typeof SHIFT_TYPE_START_HOUR;
+  const SHIFT_TYPE_CYCLE: SeptShiftType[] = ["DAY", "EVENING", "NIGHT"];
+
+  const septemberWorkerSchedules: Array<{
+    worker: (typeof workers)[number];
+    department: typeof deptER;
+    unit: string;
+    location: string;
+  }> = [
+    { worker: workers[0], department: deptER, unit: "4B", location: "St. Michael's Hospital – 30 Bond St." }, // Maria Santos
+    { worker: workers[1], department: deptICU, unit: "3A", location: "St. Michael's Hospital – 30 Bond St." }, // David Kim
+    { worker: workers[2], department: deptMED, unit: "5C", location: "St. Joseph's Health Centre – 30 The Queensway" }, // Aisha Patel
+    { worker: workers[3], department: deptER, unit: "4B", location: "St. Michael's Hospital – 30 Bond St." }, // Thomas Nguyen
+    { worker: workers[4], department: deptICU, unit: "3A", location: "St. Michael's Hospital – 30 Bond St." }, // Priya Sharma
+  ];
+
+  for (const [scheduleIndex, { worker, department, unit, location }] of septemberWorkerSchedules.entries()) {
+    // Three rest weekdays per worker (offset by index so schedules don't
+    // line up week to week) leaves ~4 workdays/week - a real roster, not a
+    // shift every day - and cycling the shift type by day+index avoids a
+    // rigid identical weekly pattern.
+    const restWeekdays = new Set([
+      scheduleIndex % 7,
+      (scheduleIndex + 2) % 7,
+      (scheduleIndex + 4) % 7,
+    ]);
+
+    const roleNeeded = worker.position ?? "Registered Nurse";
+
+    let previousShiftType: SeptShiftType | null = null;
+
+    for (let day = 1; day <= 30; day++) {
+      const date = new Date(2026, 8, day);
+      // A Night shift ends 07:00 the next calendar day - always give it a full
+      // rest day after, so nobody is rostered back into a Day shift hours
+      // after finishing a Night one.
+      if (previousShiftType === "NIGHT") {
+        previousShiftType = null;
+        continue;
+      }
+      if (restWeekdays.has(date.getDay())) continue;
+
+      const shiftType = SHIFT_TYPE_CYCLE[(day + scheduleIndex) % SHIFT_TYPE_CYCLE.length];
+      previousShiftType = shiftType;
+      const startsAt = setMinutes(setHours(date, SHIFT_TYPE_START_HOUR[shiftType]), 0);
+      const endsAt = addHours(startsAt, 8);
+
+      await prisma.shift.create({
+        data: {
+          title: `${department.name} (${department.code}) – ${roleNeeded}`,
+          unit,
+          departmentId: department.id,
+          roleNeeded,
+          location,
+          startsAt,
+          endsAt,
+          bidDeadlineAt: addHours(startsAt, -36),
+          status: ShiftStatus.ASSIGNED,
+          createdById: admin.id,
+          assignedWorkerId: worker.id,
+          hospitalId: hospital.id,
+          notes: `Rostered ${shiftType.toLowerCase()} shift.`,
+        },
+      });
+    }
+  }
+
   console.log("✓ Seed complete");
   console.log("\nDemo accounts:");
   console.log("  Scheduler:  admin@staffly.com  / admin123");
