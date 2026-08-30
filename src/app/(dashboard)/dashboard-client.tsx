@@ -20,7 +20,7 @@ export function DashboardClient({ userName, role, children }: DashboardClientPro
   } else if (pathname.startsWith("/clerk")) {
     variant = "clerk";
   } else if (pathname === "/profile") {
-    variant = role === "SCHEDULER" ? "admin" : role === "UNIT_CLERK" ? "clerk" : "worker";
+    variant = role === "ADMIN" ? "admin" : role === "UNIT_CLERK" ? "clerk" : "worker";
   } else {
     variant = "worker";
   }

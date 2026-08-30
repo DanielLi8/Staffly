@@ -21,7 +21,7 @@ export async function generateMetadata({ params }: { params: { id: string } }) {
 
 export default async function AdminShiftDetailPage({ params }: { params: { id: string } }) {
   const session = await getSession();
-  if (!session || session.user.role !== "SCHEDULER") redirect("/worker/shifts");
+  if (!session || session.user.role !== "ADMIN") redirect("/worker/shifts");
 
   const shift = await db.shift.findUnique({
     where: { id: params.id },

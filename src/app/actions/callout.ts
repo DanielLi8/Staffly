@@ -33,7 +33,7 @@ const FAILURE_MESSAGE: Record<
 
 async function requireScheduler() {
   const actor = await requireActor();
-  requireRole(actor, "SCHEDULER");
+  requireRole(actor, "ADMIN");
   return actor;
 }
 

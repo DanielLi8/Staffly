@@ -17,7 +17,7 @@ export default async function AdminDepartmentsPage({
   searchParams: { dept?: string; q?: string; role?: string };
 }) {
   const session = await getSession();
-  if (!session || session.user.role !== "SCHEDULER") redirect("/worker/shifts");
+  if (!session || session.user.role !== "ADMIN") redirect("/worker/shifts");
 
   const departments = await db.department.findMany({
     orderBy: { sortOrder: "asc" },

@@ -26,7 +26,7 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 const redirectMock = vi.hoisted(() => vi.fn());
 vi.mock("next/navigation", () => ({ redirect: redirectMock }));
 vi.mock("@/lib/auth", () => ({
-  requireAuth: vi.fn().mockResolvedValue({ user: { id: "scheduler-1", role: "SCHEDULER" } }),
+  requireAuth: vi.fn().mockResolvedValue({ user: { id: "scheduler-1", role: "ADMIN" } }),
 }));
 
 import { createShift } from "@/app/actions/shifts";

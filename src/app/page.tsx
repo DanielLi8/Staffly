@@ -8,7 +8,7 @@ export default async function RootPage() {
     redirect("/login");
   }
 
-  if (session.user.role === "SCHEDULER") {
+  if (session.user.role === "ADMIN") {
     redirect("/admin");
   }
 

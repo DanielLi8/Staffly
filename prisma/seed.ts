@@ -54,7 +54,7 @@ async function main() {
       name: "Sarah Chen",
       email: "admin@staffly.com",
       password: adminPassword,
-      role: Role.SCHEDULER,
+      role: Role.ADMIN,
       department: "Staffing Office",
       position: "Staffing Coordinator",
       hospitalId: hospital.id,
@@ -67,7 +67,7 @@ async function main() {
       name: "James Okafor",
       email: "admin2@staffly.com",
       password: adminPassword,
-      role: Role.SCHEDULER,
+      role: Role.ADMIN,
       department: "Staffing Office",
       position: "Nurse Manager",
       hospitalId: hospital.id,
@@ -496,8 +496,8 @@ async function main() {
 
   console.log("✓ Seed complete");
   console.log("\nDemo accounts:");
-  console.log("  Scheduler:  admin@staffly.com  / admin123");
-  console.log("  Scheduler:  admin2@staffly.com / admin123");
+  console.log("  Admin:      admin@staffly.com  / admin123");
+  console.log("  Admin:      admin2@staffly.com / admin123");
   console.log("  Unit Clerk: clerk@staffly.com  / clerk123 (Grace Adebayo – Emergency, read-only)");
   console.log("  Staff:      worker1@staffly.com / worker123 (Maria Santos – Emergency RN)");
   console.log("  Staff:      worker2@staffly.com / worker123 (David Kim – ICU RN)");

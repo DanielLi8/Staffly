@@ -105,11 +105,11 @@ describe("shiftReadScope - UNIT_CLERK", () => {
   });
 });
 
-describe("shiftReadScope - SCHEDULER", () => {
+describe("shiftReadScope - ADMIN", () => {
   it("sees every shift across all departments", () => {
-    const scheduler: Actor = { id: "s", role: "SCHEDULER", clerkDepartmentId: null };
-    expect(shiftReadScope(scheduler)).toEqual({});
-    const result = query(dataset, shiftListWhere(scheduler));
+    const admin: Actor = { id: "s", role: "ADMIN", clerkDepartmentId: null };
+    expect(shiftReadScope(admin)).toEqual({});
+    const result = query(dataset, shiftListWhere(admin));
     expect(result).toHaveLength(dataset.length);
   });
 });

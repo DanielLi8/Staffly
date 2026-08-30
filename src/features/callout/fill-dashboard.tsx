@@ -1,5 +1,5 @@
 /**
- * The live fill dashboard (SCHEDULER-only; the page that renders it enforces the
+ * The live fill dashboard (ADMIN-only; the page that renders it enforces the
  * role). Shows the state of the cascade at a glance: where the callout is, who
  * has been reached on which channel, who responded, how long it has been open,
  * and the controls to steer it.

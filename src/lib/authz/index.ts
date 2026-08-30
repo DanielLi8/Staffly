@@ -41,14 +41,14 @@ export function requireRole(actor: Actor, ...roles: Role[]): Actor {
 /**
  * The set of shifts an actor is allowed to READ, expressed as a Prisma filter.
  *
- * - SCHEDULER: every shift (the merged scheduler + admin role).
+ * - ADMIN: every shift (the merged scheduler + admin role).
  * - UNIT_CLERK: only their single `clerkDepartmentId`. If unset, matches nothing.
  * - STAFF: shifts they can act on - open ones, ones they bid on, or ones
  *   assigned to them.
  */
 export function shiftReadScope(actor: Actor): Prisma.ShiftWhereInput {
   switch (actor.role) {
-    case "SCHEDULER":
+    case "ADMIN":
       return {};
     case "UNIT_CLERK":
       return { departmentId: actor.clerkDepartmentId ?? NONE };
@@ -101,7 +101,7 @@ export function canViewLocationSchedule(
   staffMemberDepartmentIds: string[] = []
 ): boolean {
   switch (actor.role) {
-    case "SCHEDULER":
+    case "ADMIN":
       return true;
     case "UNIT_CLERK":
       return actor.clerkDepartmentId === departmentId;
