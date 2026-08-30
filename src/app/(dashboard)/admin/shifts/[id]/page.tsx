@@ -9,8 +9,9 @@ import { FillDashboardPanel } from "@/features/callout/fill-dashboard";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { loadFillDashboard } from "@/lib/callout/dashboard";
-import { formatShiftDate, formatShiftRange, formatDate } from "@/lib/utils";
+import { formatShiftDate, formatDate } from "@/lib/utils";
 import { CancelShiftButton } from "./cancel-shift-button";
+import { EditShiftTimeForm } from "./edit-shift-time-form";
 import { canCancelShift } from "@/lib/shift-status";
 
 export async function generateMetadata({ params }: { params: { id: string } }) {
@@ -156,7 +157,11 @@ export default async function AdminShiftDetailPage({ params }: { params: { id: s
                 {formatShiftDate(shift.startsAt)}
               </InfoRow>
               <InfoRow icon={Clock} label="Hours">
-                {formatShiftRange(shift.startsAt, shift.endsAt)}
+                <EditShiftTimeForm
+                  shiftId={shift.id}
+                  startsAt={shift.startsAt}
+                  endsAt={shift.endsAt}
+                />
               </InfoRow>
               <InfoRow icon={MapPin} label="Location">
                 {shift.location}
@@ -206,6 +211,7 @@ function formatActivityAction(action: string): string {
     WORKER_ASSIGNED: "Worker assigned",
     SHIFT_CANCELLED: "Shift cancelled",
     SHIFT_CLOSED: "Shift closed",
+    SHIFT_TIME_EDITED: "Shift time edited",
   };
   return map[action] ?? action;
 }

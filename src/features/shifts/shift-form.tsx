@@ -33,12 +33,17 @@ const UNREADABLE_TIME = "Enter a time like 7:00 AM";
 
 /**
  * Defaults are a standard 07:00–19:00 day shift on the next day, with the bid
- * deadline 12 hours ahead of the start so the form opens in a valid state.
+ * deadline 6 hours ahead of the start so the form opens in a valid state.
+ * `start` is always "tomorrow 07:00", so it is at least ~7 hours out no
+ * matter what time of day the form is opened - a 12-hour deadline buffer
+ * (the original value here) could put the default deadline in the past for
+ * anyone opening the form after ~7pm local time; 6 hours leaves it always
+ * both in the future and >= MIN_BID_LEAD_HOURS before the start.
  */
 function defaultTimes() {
   const start = new Date(startOfDay(addDays(new Date(), 1)).getTime() + 7 * 60 * 60 * 1000);
   const end = new Date(start.getTime() + 12 * 60 * 60 * 1000);
-  const deadline = subHours(start, 12);
+  const deadline = subHours(start, 6);
   return {
     startDate: formatDateInput(start),
     startTime: formatTimeInput(start),
