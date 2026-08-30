@@ -6,7 +6,7 @@ import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
-import { notifyWorkersOfAssignment } from "@/lib/notifications";
+import { notifyWorkersOfAssignment, notifyWorkerOfCancellation } from "@/lib/notifications";
 import { generateShiftCode } from "@/lib/outreach/codes";
 import { markCampaignFilled, startCalloutCampaign } from "@/lib/callout/campaign";
 import { validateShiftTimes, SHIFT_TIME_MESSAGES, type ShiftFieldErrors } from "@/lib/shifts/validation";
@@ -302,6 +302,10 @@ export async function cancelShift(shiftId: string) {
     where: { shiftId, status: { in: ["RUNNING", "PAUSED"] } },
     data: { status: "CANCELLED", endedAt: new Date() },
   });
+
+  if (shift.assignedWorkerId) {
+    await notifyWorkerOfCancellation({ shift, workerId: shift.assignedWorkerId });
+  }
 
   revalidatePath(`/admin/shifts/${shiftId}`);
   revalidatePath("/admin/shifts");

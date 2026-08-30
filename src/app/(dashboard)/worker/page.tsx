@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Clock } from "lucide-react";
+import { Clock, CalendarDays, ListChecks, ArrowRight } from "lucide-react";
 import { db } from "@/lib/db";
 import { getSession, actorFromSession } from "@/lib/auth";
 import { workerAvailableShiftWhere } from "@/lib/authz";
@@ -63,9 +63,7 @@ export default async function WorkerDashboardPage() {
       <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
         <div>
           <h1 className="page-title text-3xl md:text-4xl">Welcome back, {first}</h1>
-          <p className="text-sm text-neutral-500 mt-2">
-            You have {openShifts.length} open shift{openShifts.length !== 1 ? "s" : ""} matching your profile.
-          </p>
+          <p className="text-sm text-neutral-500 mt-2">What would you like to do?</p>
         </div>
         <Card className="shrink-0 w-full lg:w-56 border-primary-100 shadow-card">
           <CardContent className="pt-5">
@@ -75,6 +73,43 @@ export default async function WorkerDashboardPage() {
             </p>
           </CardContent>
         </Card>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Link href="/worker/shifts" className="card-base p-6 flex flex-col gap-4 hover:border-primary-300 hover:shadow-lg transition-all group">
+          <div className="flex items-start justify-between">
+            <div className="h-12 w-12 rounded-xl bg-primary-50 text-primary-700 flex items-center justify-center">
+              <ListChecks className="h-6 w-6" aria-hidden />
+            </div>
+            <ArrowRight className="h-5 w-5 text-neutral-300 group-hover:text-primary-600 group-hover:translate-x-0.5 transition-all" aria-hidden />
+          </div>
+          <div>
+            <h2 className="section-title text-xl">Available Shifts</h2>
+            <p className="text-sm text-neutral-500 mt-1">
+              Browse and bid on {openShifts.length} open shift{openShifts.length !== 1 ? "s" : ""} matching your
+              profile.
+            </p>
+          </div>
+        </Link>
+
+        <Link href="/worker/schedule" className="card-base p-6 flex flex-col gap-4 hover:border-primary-300 hover:shadow-lg transition-all group">
+          <div className="flex items-start justify-between">
+            <div className="h-12 w-12 rounded-xl bg-primary-50 text-primary-700 flex items-center justify-center">
+              <CalendarDays className="h-6 w-6" aria-hidden />
+            </div>
+            <ArrowRight className="h-5 w-5 text-neutral-300 group-hover:text-primary-600 group-hover:translate-x-0.5 transition-all" aria-hidden />
+          </div>
+          <div>
+            <h2 className="section-title text-xl">My Schedule</h2>
+            <p className="text-sm text-neutral-500 mt-1">
+              View your upcoming assigned shifts, {hoursScheduled.toFixed(1)}h scheduled this week.
+            </p>
+          </div>
+        </Link>
+      </div>
+
+      <div>
+        <p className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">Dashboard</p>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
