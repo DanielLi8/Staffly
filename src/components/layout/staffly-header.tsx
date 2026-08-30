@@ -9,7 +9,7 @@ import { UserMenu } from "@/components/layout/user-menu";
 
 interface StafflyHeaderProps {
   userName: string;
-  variant: "admin" | "worker" | "clerk";
+  variant: "admin" | "worker";
 }
 
 interface NavLink {
@@ -51,18 +51,10 @@ const workerLinks: NavLink[] = [
   },
 ];
 
-const clerkLinks: NavLink[] = [
-  {
-    href: "/clerk",
-    label: "Department Schedule",
-    match: (p) => p.startsWith("/clerk"),
-  },
-];
-
 export function StafflyHeader({ userName, variant }: StafflyHeaderProps) {
   const pathname = usePathname();
-  const homeHref = variant === "admin" ? "/admin" : variant === "clerk" ? "/clerk" : "/worker";
-  const links = variant === "admin" ? adminLinks : variant === "clerk" ? clerkLinks : workerLinks;
+  const homeHref = variant === "admin" ? "/admin" : "/worker";
+  const links = variant === "admin" ? adminLinks : workerLinks;
 
   return (
     <header className="sticky top-0 z-40 border-b border-neutral-200/80 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80">

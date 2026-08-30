@@ -65,7 +65,6 @@ export function LoginForm() {
           [
             ["STAFF", "Staff"],
             ["ADMIN", "Admin"],
-            ["UNIT_CLERK", "Unit Clerk"],
           ] as const
         ).map(([value, label]) => (
           <button

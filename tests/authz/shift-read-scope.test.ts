@@ -63,51 +63,9 @@ const dataset: FakeShift[] = [
   { id: "s-med-1", departmentId: MED, status: "OPEN", assignedWorkerId: null, bids: [] },
 ];
 
-const clerkER: Actor = { id: "clerk-er", role: "UNIT_CLERK", clerkDepartmentId: ER };
-
-describe("shiftReadScope - UNIT_CLERK", () => {
-  it("scopes to exactly the clerk's own department", () => {
-    expect(shiftReadScope(clerkER)).toEqual({ departmentId: ER });
-  });
-
-  it("returns only the clerk's department shifts and never another department's", () => {
-    const result = query(dataset, shiftListWhere(clerkER));
-    expect(result.map((s) => s.id).sort()).toEqual(["s-er-1", "s-er-2"]);
-    expect(result.every((s) => s.departmentId === ER)).toBe(true);
-    // Explicitly: no ICU or MED shift ever leaks through.
-    expect(result.some((s) => s.departmentId === ICU || s.departmentId === MED)).toBe(false);
-  });
-
-  it("cannot be widened by a caller-supplied foreign department filter", () => {
-    // A clerk (or malicious caller) passes another department's id.
-    const result = query(dataset, shiftListWhere(clerkER, { departmentId: ICU }));
-    // AND of (departmentId = ER) and (departmentId = ICU) is unsatisfiable.
-    expect(result).toEqual([]);
-  });
-
-  it("cannot be widened by an OR filter that names another department", () => {
-    const result = query(
-      dataset,
-      shiftListWhere(clerkER, { OR: [{ departmentId: ICU }, { departmentId: MED }] })
-    );
-    expect(result).toEqual([]);
-  });
-
-  it("still returns only ER shifts when the caller filter names the clerk's own department", () => {
-    const result = query(dataset, shiftListWhere(clerkER, { departmentId: ER }));
-    expect(result.map((s) => s.id).sort()).toEqual(["s-er-1", "s-er-2"]);
-  });
-
-  it("fails closed to no department when the clerk has no clerkDepartmentId", () => {
-    const orphan: Actor = { id: "c", role: "UNIT_CLERK", clerkDepartmentId: null };
-    expect(shiftReadScope(orphan)).toEqual({ departmentId: "__none__" });
-    expect(query(dataset, shiftListWhere(orphan))).toEqual([]);
-  });
-});
-
 describe("shiftReadScope - ADMIN", () => {
   it("sees every shift across all departments", () => {
-    const admin: Actor = { id: "s", role: "ADMIN", clerkDepartmentId: null };
+    const admin: Actor = { id: "s", role: "ADMIN" };
     expect(shiftReadScope(admin)).toEqual({});
     const result = query(dataset, shiftListWhere(admin));
     expect(result).toHaveLength(dataset.length);
@@ -116,7 +74,7 @@ describe("shiftReadScope - ADMIN", () => {
 
 describe("shiftReadScope - STAFF", () => {
   it("sees open shifts plus their own assigned/bid shifts across departments", () => {
-    const staff: Actor = { id: "w1", role: "STAFF", clerkDepartmentId: null };
+    const staff: Actor = { id: "w1", role: "STAFF" };
     const result = query(dataset, shiftListWhere(staff));
     // All OPEN shifts + s-icu-2 (assigned to w1).
     expect(result.map((s) => s.id).sort()).toEqual(

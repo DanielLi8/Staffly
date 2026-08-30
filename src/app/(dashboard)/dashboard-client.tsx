@@ -14,13 +14,11 @@ interface DashboardClientProps {
 export function DashboardClient({ userName, role, children }: DashboardClientProps) {
   const pathname = usePathname();
 
-  let variant: "admin" | "worker" | "clerk";
+  let variant: "admin" | "worker";
   if (pathname.startsWith("/admin")) {
     variant = "admin";
-  } else if (pathname.startsWith("/clerk")) {
-    variant = "clerk";
   } else if (pathname === "/profile") {
-    variant = role === "ADMIN" ? "admin" : role === "UNIT_CLERK" ? "clerk" : "worker";
+    variant = role === "ADMIN" ? "admin" : "worker";
   } else {
     variant = "worker";
   }

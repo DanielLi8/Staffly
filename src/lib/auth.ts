@@ -63,7 +63,6 @@ export const authOptions: NextAuthOptions = {
           name: user.name,
           email: user.email,
           role: user.role,
-          clerkDepartmentId: user.clerkDepartmentId,
           remember: credentials.remember === "true",
         };
       },
@@ -78,8 +77,6 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.id = user.id;
         token.role = (user as { role: Role }).role;
-        token.clerkDepartmentId =
-          (user as { clerkDepartmentId?: string | null }).clerkDepartmentId ?? null;
         const remember = (user as { remember?: boolean }).remember === true;
         token.exp = Math.floor(Date.now() / 1000) + (remember ? 30 : 2) * 24 * 60 * 60;
       }
@@ -89,7 +86,6 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role as Role;
-        session.user.clerkDepartmentId = (token.clerkDepartmentId as string | null) ?? null;
       }
       return session;
     },
@@ -120,7 +116,6 @@ export function actorFromSession(session: Session): Actor {
   return {
     id: session.user.id,
     role: session.user.role,
-    clerkDepartmentId: session.user.clerkDepartmentId ?? null,
   };
 }
 

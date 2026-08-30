@@ -44,10 +44,6 @@ export default async function LoginPage() {
             Staff: <span className="font-mono">worker1@staffly.com</span> /{" "}
             <span className="font-mono">worker123</span>
           </p>
-          <p className="mt-1">
-            Unit Clerk: <span className="font-mono">clerk@staffly.com</span> /{" "}
-            <span className="font-mono">clerk123</span>
-          </p>
           <p className="mt-2 text-neutral-500">Select the matching portal tab before signing in.</p>
         </div>
       </div>

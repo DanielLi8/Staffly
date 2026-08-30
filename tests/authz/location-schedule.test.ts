@@ -10,7 +10,7 @@ const ICU = "clDept_icu";
 const MED = "clDept_med";
 
 describe("canViewLocationSchedule - ADMIN", () => {
-  const admin: Actor = { id: "s", role: "ADMIN", clerkDepartmentId: null };
+  const admin: Actor = { id: "s", role: "ADMIN" };
 
   it("may view every department", () => {
     expect(canViewLocationSchedule(admin, ER)).toBe(true);
@@ -19,25 +19,10 @@ describe("canViewLocationSchedule - ADMIN", () => {
   });
 });
 
-describe("canViewLocationSchedule - UNIT_CLERK", () => {
-  const clerkER: Actor = { id: "clerk-er", role: "UNIT_CLERK", clerkDepartmentId: ER };
-
-  it("may view only their own clerkDepartmentId", () => {
-    expect(canViewLocationSchedule(clerkER, ER)).toBe(true);
-    expect(canViewLocationSchedule(clerkER, ICU)).toBe(false);
-    expect(canViewLocationSchedule(clerkER, MED)).toBe(false);
-  });
-
-  it("fails closed when clerkDepartmentId is unset", () => {
-    const orphan: Actor = { id: "c", role: "UNIT_CLERK", clerkDepartmentId: null };
-    expect(canViewLocationSchedule(orphan, ER)).toBe(false);
-  });
-});
-
 describe("canViewLocationSchedule - STAFF", () => {
-  const staffNoMemberships: Actor = { id: "w0", role: "STAFF", clerkDepartmentId: null };
-  const staffOneMembership: Actor = { id: "w1", role: "STAFF", clerkDepartmentId: null };
-  const staffMultiMembership: Actor = { id: "w2", role: "STAFF", clerkDepartmentId: null };
+  const staffNoMemberships: Actor = { id: "w0", role: "STAFF" };
+  const staffOneMembership: Actor = { id: "w1", role: "STAFF" };
+  const staffMultiMembership: Actor = { id: "w2", role: "STAFF" };
 
   it("cannot view any department with zero memberships", () => {
     expect(canViewLocationSchedule(staffNoMemberships, ER, [])).toBe(false);
@@ -63,7 +48,7 @@ describe("canViewLocationSchedule - STAFF", () => {
 
 describe("canViewLocationSchedule - unknown role", () => {
   it("fails closed for a role the switch doesn't recognize", () => {
-    const unknown = { id: "x", role: "SOMETHING_ELSE", clerkDepartmentId: null } as unknown as Actor;
+    const unknown = { id: "x", role: "SOMETHING_ELSE" } as unknown as Actor;
     expect(canViewLocationSchedule(unknown, ER)).toBe(false);
   });
 });
