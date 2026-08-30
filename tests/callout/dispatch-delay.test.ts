@@ -49,8 +49,12 @@ import {
   TIER1_DISPATCH_DELAY_SECONDS,
 } from "@/lib/callout/campaign";
 
-const SHIFT_START = new Date("2026-08-12T11:00:00Z");
-const SHIFT_END = new Date("2026-08-12T19:00:00Z");
+// Computed relative to the real clock (not a fixed calendar date) so this
+// suite never goes stale: a hardcoded near-future date eventually becomes a
+// past date as real time passes, which fails validateShiftTimes's
+// deadlineInPast/endBeforeStart checks in createShift.
+const SHIFT_START = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000);
+const SHIFT_END = new Date(SHIFT_START.getTime() + 8 * 60 * 60 * 1000);
 
 function staff(overrides: Partial<FakeStaff> & { id: string }): FakeStaff {
   return {
@@ -82,7 +86,7 @@ let state: FakeState;
 
 beforeEach(() => {
   vi.clearAllMocks();
-  state = createFakeState({ staff: POOL });
+  state = createFakeState({ staff: POOL, shift: { startsAt: SHIFT_START, endsAt: SHIFT_END } });
   holder.db = createFakeDb(state) as unknown as Record<string, unknown>;
 });
 
@@ -107,7 +111,7 @@ describe("posting a shift holds the opening outreach", () => {
       location: "St. Michael's Hospital",
       startsAt: SHIFT_START,
       endsAt: SHIFT_END,
-      bidDeadlineAt: new Date("2026-08-12T05:00:00Z"),
+      bidDeadlineAt: new Date(SHIFT_START.getTime() - 6 * 60 * 60 * 1000),
     });
 
     expect(state.campaign?.status).toBe("RUNNING");
@@ -164,7 +168,10 @@ describe("the delay elapses and the outreach goes out", () => {
   });
 
   it("widens straight past an empty tier 1 at dispatch time", async () => {
-    state = createFakeState({ staff: [staff({ id: "tier2-nurse", departmentIds: ["dept-er"] })] });
+    state = createFakeState({
+      staff: [staff({ id: "tier2-nurse", departmentIds: ["dept-er"] })],
+      shift: { startsAt: SHIFT_START, endsAt: SHIFT_END },
+    });
     holder.db = createFakeDb(state) as unknown as Record<string, unknown>;
     await startCalloutCampaign(state.shift.id);
 
