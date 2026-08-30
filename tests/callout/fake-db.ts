@@ -74,7 +74,9 @@ export interface FakeState {
   notifications: { userId: string; type: string; title: string; message: string; shiftId: string }[];
 }
 
-export function createFakeState(overrides: Partial<FakeState> = {}): FakeState {
+export function createFakeState(
+  overrides: Partial<Omit<FakeState, "shift">> & { shift?: Partial<FakeShift> } = {}
+): FakeState {
   const shift: FakeShift = {
     id: "shift-1",
     title: "Emergency (ER) – Registered Nurse",
