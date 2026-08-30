@@ -84,7 +84,11 @@ async function StaffMode({ userId, anchor, view }: { userId: string; anchor: Dat
 
   const { rangeStart, rangeEnd } = resolveScheduleRange(view, anchor);
   const shifts = await db.shift.findMany({
-    where: { assignedWorkerId: user.id, startsAt: { gte: rangeStart, lt: rangeEnd } },
+    where: {
+      assignedWorkerId: user.id,
+      status: { not: "CANCELLED" },
+      startsAt: { gte: rangeStart, lt: rangeEnd },
+    },
     include: { department: { select: { name: true, code: true } } },
     orderBy: { startsAt: "asc" },
   });
@@ -97,6 +101,7 @@ async function StaffMode({ userId, anchor, view }: { userId: string; anchor: Dat
       anchor={anchor}
       view={view}
       hrefFor={(d, v) => scheduleHref({ type: "staff", id: user.id }, d, v)}
+      shiftHref={(shift) => `/admin/shifts/${shift.id}`}
     />
   );
 }

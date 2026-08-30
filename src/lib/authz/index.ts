@@ -128,5 +128,5 @@ export function locationScheduleShiftWhere(
   departmentId: string,
   range: { gte: Date; lt: Date }
 ): Prisma.ShiftWhereInput {
-  return { departmentId, startsAt: range, assignedWorkerId: { not: null } };
+  return { departmentId, startsAt: range, assignedWorkerId: { not: null }, status: { not: "CANCELLED" } };
 }

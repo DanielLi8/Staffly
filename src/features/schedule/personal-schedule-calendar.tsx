@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { eachDayOfInterval, endOfWeek, format, isSameDay, isSameMonth, startOfWeek } from "date-fns";
 import { hospitalTime } from "@/lib/timezone";
 import { cn } from "@/lib/utils";
@@ -19,7 +20,11 @@ export interface PersonalScheduleShift {
  * (`/admin/schedule?type=staff&id=...`) share one implementation instead of
  * two copies of the same grid. The caller fetches `shifts` and supplies
  * `hrefFor` so this component stays agnostic of which route it's rendered
- * under.
+ * under. `shiftHref` is separate and optional: when omitted (the
+ * `/worker/schedule` default), shift blocks stay plain, non-interactive
+ * divs, preserving STAFF's existing read-only view of their own shifts; the
+ * admin "staff" search result mode passes it so a scheduler can click through
+ * to `/admin/shifts/[id]` to act on (e.g. cancel) the shift.
  */
 export function PersonalScheduleCalendar({
   title,
@@ -28,6 +33,7 @@ export function PersonalScheduleCalendar({
   anchor,
   view,
   hrefFor,
+  shiftHref,
 }: {
   title: string;
   subtitle: string;
@@ -35,6 +41,7 @@ export function PersonalScheduleCalendar({
   anchor: Date;
   view: ScheduleView;
   hrefFor: (date: Date, view: ScheduleView) => string;
+  shiftHref?: (shift: PersonalScheduleShift) => string;
 }) {
   const { weekStart, weekEnd, weekDays, monthStart, monthEnd, prevDate, nextDate } = resolveScheduleRange(view, anchor);
   const today = new Date();
@@ -77,7 +84,7 @@ export function PersonalScheduleCalendar({
 
       {view === "day" && (
         <div className="card-base p-4 sm:p-6">
-          <DayShiftList shifts={shifts} day={anchor} />
+          <DayShiftList shifts={shifts} day={anchor} shiftHref={shiftHref} />
         </div>
       )}
 
@@ -108,7 +115,7 @@ export function PersonalScheduleCalendar({
               return (
                 <div key={d.toISOString()} className="p-2 space-y-2 bg-neutral-50/30 min-h-[200px]">
                   {dayShifts.map((s) => (
-                    <ShiftBlock key={s.id} shift={s} />
+                    <ShiftBlock key={s.id} shift={s} href={shiftHref?.(s)} />
                   ))}
                 </div>
               );
@@ -151,7 +158,7 @@ export function PersonalScheduleCalendar({
                   </p>
                   <div className="space-y-1 overflow-y-auto max-h-[72px] sm:max-h-[96px]">
                     {dayShifts.map((s) => (
-                      <ShiftBlock key={s.id} shift={s} compact />
+                      <ShiftBlock key={s.id} shift={s} compact href={shiftHref?.(s)} />
                     ))}
                   </div>
                 </div>
@@ -164,19 +171,19 @@ export function PersonalScheduleCalendar({
   );
 }
 
-function ShiftBlock({ shift, compact }: { shift: PersonalScheduleShift; compact?: boolean }) {
+function ShiftBlock({ shift, compact, href }: { shift: PersonalScheduleShift; compact?: boolean; href?: string }) {
   const done = shift.endsAt < new Date();
   const confirmed = shift.startsAt <= new Date() && shift.endsAt >= new Date();
-  return (
-    <div
-      className={cn(
-        "rounded-md border text-left w-full",
-        compact ? "p-1 sm:p-1.5 text-[9px] sm:text-[10px]" : "rounded-lg p-2 text-[11px]",
-        done && "bg-neutral-100 border-neutral-200 text-neutral-700",
-        confirmed && "bg-primary-700 border-primary-800 text-white",
-        !done && !confirmed && "bg-white border-neutral-200 text-neutral-800"
-      )}
-    >
+  const className = cn(
+    "rounded-md border text-left w-full",
+    compact ? "p-1 sm:p-1.5 text-[9px] sm:text-[10px]" : "rounded-lg p-2 text-[11px]",
+    done && "bg-neutral-100 border-neutral-200 text-neutral-700",
+    confirmed && "bg-primary-700 border-primary-800 text-white",
+    !done && !confirmed && "bg-white border-neutral-200 text-neutral-800",
+    href && "block hover:ring-1 hover:ring-primary-300 transition-shadow"
+  );
+  const body = (
+    <>
       <p className="font-bold uppercase tracking-wide opacity-80 leading-tight">
         {done ? "Done" : confirmed ? "Now" : "Assigned"}
       </p>
@@ -185,11 +192,28 @@ function ShiftBlock({ shift, compact }: { shift: PersonalScheduleShift; compact?
       <p className="mt-0.5 opacity-90 tabular-nums">
         {hospitalTime(shift.startsAt, false)}–{hospitalTime(shift.endsAt, false)}
       </p>
-    </div>
+    </>
   );
+
+  if (href) {
+    return (
+      <Link href={href} className={className}>
+        {body}
+      </Link>
+    );
+  }
+  return <div className={className}>{body}</div>;
 }
 
-function DayShiftList({ shifts, day }: { shifts: PersonalScheduleShift[]; day: Date }) {
+function DayShiftList({
+  shifts,
+  day,
+  shiftHref,
+}: {
+  shifts: PersonalScheduleShift[];
+  day: Date;
+  shiftHref?: (shift: PersonalScheduleShift) => string;
+}) {
   if (shifts.length === 0) {
     return (
       <p className="text-sm text-neutral-500 py-8 text-center">
@@ -201,7 +225,7 @@ function DayShiftList({ shifts, day }: { shifts: PersonalScheduleShift[]; day: D
     <ul className="space-y-3">
       {shifts.map((s) => (
         <li key={s.id}>
-          <ShiftBlock shift={s} />
+          <ShiftBlock shift={s} href={shiftHref?.(s)} />
         </li>
       ))}
     </ul>

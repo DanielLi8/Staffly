@@ -20,7 +20,7 @@ export function CancelShiftButton({ shiftId }: { shiftId: string }) {
     startTransition(async () => {
       try {
         await cancelShift(shiftId);
-        router.push("/admin/shifts");
+        router.back();
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : "Failed to cancel shift.");
         setConfirm(false);
