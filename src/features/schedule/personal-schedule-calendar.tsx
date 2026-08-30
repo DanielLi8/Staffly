@@ -1,17 +1,12 @@
-import Link from "next/link";
 import { eachDayOfInterval, endOfWeek, format, isSameDay, isSameMonth, startOfWeek } from "date-fns";
-import { hospitalTime } from "@/lib/timezone";
 import { cn } from "@/lib/utils";
 import { resolveScheduleRange, type ScheduleView } from "@/lib/schedule/range";
+import type { AvailabilityDTO } from "@/lib/availability/types";
 import { CalendarNav, primaryScheduleHeading } from "./calendar-nav";
+import { AvailabilityMonthGrid } from "@/features/availability/availability-month-grid";
+import { ShiftBlock, type PersonalScheduleShift } from "./shift-block";
 
-export interface PersonalScheduleShift {
-  id: string;
-  startsAt: Date;
-  endsAt: Date;
-  department: { name: string; code: string };
-  roleNeeded: string;
-}
+export type { PersonalScheduleShift };
 
 /**
  * The day/week/month personal calendar - one person's own assigned shifts.
@@ -34,6 +29,7 @@ export function PersonalScheduleCalendar({
   view,
   hrefFor,
   shiftHref,
+  editableAvailability,
 }: {
   title: string;
   subtitle: string;
@@ -42,6 +38,12 @@ export function PersonalScheduleCalendar({
   view: ScheduleView;
   hrefFor: (date: Date, view: ScheduleView) => string;
   shiftHref?: (shift: PersonalScheduleShift) => string;
+  /**
+   * Turns the month grid into the STAFF self-service availability editor
+   * (`/worker/schedule` only - never passed by the admin "staff" search
+   * result mode, which stays a read-only view of someone else's shifts).
+   */
+  editableAvailability?: { availability: AvailabilityDTO[] };
 }) {
   const { weekStart, weekEnd, weekDays, monthStart, monthEnd, prevDate, nextDate } = resolveScheduleRange(view, anchor);
   const today = new Date();
@@ -124,7 +126,16 @@ export function PersonalScheduleCalendar({
         </div>
       )}
 
-      {view === "month" && (
+      {view === "month" && editableAvailability && (
+        <AvailabilityMonthGrid
+          monthGridDays={monthGridDays}
+          anchor={anchor}
+          shifts={shifts}
+          availability={editableAvailability.availability}
+        />
+      )}
+
+      {view === "month" && !editableAvailability && (
         <div className="card-base overflow-x-auto">
           <div className="min-w-[320px] sm:min-w-full grid grid-cols-7 border-b border-neutral-200 bg-neutral-50/80">
             {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((label) => (
@@ -169,40 +180,6 @@ export function PersonalScheduleCalendar({
       )}
     </div>
   );
-}
-
-function ShiftBlock({ shift, compact, href }: { shift: PersonalScheduleShift; compact?: boolean; href?: string }) {
-  const done = shift.endsAt < new Date();
-  const confirmed = shift.startsAt <= new Date() && shift.endsAt >= new Date();
-  const className = cn(
-    "rounded-md border text-left w-full",
-    compact ? "p-1 sm:p-1.5 text-[9px] sm:text-[10px]" : "rounded-lg p-2 text-[11px]",
-    done && "bg-neutral-100 border-neutral-200 text-neutral-700",
-    confirmed && "bg-primary-700 border-primary-800 text-white",
-    !done && !confirmed && "bg-white border-neutral-200 text-neutral-800",
-    href && "block hover:ring-1 hover:ring-primary-300 transition-shadow"
-  );
-  const body = (
-    <>
-      <p className="font-bold uppercase tracking-wide opacity-80 leading-tight">
-        {done ? "Done" : confirmed ? "Now" : "Assigned"}
-      </p>
-      <p className={cn("font-semibold mt-0.5 leading-tight", compact && "line-clamp-2")}>{shift.department.name}</p>
-      {!compact && <p className="opacity-90">{shift.roleNeeded}</p>}
-      <p className="mt-0.5 opacity-90 tabular-nums">
-        {hospitalTime(shift.startsAt, false)}–{hospitalTime(shift.endsAt, false)}
-      </p>
-    </>
-  );
-
-  if (href) {
-    return (
-      <Link href={href} className={className}>
-        {body}
-      </Link>
-    );
-  }
-  return <div className={className}>{body}</div>;
 }
 
 function DayShiftList({

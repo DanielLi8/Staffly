@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { format } from "date-fns";
+import { format, addDays, subDays } from "date-fns";
 import { parseScheduleAnchor, parseScheduleView, resolveScheduleRange, type ScheduleView } from "@/lib/schedule/range";
 import { PersonalScheduleCalendar } from "@/features/schedule/personal-schedule-calendar";
 
@@ -33,6 +33,20 @@ export default async function WorkerSchedulePage({
     orderBy: { startsAt: "asc" },
   });
 
+  // Availability editing only happens on the month calendar (see the
+  // captain-reviewed Lavish comparison), and the grid there spans a bit
+  // outside `rangeStart`/`rangeEnd` to show whole weeks - pad generously
+  // rather than duplicating PersonalScheduleCalendar's week-padding math.
+  const availability =
+    view === "month"
+      ? await db.availability.findMany({
+          where: {
+            userId: session.user.id,
+            startsAt: { gte: subDays(rangeStart, 7), lt: addDays(rangeEnd, 7) },
+          },
+        })
+      : [];
+
   return (
     <PersonalScheduleCalendar
       title="Your Schedule"
@@ -41,6 +55,7 @@ export default async function WorkerSchedulePage({
       anchor={anchor}
       view={view}
       hrefFor={scheduleHref}
+      editableAvailability={view === "month" ? { availability } : undefined}
     />
   );
 }
