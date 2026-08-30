@@ -9,7 +9,8 @@ import { requireAuth } from "@/lib/auth";
 import { notifyWorkersOfAssignment } from "@/lib/notifications";
 import { generateShiftCode } from "@/lib/outreach/codes";
 import { markCampaignFilled, startCalloutCampaign } from "@/lib/callout/campaign";
-import { validateShiftTimes, type ShiftFieldErrors } from "@/lib/shifts/validation";
+import { validateShiftTimes, SHIFT_TIME_MESSAGES, type ShiftFieldErrors } from "@/lib/shifts/validation";
+import { formatShiftRange } from "@/lib/utils";
 
 const createShiftSchema = z.object({
   unit: z.string().min(1, "Unit is required"),
@@ -186,6 +187,67 @@ export async function assignWorker(shiftId: string, workerId: string) {
   revalidatePath(`/admin/shifts/${shiftId}`);
   revalidatePath("/admin/shifts");
   revalidatePath("/admin");
+}
+
+const editShiftTimeSchema = z.object({
+  shiftId: z.string().min(1),
+  startsAt: z.coerce.date({ invalid_type_error: "Enter a valid start date and time" }),
+  endsAt: z.coerce.date({ invalid_type_error: "Enter a valid end date and time" }),
+});
+
+export interface EditShiftTimeFailure {
+  ok: false;
+  fieldErrors: ShiftFieldErrors;
+  formError?: string;
+}
+
+/**
+ * Only checks endsAt > startsAt, not the full validateShiftTimes bidDeadlineAt
+ * rules: this edits an already-assigned shift, whose bidDeadlineAt is routinely
+ * already in the past, so the full validator would always fail post-assignment.
+ */
+export async function editShiftTime(
+  rawInput: unknown
+): Promise<EditShiftTimeFailure | { ok: true }> {
+  const session = await requireAuth("SCHEDULER");
+
+  const parsed = editShiftTimeSchema.safeParse(rawInput);
+  if (!parsed.success) {
+    const fieldErrors: ShiftFieldErrors = {};
+    for (const issue of parsed.error.issues) {
+      const field = issue.path[0];
+      if (typeof field === "string" && !fieldErrors[field]) {
+        fieldErrors[field] = issue.message;
+      }
+    }
+    return { ok: false, fieldErrors, formError: "Please correct the highlighted fields." };
+  }
+  const data = parsed.data;
+
+  const shift = await db.shift.findUnique({ where: { id: data.shiftId } });
+  if (!shift) throw new Error("Shift not found");
+
+  if (data.endsAt <= data.startsAt) {
+    return { ok: false, fieldErrors: { endsAt: SHIFT_TIME_MESSAGES.endBeforeStart } };
+  }
+
+  await db.$transaction([
+    db.shift.update({
+      where: { id: shift.id },
+      data: { startsAt: data.startsAt, endsAt: data.endsAt },
+    }),
+    db.shiftActivity.create({
+      data: {
+        shiftId: shift.id,
+        actorId: session.user.id,
+        action: "SHIFT_TIME_EDITED",
+        details: `Time changed from ${formatShiftRange(shift.startsAt, shift.endsAt)} to ${formatShiftRange(data.startsAt, data.endsAt)}.`,
+      },
+    }),
+  ]);
+
+  revalidatePath(`/admin/shifts/${shift.id}`);
+  return { ok: true };
 }
 
 export async function cancelShift(shiftId: string) {
