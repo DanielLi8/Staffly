@@ -39,6 +39,7 @@ enum NotificationType {
   SHIFT_CANCELLED
   CALLOUT_ESCALATED
   CALLOUT_REMINDER
+  AVAILABILITY_UPDATED
 }
 
 enum AvailabilityStatus {

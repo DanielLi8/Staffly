@@ -115,6 +115,54 @@ export async function notifyWorkerOfCancellation(opts: {
   });
 }
 
+/**
+ * A confirmation receipt to the worker themselves after they save an
+ * availability change (see `saveAvailability` in `src/app/actions/availability.ts`).
+ */
+export async function notifyWorkerOfAvailabilityUpdate(opts: {
+  workerId: string;
+  dateLabel: string;
+}): Promise<void> {
+  await db.notification.create({
+    data: {
+      userId: opts.workerId,
+      type: "AVAILABILITY_UPDATED",
+      title: "Availability Updated",
+      message: `Your availability for ${opts.dateLabel} was updated.`,
+    },
+  });
+}
+
+/**
+ * Broadcasts to every ADMIN, not a single owner: unlike a bid or a
+ * cancellation, an availability change has no shift/campaign it belongs to,
+ * yet it can affect any admin's already-running callout or future staffing.
+ * There is no existing "notify every admin" helper elsewhere in this file to
+ * reuse - this is the first one.
+ */
+export async function notifyAdminsOfAvailabilityChange(opts: {
+  workerName: string;
+  dateLabel: string;
+}): Promise<void> {
+  const admins = await db.user.findMany({
+    where: { role: "ADMIN" },
+    select: { id: true },
+  });
+
+  await Promise.allSettled(
+    admins.map((admin) =>
+      db.notification.create({
+        data: {
+          userId: admin.id,
+          type: "AVAILABILITY_UPDATED",
+          title: "Worker Availability Changed",
+          message: `${opts.workerName}'s availability for ${opts.dateLabel} changed.`,
+        },
+      })
+    )
+  );
+}
+
 export async function notifyWorkersOfAssignment(opts: {
   shift: Shift;
   selectedWorkerId: string;
