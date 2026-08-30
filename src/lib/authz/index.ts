@@ -85,3 +85,48 @@ export function shiftListWhere(
 export function workerAvailableShiftWhere(actor: Actor, now = new Date()): Prisma.ShiftWhereInput {
   return shiftListWhere(actor, { status: "OPEN", bidDeadlineAt: { gt: now } });
 }
+
+/**
+ * Whether `actor` may view the Location Schedule for `departmentId`. Unlike
+ * shiftReadScope, a STAFF actor's allowed department set isn't derivable from
+ * the Actor alone - it requires a DepartmentMembership lookup (see
+ * `src/lib/callout/campaign.ts:138,154` for the same resolution pattern used
+ * elsewhere). That lookup is a DB read, so it happens once at the page/loader
+ * level and is passed in here - this function stays pure and unit-testable,
+ * matching every other function in this module.
+ */
+export function canViewLocationSchedule(
+  actor: Actor,
+  departmentId: string,
+  staffMemberDepartmentIds: string[] = []
+): boolean {
+  switch (actor.role) {
+    case "SCHEDULER":
+      return true;
+    case "UNIT_CLERK":
+      return actor.clerkDepartmentId === departmentId;
+    case "STAFF":
+      return staffMemberDepartmentIds.includes(departmentId);
+    default:
+      return false;
+  }
+}
+
+/**
+ * The shift filter for an ALREADY-AUTHORIZED Location Schedule read.
+ * Deliberately not layered on shiftReadScope/shiftListWhere - that boundary
+ * is scoped for bidding and would either hide colleagues' assigned shifts
+ * from STAFF (breaking the feature) or have to be widened in place (silently
+ * loosening STAFF's read scope on every other shift-list query that reuses
+ * it). Callers MUST call {@link canViewLocationSchedule} first and fail
+ * closed (404) if it returns false - this function only narrows by
+ * department + date range and assumes authorization already happened, the
+ * same division of labor shiftReadScope/shiftListWhere already use (a
+ * boolean/scope check, then an unconditional AND-in of it).
+ */
+export function locationScheduleShiftWhere(
+  departmentId: string,
+  range: { gte: Date; lt: Date }
+): Prisma.ShiftWhereInput {
+  return { departmentId, startsAt: range, assignedWorkerId: { not: null } };
+}
