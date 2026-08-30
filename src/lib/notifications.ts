@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { sendEmail, newShiftEmailHtml, assignmentEmailHtml } from "./email";
+import { sendEmail, newShiftEmailHtml, assignmentEmailHtml, shiftCancelledEmailHtml } from "./email";
 import { hospitalDateTime } from "@/lib/timezone";
 import type { Shift, User } from "@prisma/client";
 
@@ -77,6 +77,41 @@ export async function notifySchedulerOfCallout(opts: {
       message: opts.message,
       shiftId: opts.shiftId,
     },
+  });
+}
+
+export async function notifyWorkerOfCancellation(opts: {
+  shift: Shift;
+  workerId: string;
+}): Promise<void> {
+  const { shift, workerId } = opts;
+  const shiftDate = hospitalDateTime(shift.startsAt);
+
+  const worker = await db.user.findUnique({
+    where: { id: workerId },
+    select: { id: true, name: true, email: true },
+  });
+  if (!worker) return;
+
+  await db.notification.create({
+    data: {
+      userId: worker.id,
+      type: "SHIFT_CANCELLED",
+      title: "Shift Cancelled",
+      message: `Your shift (${shift.title}) on ${shiftDate} was cancelled.`,
+      shiftId: shift.id,
+    },
+  });
+
+  await sendEmail({
+    to: worker.email,
+    subject: `Shift Cancelled – ${shift.title}`,
+    html: shiftCancelledEmailHtml({
+      workerName: worker.name,
+      shiftTitle: shift.title,
+      date: shiftDate,
+      appUrl: APP_URL,
+    }),
   });
 }
 

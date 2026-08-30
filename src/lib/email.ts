@@ -70,6 +70,30 @@ export function newShiftEmailHtml(opts: {
   `;
 }
 
+export function shiftCancelledEmailHtml(opts: {
+  workerName: string;
+  shiftTitle: string;
+  date: string;
+  appUrl: string;
+}): string {
+  return `
+    <div style="font-family: Inter, sans-serif; max-width: 600px; margin: 0 auto; color: #1A202C;">
+      <div style="background: #003087; padding: 24px 32px;">
+        <h1 style="color: white; margin: 0; font-size: 20px;">Staffly</h1>
+      </div>
+      <div style="padding: 32px; background: #F8FAFC;">
+        <h2 style="color: #B91C1C; margin-top: 0;">Shift Cancelled</h2>
+        <p>Hi ${opts.workerName},</p>
+        <p>Your assigned shift <strong>${opts.shiftTitle}</strong> on ${opts.date} has been cancelled.</p>
+        <a href="${opts.appUrl}/worker/my-bids"
+           style="display: inline-block; background: #003087; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600;">
+          View My Bids
+        </a>
+      </div>
+    </div>
+  `;
+}
+
 export function assignmentEmailHtml(opts: {
   workerName: string;
   shiftTitle: string;

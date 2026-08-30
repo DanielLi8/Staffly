@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Search, HelpCircle } from "lucide-react";
+import { HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { UserMenu } from "@/components/layout/user-menu";
@@ -96,28 +96,6 @@ export function StafflyHeader({ userName, variant }: StafflyHeaderProps) {
             );
           })}
         </nav>
-
-        {variant === "worker" && (
-          <div className="hidden min-w-0 flex-1 items-center justify-center lg:flex">
-            <label className="relative w-full max-w-sm">
-              <span className="sr-only">Search shifts</span>
-              <Search
-                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400"
-                aria-hidden
-              />
-              <input
-                type="search"
-                placeholder="Search shifts..."
-                className="h-9 w-full rounded-lg border border-neutral-200 bg-neutral-50 pl-9 pr-3 text-sm placeholder:text-neutral-400 focus:border-primary-300 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
-                readOnly
-                onFocus={(e) => {
-                  e.currentTarget.blur();
-                  window.location.href = "/worker/shifts";
-                }}
-              />
-            </label>
-          </div>
-        )}
 
         {/* Account cluster, always anchored to the top-right. */}
         <div className="ml-auto flex shrink-0 items-center gap-1">
