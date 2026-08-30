@@ -44,6 +44,11 @@ const workerLinks: NavLink[] = [
     label: "Schedule",
     match: (p) => p.startsWith("/worker/schedule"),
   },
+  {
+    href: "/worker/location",
+    label: "Location Schedule",
+    match: (p) => p.startsWith("/worker/location"),
+  },
 ];
 
 const clerkLinks: NavLink[] = [
