@@ -34,19 +34,20 @@ export default async function WorkerSchedulePage({
     orderBy: { startsAt: "asc" },
   });
 
-  // Availability editing only happens on the month calendar (see the
-  // captain-reviewed Lavish comparison), and the grid there spans a bit
-  // outside `rangeStart`/`rangeEnd` to show whole weeks - pad generously
-  // rather than duplicating PersonalScheduleCalendar's week-padding math.
-  const availability =
-    view === "month"
-      ? await db.availability.findMany({
-          where: {
-            userId: session.user.id,
-            startsAt: { gte: subDays(rangeStart, 7), lt: addDays(rangeEnd, 7) },
-          },
-        })
-      : [];
+  // Availability editing happens on all three views. Only the month grid
+  // spans outside `rangeStart`/`rangeEnd` (it shows whole weeks around the
+  // month, per `resolveScheduleRange`) - pad generously there rather than
+  // duplicating that week-padding math; day/week already query exactly the
+  // visible range.
+  const availability = await db.availability.findMany({
+    where: {
+      userId: session.user.id,
+      startsAt: {
+        gte: view === "month" ? subDays(rangeStart, 7) : rangeStart,
+        lt: view === "month" ? addDays(rangeEnd, 7) : rangeEnd,
+      },
+    },
+  });
 
   return (
     <div className="space-y-4">

@@ -1,13 +1,18 @@
-import { addDays, startOfDay, setHours, setMinutes } from "date-fns";
+import { addMinutes, startOfDay } from "date-fns";
 import type { AvailabilityStatus } from "@prisma/client";
 import { parseTimeInput } from "@/lib/shifts/time";
 
 /**
- * Turns a set of selected calendar days plus one shared action (a time range,
- * or a flat "unavailable") into the one-Availability-row-per-day shape
- * `prisma/seed.ts` already seeds and `src/lib/callout/tiers.ts` already reads.
- * Kept pure (no DB) so both the client-side submit guard and the server
- * action share one interpretation, matching `src/lib/shifts/validation.ts`.
+ * Turns a set of selected calendar days plus a shared list of time-of-day
+ * blocks into the one-Availability-row-per-block-per-day shape
+ * `src/lib/callout/tiers.ts` already reads (it matches by overlapping
+ * `startsAt`/`endsAt` windows, so a partial-day UNAVAILABLE block works the
+ * same as a full-day one there). Every block - AVAILABLE or UNAVAILABLE -
+ * carries its own time range and applies to every selected day, so one day
+ * can end up with several rows (e.g. AVAILABLE 07:00-12:00 and UNAVAILABLE
+ * 12:00-15:00). Kept pure (no DB) so both the client-side submit guard and
+ * the server action share one interpretation, matching
+ * `src/lib/shifts/validation.ts`.
  */
 
 export interface AvailabilityRowDraft {
@@ -17,58 +22,58 @@ export interface AvailabilityRowDraft {
   status: AvailabilityStatus;
 }
 
+export interface AvailabilityBlockDraft {
+  status: Extract<AvailabilityStatus, "AVAILABLE" | "UNAVAILABLE">;
+  from: string;
+  to: string;
+}
+
 export type BuildAvailabilityRowsResult =
   | { ok: true; rows: AvailabilityRowDraft[] }
   | { ok: false; error: string };
 
 export const AVAILABILITY_MESSAGES = {
   noDaysSelected: "Select at least one day.",
-  timeRequired: "Enter a start and end time.",
+  noBlocks: "Add at least one time block.",
   invalidFrom: "Enter a valid start time.",
   invalidTo: "Enter a valid end time.",
   endBeforeStart: "End time must be after start time.",
 } as const;
 
-/**
- * `mode: "UNAVAILABLE"` needs no time range - it blocks the entire calendar
- * day. `mode: "AVAILABLE"` applies one From/To time-of-day to every day.
- */
 export function buildAvailabilityRows(
   days: Date[],
-  mode: Extract<AvailabilityStatus, "AVAILABLE" | "UNAVAILABLE">,
-  time?: { from: string; to: string }
+  blocks: AvailabilityBlockDraft[]
 ): BuildAvailabilityRowsResult {
   if (days.length === 0) {
     return { ok: false, error: AVAILABILITY_MESSAGES.noDaysSelected };
   }
-
-  if (mode === "UNAVAILABLE") {
-    return {
-      ok: true,
-      rows: days.map((day) => {
-        const dayStart = startOfDay(day);
-        return { day, startsAt: dayStart, endsAt: addDays(dayStart, 1), status: "UNAVAILABLE" as const };
-      }),
-    };
+  if (blocks.length === 0) {
+    return { ok: false, error: AVAILABILITY_MESSAGES.noBlocks };
   }
 
-  if (!time) return { ok: false, error: AVAILABILITY_MESSAGES.timeRequired };
+  const parsedBlocks: { status: AvailabilityStatus; fromMinutes: number; toMinutes: number }[] = [];
+  for (const block of blocks) {
+    const from = parseTimeInput(block.from);
+    if (!from) return { ok: false, error: AVAILABILITY_MESSAGES.invalidFrom };
+    const to = parseTimeInput(block.to);
+    if (!to) return { ok: false, error: AVAILABILITY_MESSAGES.invalidTo };
 
-  const from = parseTimeInput(time.from);
-  if (!from) return { ok: false, error: AVAILABILITY_MESSAGES.invalidFrom };
+    const fromMinutes = from.hours * 60 + from.minutes;
+    const toMinutes = to.hours * 60 + to.minutes;
+    if (toMinutes <= fromMinutes) {
+      return { ok: false, error: AVAILABILITY_MESSAGES.endBeforeStart };
+    }
+    parsedBlocks.push({ status: block.status, fromMinutes, toMinutes });
+  }
 
-  const to = parseTimeInput(time.to);
-  if (!to) return { ok: false, error: AVAILABILITY_MESSAGES.invalidTo };
-
-  const rows = days.map((day) => {
+  const rows: AvailabilityRowDraft[] = [];
+  for (const day of days) {
     const dayStart = startOfDay(day);
-    const startsAt = setMinutes(setHours(dayStart, from.hours), from.minutes);
-    const endsAt = setMinutes(setHours(dayStart, to.hours), to.minutes);
-    return { day, startsAt, endsAt, status: "AVAILABLE" as const };
-  });
-
-  if (rows.some((r) => r.endsAt <= r.startsAt)) {
-    return { ok: false, error: AVAILABILITY_MESSAGES.endBeforeStart };
+    for (const block of parsedBlocks) {
+      const startsAt = addMinutes(dayStart, block.fromMinutes);
+      const endsAt = addMinutes(dayStart, block.toMinutes);
+      rows.push({ day, startsAt, endsAt, status: block.status });
+    }
   }
 
   return { ok: true, rows };
