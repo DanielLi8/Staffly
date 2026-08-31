@@ -78,6 +78,29 @@ enum CampaignStatus {
   EXHAUSTED
 }
 
+/// SWAP is a two-way trade (the requester picks a specific shift they receive
+/// back); GIVEAWAY is one-way (receiveShiftId stays null).
+enum ShiftSwapKind {
+  SWAP
+  GIVEAWAY
+}
+
+/// The three-step pipeline this model tracks: requester submits
+/// (PENDING_ACCEPT), the target colleague responds (ACCEPTED/REJECTED), then
+/// - only after ACCEPTED - a manager decides (PENDING_APPROVAL ->
+/// APPROVED/DENIED). CANCELLED is the requester withdrawing at any point
+/// before a terminal state. No `Shift.assignedWorkerId` changes until
+/// APPROVED - that reassignment is the accept/approve follow-up task's job.
+enum ShiftSwapStatus {
+  PENDING_ACCEPT
+  ACCEPTED
+  REJECTED
+  PENDING_APPROVAL
+  APPROVED
+  DENIED
+  CANCELLED
+}
+
 model User {
   id              String    @id @default(cuid())
   name            String
@@ -104,6 +127,9 @@ model User {
   departmentMemberships DepartmentMembership[]
   availabilities        Availability[]
   outreachAttempts      OutreachAttempt[]
+  swapRequestsMade      ShiftSwapRequest[]     @relation("SwapRequester")
+  swapRequestsReceived  ShiftSwapRequest[]     @relation("SwapTarget")
+  swapRequestsApproved  ShiftSwapRequest[]     @relation("SwapApprovedBy")
 
   accounts Account[]
   sessions Session[]
@@ -158,7 +184,7 @@ model Shift {
   location      String
   // Short, human-typeable code used to resolve an inbound SMS reply back to this
   // shift (e.g. "reply YES 7K2M"). Null on shifts posted before Phase 3 outreach.
-  smsCode       String?  @unique
+  smsCode       String?     @unique
   startsAt      DateTime
   endsAt        DateTime
   bidDeadlineAt DateTime
@@ -174,11 +200,13 @@ model Shift {
   hospitalId String?
   hospital   Hospital? @relation(fields: [hospitalId], references: [id])
 
-  bids             ShiftBid[]
-  notifications    Notification[]
-  activities       ShiftActivity[]
-  outreachAttempts OutreachAttempt[]
-  campaign         CalloutCampaign?
+  bids                 ShiftBid[]
+  notifications        Notification[]
+  activities           ShiftActivity[]
+  outreachAttempts     OutreachAttempt[]
+  campaign             CalloutCampaign?
+  swapRequestsGiven    ShiftSwapRequest[] @relation("SwapGiveShift")
+  swapRequestsReceived ShiftSwapRequest[] @relation("SwapReceiveShift")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -204,6 +232,51 @@ model ShiftBid {
   updatedAt       DateTime         @updatedAt
 
   @@unique([shiftId, workerId])
+}
+
+/// A requester-initiated Shift Swap (two-way trade, `receiveShiftId` set) or
+/// Shift Giveaway (one-way, `receiveShiftId` always null). Foundation model
+/// only: this phase creates rows in PENDING_ACCEPT and never touches
+/// `Shift.assignedWorkerId` - the accept/reject, approve/deny, and resulting
+/// reassignment are the accept/approve follow-up's job. See
+/// `src/lib/shift-swap/` for the pure eligibility/pay-period rules and
+/// `src/app/actions/shift-swap.ts` for the requester-side flow.
+model ShiftSwapRequest {
+  id String @id @default(cuid())
+
+  requesterId String
+  requester   User   @relation("SwapRequester", fields: [requesterId], references: [id])
+
+  giveShiftId String
+  giveShift   Shift  @relation("SwapGiveShift", fields: [giveShiftId], references: [id], onDelete: Cascade)
+
+  kind ShiftSwapKind
+
+  targetUserId String
+  targetUser   User   @relation("SwapTarget", fields: [targetUserId], references: [id])
+
+  /// The specific shift on targetUser's schedule the requester receives in
+  /// exchange. Set only for SWAP; always null for GIVEAWAY.
+  receiveShiftId String?
+  receiveShift   Shift?  @relation("SwapReceiveShift", fields: [receiveShiftId], references: [id], onDelete: Cascade)
+
+  status ShiftSwapStatus @default(PENDING_ACCEPT)
+
+  requestedAt DateTime  @default(now())
+  respondedAt DateTime?
+
+  approvedById String?
+  approvedBy   User?     @relation("SwapApprovedBy", fields: [approvedById], references: [id])
+  approvedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([requesterId])
+  @@index([targetUserId])
+  @@index([giveShiftId])
+  @@index([receiveShiftId])
+  @@index([status])
 }
 
 model Notification {

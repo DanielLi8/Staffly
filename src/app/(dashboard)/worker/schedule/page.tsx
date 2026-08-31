@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { format, addDays, subDays } from "date-fns";
 import { parseScheduleAnchor, parseScheduleView, resolveScheduleRange, type ScheduleView } from "@/lib/schedule/range";
 import { PersonalScheduleCalendar } from "@/features/schedule/personal-schedule-calendar";
+import { NewRequestMenu } from "@/features/shift-swap/new-request-menu";
 
 export const metadata = { title: "Your Schedule – Staffly" };
 
@@ -49,14 +50,19 @@ export default async function WorkerSchedulePage({
   });
 
   return (
-    <PersonalScheduleCalendar
-      title="Your Schedule"
-      subtitle="Review your assigned clinical rotations."
-      shifts={shifts}
-      anchor={anchor}
-      view={view}
-      hrefFor={scheduleHref}
-      editableAvailability={{ availability }}
-    />
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <NewRequestMenu />
+      </div>
+      <PersonalScheduleCalendar
+        title="Your Schedule"
+        subtitle="Review your assigned clinical rotations."
+        shifts={shifts}
+        anchor={anchor}
+        view={view}
+        hrefFor={scheduleHref}
+        editableAvailability={view === "month" ? { availability } : undefined}
+      />
+    </div>
   );
 }
