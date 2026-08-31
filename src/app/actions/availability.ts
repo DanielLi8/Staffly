@@ -5,14 +5,20 @@ import { z } from "zod";
 import { addDays, format, isSameMonth, startOfDay } from "date-fns";
 import { db } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
-import { buildAvailabilityRows } from "@/lib/availability/build";
+import { buildAvailabilityRows, type AvailabilityRowDraft } from "@/lib/availability/build";
 import { notifyAdminsOfAvailabilityChange, notifyWorkerOfAvailabilityUpdate } from "@/lib/notifications";
 
 const saveAvailabilitySchema = z.object({
   dates: z.array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).min(1),
-  status: z.enum(["AVAILABLE", "UNAVAILABLE"]),
-  from: z.string().optional(),
-  to: z.string().optional(),
+  blocks: z
+    .array(
+      z.object({
+        status: z.enum(["AVAILABLE", "UNAVAILABLE"]),
+        from: z.string().min(1),
+        to: z.string().min(1),
+      })
+    )
+    .min(1),
 });
 
 /**
@@ -38,12 +44,15 @@ function formatDateLabel(days: Date[]): string {
 }
 
 /**
- * One row per selected day, sharing one action: a single AVAILABLE time
- * range, or a flat UNAVAILABLE covering the whole day - matching the shape
+ * One or more rows per selected day - one per submitted block, each an
+ * AVAILABLE or UNAVAILABLE time-of-day range - matching the shape
  * `prisma/seed.ts` already seeds. Re-saving a day replaces whatever was
- * there for it (a day has exactly one availability state at a time), so any
- * existing rows for that calendar day are deleted before the new one is
- * created, regardless of which department (if any) they were scoped to.
+ * there for it (a day's blocks are always submitted as a full set), so any
+ * existing rows for that calendar day are deleted before that day's new
+ * rows are created, regardless of which department (if any) they were
+ * scoped to. The delete and the day's creates run in the same transaction
+ * step so a day with multiple blocks never has an earlier block's insert
+ * wiped out by a later block's delete.
  */
 export async function saveAvailability(rawInput: unknown): Promise<SaveAvailabilityResult> {
   const session = await requireAuth("STAFF");
@@ -52,43 +61,47 @@ export async function saveAvailability(rawInput: unknown): Promise<SaveAvailabil
   if (!parsed.success) {
     return { ok: false, error: "Select at least one day." };
   }
-  const { dates, status, from, to } = parsed.data;
+  const { dates, blocks } = parsed.data;
 
   const days = dates.map(parseDayKey);
-  const built = buildAvailabilityRows(
-    days,
-    status,
-    status === "AVAILABLE" ? { from: from ?? "", to: to ?? "" } : undefined
-  );
+  const built = buildAvailabilityRows(days, blocks);
   if (!built.ok) {
     return { ok: false, error: built.error };
   }
 
+  const rowsByDayKey = new Map<string, AvailabilityRowDraft[]>();
+  for (const row of built.rows) {
+    const key = format(row.day, "yyyy-MM-dd");
+    const existing = rowsByDayKey.get(key);
+    if (existing) existing.push(row);
+    else rowsByDayKey.set(key, [row]);
+  }
+
   await db.$transaction(
-    built.rows.flatMap((row) => {
-      const dayStart = startOfDay(row.day);
+    Array.from(rowsByDayKey.values()).flatMap((rows) => {
+      const dayStart = startOfDay(rows[0].day);
       const dayEnd = addDays(dayStart, 1);
       return [
         db.availability.deleteMany({
           where: { userId: session.user.id, startsAt: { gte: dayStart, lt: dayEnd } },
         }),
-        db.availability.create({
-          data: {
+        db.availability.createMany({
+          data: rows.map((row) => ({
             userId: session.user.id,
             startsAt: row.startsAt,
             endsAt: row.endsAt,
             status: row.status,
-          },
+          })),
         }),
       ];
     })
   );
 
-  const dateLabel = formatDateLabel(built.rows.map((r) => r.day));
+  const dateLabel = formatDateLabel(days);
   await notifyWorkerOfAvailabilityUpdate({ workerId: session.user.id, dateLabel });
   await notifyAdminsOfAvailabilityChange({ workerName: session.user.name, dateLabel });
 
   revalidatePath("/worker/schedule");
 
-  return { ok: true, count: built.rows.length };
+  return { ok: true, count: rowsByDayKey.size };
 }
