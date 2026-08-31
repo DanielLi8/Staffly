@@ -19,7 +19,10 @@ export function NotificationBell() {
     try {
       const res = await fetch("/api/notifications");
       const data = await res.json();
-      setNotifications(data);
+      // A 401 (session expired/switched) or any other error response comes
+      // back as `{ error: string }`, not an array - never hand that to
+      // `.filter()` below, which would crash the whole page.
+      if (res.ok && Array.isArray(data)) setNotifications(data);
     } catch (_) {
     } finally {
       setLoading(false);
