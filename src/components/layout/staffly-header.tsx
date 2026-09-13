@@ -26,6 +26,7 @@ const adminLinks: NavLink[] = [
   },
   { href: "/admin/departments", label: "Departments", match: (p) => p.startsWith("/admin/departments") },
   { href: "/admin/schedule", label: "Schedule", match: (p) => p.startsWith("/admin/schedule") },
+  { href: "/admin/shift-swaps", label: "Shift Swaps", match: (p) => p.startsWith("/admin/shift-swaps") },
 ];
 
 const workerLinks: NavLink[] = [

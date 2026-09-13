@@ -4,16 +4,26 @@ import { addDays } from "date-fns";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireActor } from "@/lib/auth";
+import { hospitalDateTime } from "@/lib/timezone";
 import { payPeriodFor, isSamePayPeriod, PAY_PERIOD_LENGTH_DAYS } from "@/lib/shift-swap/pay-period";
 import { evaluateReceivingEligibility, type EligibilityShift } from "@/lib/shift-swap/eligibility";
+import {
+  notifyTargetOfShiftSwapRequest,
+  notifyRequesterOfShiftSwapAccepted,
+  notifyAdminsOfShiftSwapPendingApproval,
+  notifyRequesterOfShiftSwapRejected,
+} from "@/lib/notifications";
 import { revalidatePath } from "next/cache";
+import type { ShiftSwapKind } from "@/features/shift-swap/types";
 
 /**
- * Requester-side Shift Swap / Giveaway flow (foundation phase only). This
- * file only ever creates a `ShiftSwapRequest` in PENDING_ACCEPT - it never
- * touches `Shift.assignedWorkerId`. The receiving colleague's accept/reject,
- * the manager's approve/deny, and the resulting reassignment are the
- * `staffly-shift-swap-accept-approve` follow-up task's job.
+ * Requester- and target-colleague-side Shift Swap / Giveaway flow. Submitting
+ * (`createShiftSwapRequest`) only ever creates a `ShiftSwapRequest` in
+ * PENDING_ACCEPT and accept/reject only ever move it to PENDING_APPROVAL or
+ * REJECTED - none of this touches `Shift.assignedWorkerId`. The manager's
+ * approve/deny and the resulting reassignment live in
+ * `src/app/actions/shift-swap-approvals.ts`, since that's an ADMIN-only
+ * surface with a different actor.
  *
  * A generous ± one pay-period window (rather than an exact hospital-timezone
  * instant range) is used everywhere shifts are queried for eligibility
@@ -304,7 +314,140 @@ export async function createShiftSwapRequest(rawInput: unknown): Promise<CreateS
     },
   });
 
+  const requester = await db.user.findUnique({ where: { id: actor.id }, select: { name: true } });
+  await notifyTargetOfShiftSwapRequest({
+    targetUserId,
+    requesterName: requester?.name ?? "A colleague",
+    kind,
+    shiftDateLabel: hospitalDateTime(giveShift.startsAt),
+  });
+
   revalidatePath("/worker/schedule");
 
   return { ok: true, id: created.id };
+}
+
+export interface IncomingShiftSwapRequest {
+  id: string;
+  kind: ShiftSwapKind;
+  requesterName: string;
+  requestedAt: Date;
+  giveShift: { startsAt: Date; endsAt: Date; departmentName: string; roleNeeded: string };
+  /** The colleague's own shift they'd trade away in return - SWAP only. */
+  receiveShift: { startsAt: Date; endsAt: Date } | null;
+}
+
+/** Requests currently awaiting the signed-in colleague's Accept/Reject. */
+export async function listIncomingShiftSwapRequests(): Promise<IncomingShiftSwapRequest[]> {
+  const actor = await requireActor("STAFF");
+
+  const requests = await db.shiftSwapRequest.findMany({
+    where: { targetUserId: actor.id, status: "PENDING_ACCEPT" },
+    include: {
+      requester: { select: { name: true } },
+      giveShift: { select: { startsAt: true, endsAt: true, roleNeeded: true, department: { select: { name: true } } } },
+      receiveShift: { select: { startsAt: true, endsAt: true } },
+    },
+    orderBy: { requestedAt: "desc" },
+  });
+
+  return requests.map((r) => ({
+    id: r.id,
+    kind: r.kind,
+    requesterName: r.requester.name,
+    requestedAt: r.requestedAt,
+    giveShift: {
+      startsAt: r.giveShift.startsAt,
+      endsAt: r.giveShift.endsAt,
+      departmentName: r.giveShift.department.name,
+      roleNeeded: r.giveShift.roleNeeded,
+    },
+    receiveShift: r.receiveShift ? { startsAt: r.receiveShift.startsAt, endsAt: r.receiveShift.endsAt } : null,
+  }));
+}
+
+export type RespondToShiftSwapResult = { ok: true } | { ok: false; error: string };
+
+async function loadRespondableRequest(requestId: string, actorId: string) {
+  const request = await db.shiftSwapRequest.findUnique({
+    where: { id: requestId },
+    include: { giveShift: true, receiveShift: true, requester: { select: { name: true } } },
+  });
+
+  if (!request || request.targetUserId !== actorId) {
+    return { request: null, error: "Request not found." } as const;
+  }
+  if (request.status !== "PENDING_ACCEPT") {
+    return { request: null, error: "This request is no longer awaiting your response." } as const;
+  }
+  return { request, error: null } as const;
+}
+
+/**
+ * The colleague accepts: moves straight to PENDING_APPROVAL (the manager's
+ * queue) per the pipeline in the mockup - there is no separate action that
+ * waits in an intermediate "accepted, not yet queued" state. Re-checks both
+ * shifts are still exactly as they were at request time, since either side's
+ * schedule could have changed in the time the request sat unanswered.
+ */
+export async function acceptShiftSwapRequest(requestId: string): Promise<RespondToShiftSwapResult> {
+  const actor = await requireActor("STAFF");
+  const { request, error } = await loadRespondableRequest(requestId, actor.id);
+  if (!request) return { ok: false, error: error! };
+
+  if (request.giveShift.status !== "ASSIGNED" || request.giveShift.assignedWorkerId !== request.requesterId) {
+    return { ok: false, error: "That shift is no longer available." };
+  }
+  if (request.kind === "SWAP") {
+    if (!request.receiveShift || request.receiveShift.status !== "ASSIGNED" || request.receiveShift.assignedWorkerId !== actor.id) {
+      return { ok: false, error: "Your shift is no longer available for this trade." };
+    }
+  }
+
+  await db.shiftSwapRequest.update({
+    where: { id: requestId },
+    data: { status: "PENDING_APPROVAL", respondedAt: new Date() },
+  });
+
+  const targetUser = await db.user.findUnique({ where: { id: actor.id }, select: { name: true } });
+  const shiftDateLabel = hospitalDateTime(request.giveShift.startsAt);
+  await notifyRequesterOfShiftSwapAccepted({
+    requesterId: request.requesterId,
+    targetName: targetUser?.name ?? "Your colleague",
+    shiftDateLabel,
+  });
+  await notifyAdminsOfShiftSwapPendingApproval({
+    requesterName: request.requester.name,
+    targetName: targetUser?.name ?? "a colleague",
+    kind: request.kind,
+    shiftDateLabel,
+  });
+
+  revalidatePath("/worker/schedule");
+  revalidatePath("/admin/shift-swaps");
+
+  return { ok: true };
+}
+
+/** The colleague rejects: terminal, no admin involvement needed. */
+export async function rejectShiftSwapRequest(requestId: string): Promise<RespondToShiftSwapResult> {
+  const actor = await requireActor("STAFF");
+  const { request, error } = await loadRespondableRequest(requestId, actor.id);
+  if (!request) return { ok: false, error: error! };
+
+  await db.shiftSwapRequest.update({
+    where: { id: requestId },
+    data: { status: "REJECTED", respondedAt: new Date() },
+  });
+
+  const targetUser = await db.user.findUnique({ where: { id: actor.id }, select: { name: true } });
+  await notifyRequesterOfShiftSwapRejected({
+    requesterId: request.requesterId,
+    targetName: targetUser?.name ?? "Your colleague",
+    shiftDateLabel: hospitalDateTime(request.giveShift.startsAt),
+  });
+
+  revalidatePath("/worker/schedule");
+
+  return { ok: true };
 }

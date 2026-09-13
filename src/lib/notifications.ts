@@ -208,3 +208,109 @@ export async function notifyWorkersOfAssignment(opts: {
     })
   );
 }
+
+/**
+ * Shift Swap / Giveaway pipeline notifications (in-app only, per the brief -
+ * email is explicitly out of scope here, same as `notifyWorkerOfAvailabilityUpdate`).
+ * Three distinct moments, each firing its own notification(s):
+ *   1. Request sent -> the target colleague.
+ *   2. Request accepted -> the requester, AND every ADMIN (broadcast, reusing
+ *      `notifyAdminsOfAvailabilityChange`'s pattern: a pending swap approval
+ *      has no natural single owner the way a bid or cancellation does).
+ *   3. Request approved/denied -> both the requester and the colleague.
+ */
+export async function notifyTargetOfShiftSwapRequest(opts: {
+  targetUserId: string;
+  requesterName: string;
+  kind: "SWAP" | "GIVEAWAY";
+  shiftDateLabel: string;
+}): Promise<void> {
+  const verb = opts.kind === "SWAP" ? "swap" : "give away";
+  await db.notification.create({
+    data: {
+      userId: opts.targetUserId,
+      type: "SWAP_REQUEST_RECEIVED",
+      title: "Shift Swap Request",
+      message: `${opts.requesterName} wants to ${verb} their shift on ${opts.shiftDateLabel} with you.`,
+    },
+  });
+}
+
+export async function notifyRequesterOfShiftSwapAccepted(opts: {
+  requesterId: string;
+  targetName: string;
+  shiftDateLabel: string;
+}): Promise<void> {
+  await db.notification.create({
+    data: {
+      userId: opts.requesterId,
+      type: "SWAP_REQUEST_ACCEPTED",
+      title: "Shift Swap Accepted",
+      message: `${opts.targetName} accepted your request for the shift on ${opts.shiftDateLabel}. Waiting on manager approval.`,
+    },
+  });
+}
+
+export async function notifyAdminsOfShiftSwapPendingApproval(opts: {
+  requesterName: string;
+  targetName: string;
+  kind: "SWAP" | "GIVEAWAY";
+  shiftDateLabel: string;
+}): Promise<void> {
+  const kindLabel = opts.kind === "SWAP" ? "Shift Swap" : "Shift Giveaway";
+  const admins = await db.user.findMany({
+    where: { role: "ADMIN" },
+    select: { id: true },
+  });
+
+  await Promise.allSettled(
+    admins.map((admin) =>
+      db.notification.create({
+        data: {
+          userId: admin.id,
+          type: "SWAP_APPROVAL_NEEDED",
+          title: "Shift Swap Needs Approval",
+          message: `${kindLabel} from ${opts.requesterName} to ${opts.targetName} (shift on ${opts.shiftDateLabel}) was accepted and needs your approval.`,
+        },
+      })
+    )
+  );
+}
+
+export async function notifyRequesterOfShiftSwapRejected(opts: {
+  requesterId: string;
+  targetName: string;
+  shiftDateLabel: string;
+}): Promise<void> {
+  await db.notification.create({
+    data: {
+      userId: opts.requesterId,
+      type: "SWAP_REQUEST_REJECTED",
+      title: "Shift Swap Declined",
+      message: `${opts.targetName} declined your request for the shift on ${opts.shiftDateLabel}.`,
+    },
+  });
+}
+
+/** Fires the same decision to both parties once a manager approves or denies a swap. */
+export async function notifyPartiesOfShiftSwapDecision(opts: {
+  requesterId: string;
+  targetUserId: string;
+  approved: boolean;
+  approverName: string;
+  kind: "SWAP" | "GIVEAWAY";
+  shiftDateLabel: string;
+}): Promise<void> {
+  const kindLabel = opts.kind === "SWAP" ? "shift swap" : "shift giveaway";
+  const type = opts.approved ? "SWAP_APPROVED" : "SWAP_DENIED";
+  const title = opts.approved ? "Shift Swap Approved" : "Shift Swap Denied";
+  const message = opts.approved
+    ? `Your ${kindLabel} for the shift on ${opts.shiftDateLabel} was approved by ${opts.approverName}.`
+    : `Your ${kindLabel} for the shift on ${opts.shiftDateLabel} was denied by ${opts.approverName}.`;
+
+  await Promise.allSettled(
+    [opts.requesterId, opts.targetUserId].map((userId) =>
+      db.notification.create({ data: { userId, type, title, message } })
+    )
+  );
+}

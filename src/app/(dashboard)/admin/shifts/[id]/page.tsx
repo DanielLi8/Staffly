@@ -13,6 +13,7 @@ import { formatShiftDate, formatDate } from "@/lib/utils";
 import { CancelShiftButton } from "./cancel-shift-button";
 import { EditShiftTimeForm } from "./edit-shift-time-form";
 import { canCancelShift } from "@/lib/shift-status";
+import { SWAP_REASSIGNED_ACTION_LABEL } from "@/lib/shift-swap/audit";
 
 export async function generateMetadata({ params }: { params: { id: string } }) {
   const shift = await db.shift.findUnique({ where: { id: params.id }, select: { title: true } });
@@ -212,6 +213,7 @@ function formatActivityAction(action: string): string {
     SHIFT_CANCELLED: "Shift cancelled",
     SHIFT_CLOSED: "Shift closed",
     SHIFT_TIME_EDITED: "Shift time edited",
+    ...SWAP_REASSIGNED_ACTION_LABEL,
   };
   return map[action] ?? action;
 }
