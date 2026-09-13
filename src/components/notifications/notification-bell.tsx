@@ -112,6 +112,32 @@ export function NotificationBell() {
   );
 }
 
+/**
+ * The Shift Swap types carry no `shiftId` (a swap touches two shifts, so
+ * there's no single one to deep-link to) and instead route to the surface
+ * where the recipient can act: the target colleague's accept/reject panel
+ * and the requester's own status both live on `/worker/schedule`; the
+ * admin's approve/deny queue is `/admin/shift-swaps`.
+ */
+function hrefForNotification(notification: NotificationWithShift): string {
+  switch (notification.type) {
+    case "SWAP_APPROVAL_NEEDED":
+      return "/admin/shift-swaps";
+    case "SWAP_REQUEST_RECEIVED":
+    case "SWAP_REQUEST_ACCEPTED":
+    case "SWAP_REQUEST_REJECTED":
+    case "SWAP_APPROVED":
+    case "SWAP_DENIED":
+      return "/worker/schedule";
+    default:
+      break;
+  }
+  if (!notification.shiftId) return "#";
+  return notification.type === "BID_SUBMITTED"
+    ? `/admin/shifts/${notification.shiftId}`
+    : `/worker/shifts/${notification.shiftId}`;
+}
+
 function NotificationItem({
   notification,
   onClose,
@@ -119,12 +145,7 @@ function NotificationItem({
   notification: NotificationWithShift;
   onClose: () => void;
 }) {
-  const href =
-    notification.shiftId
-      ? notification.type === "BID_SUBMITTED"
-        ? `/admin/shifts/${notification.shiftId}`
-        : `/worker/shifts/${notification.shiftId}`
-      : "#";
+  const href = hrefForNotification(notification);
 
   return (
     <Link

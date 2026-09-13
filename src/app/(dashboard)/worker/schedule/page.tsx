@@ -5,6 +5,8 @@ import { format, addDays, subDays } from "date-fns";
 import { parseScheduleAnchor, parseScheduleView, resolveScheduleRange, type ScheduleView } from "@/lib/schedule/range";
 import { PersonalScheduleCalendar } from "@/features/schedule/personal-schedule-calendar";
 import { NewRequestMenu } from "@/features/shift-swap/new-request-menu";
+import { IncomingRequestsPanel } from "@/features/shift-swap/incoming-requests-panel";
+import { listIncomingShiftSwapRequests } from "@/app/actions/shift-swap";
 
 export const metadata = { title: "Your Schedule – Staffly" };
 
@@ -49,11 +51,17 @@ export default async function WorkerSchedulePage({
     },
   });
 
+  // `listIncomingShiftSwapRequests` requires a STAFF actor; an ADMIN can also
+  // land on this page (middleware doesn't fence /worker off from ADMIN), so
+  // skip the call entirely rather than let it throw FORBIDDEN.
+  const incomingRequests = session.user.role === "STAFF" ? await listIncomingShiftSwapRequests() : [];
+
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
         <NewRequestMenu />
       </div>
+      <IncomingRequestsPanel requests={incomingRequests} />
       <PersonalScheduleCalendar
         title="Your Schedule"
         subtitle="Review your assigned clinical rotations."
