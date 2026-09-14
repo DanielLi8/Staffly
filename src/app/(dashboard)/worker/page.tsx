@@ -44,7 +44,6 @@ export default async function WorkerDashboardPage() {
       <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
         <div>
           <h1 className="page-title text-3xl md:text-4xl">Welcome back, {first}</h1>
-          <p className="text-sm text-neutral-500 mt-2">What would you like to do?</p>
         </div>
         <Card className="shrink-0 w-full lg:w-56 border-primary-100 shadow-card">
           <CardContent className="pt-5">
