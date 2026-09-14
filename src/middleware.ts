@@ -5,7 +5,7 @@ import type { Role } from "@prisma/client";
 /** The landing area for each role after login / when redirected off a foreign area. */
 function homeFor(role: Role | undefined): string {
   if (role === "ADMIN") return "/admin";
-  return "/worker/shifts";
+  return "/worker";
 }
 
 export default withAuth(
