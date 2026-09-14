@@ -10,6 +10,8 @@ import { saveAvailability } from "@/app/actions/availability";
 import type { AvailabilityDTO } from "@/lib/availability/types";
 import type { ScheduleView } from "@/lib/schedule/range";
 import { ShiftBlock, type PersonalScheduleShift } from "@/features/schedule/shift-block";
+import { ShiftSwapPanel } from "@/features/shift-swap/shift-swap-panel";
+import type { ShiftSwapKind } from "@/features/shift-swap/types";
 import { NewRequestMenu, type NewRequestChoice } from "./new-request-menu";
 import { ChangeAvailabilityPanel, type BlockDraft, newBlockDraft } from "./change-availability-panel";
 
@@ -58,6 +60,7 @@ export function AvailabilityEditor({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [previewRange, setPreviewRange] = useState<[number, number] | null>(null);
   const [panelMode, setPanelMode] = useState<"empty" | "change-availability">("empty");
+  const [swapFlow, setSwapFlow] = useState<ShiftSwapKind | null>(null);
   const [blocks, setBlocks] = useState<BlockDraft[]>([newBlockDraft()]);
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
@@ -134,6 +137,10 @@ export function AvailabilityEditor({
   function handleNewRequestChoice(choice: NewRequestChoice) {
     if (choice === "change-availability") {
       setPanelMode("change-availability");
+    } else if (choice === "shift-swap") {
+      setSwapFlow("SWAP");
+    } else if (choice === "shift-giveaway") {
+      setSwapFlow("GIVEAWAY");
     }
   }
 
@@ -181,6 +188,8 @@ export function AvailabilityEditor({
       <div className="flex items-center justify-end">
         <NewRequestMenu onChoose={handleNewRequestChoice} />
       </div>
+
+      {swapFlow && <ShiftSwapPanel kind={swapFlow} onClose={() => setSwapFlow(null)} />}
 
       <div className="flex flex-col lg:flex-row gap-4 items-start">
         <div className="card-base overflow-x-auto select-none flex-1 min-w-0 w-full">
