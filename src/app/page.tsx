@@ -12,5 +12,5 @@ export default async function RootPage() {
     redirect("/admin");
   }
 
-  redirect("/worker/shifts");
+  redirect("/worker");
 }
