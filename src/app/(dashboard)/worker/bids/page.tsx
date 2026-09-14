@@ -202,21 +202,6 @@ export default async function WorkerBidsPage({
           </div>
         </div>
       </div>
-
-      <div className="rounded-2xl bg-primary-700 text-white px-6 py-5 flex flex-col md:flex-row md:items-center gap-4">
-        <div className="w-10 h-10 rounded-full bg-white/15 flex items-center justify-center text-lg font-bold shrink-0">
-          ?
-        </div>
-        <p className="flex-1 text-sm leading-relaxed">
-          Questions about your history? Our staffing coordinators are available 24/7 for support.
-        </p>
-        <button
-          type="button"
-          className="shrink-0 h-11 px-6 rounded-xl bg-white text-primary-800 text-sm font-semibold hover:bg-neutral-100"
-        >
-          Contact Support
-        </button>
-      </div>
     </div>
   );
 }

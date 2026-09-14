@@ -4,7 +4,6 @@ import { redirect } from "next/navigation";
 import { format, addDays, subDays } from "date-fns";
 import { parseScheduleAnchor, parseScheduleView, resolveScheduleRange, type ScheduleView } from "@/lib/schedule/range";
 import { PersonalScheduleCalendar } from "@/features/schedule/personal-schedule-calendar";
-import { NewRequestMenu } from "@/features/shift-swap/new-request-menu";
 import { IncomingRequestsPanel } from "@/features/shift-swap/incoming-requests-panel";
 import { listIncomingShiftSwapRequests } from "@/app/actions/shift-swap";
 
@@ -58,9 +57,6 @@ export default async function WorkerSchedulePage({
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <NewRequestMenu />
-      </div>
       <IncomingRequestsPanel requests={incomingRequests} />
       <PersonalScheduleCalendar
         title="Your Schedule"
