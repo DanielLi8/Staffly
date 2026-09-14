@@ -69,7 +69,7 @@ export default async function WorkerSchedulePage({
         anchor={anchor}
         view={view}
         hrefFor={scheduleHref}
-        editableAvailability={view === "month" ? { availability } : undefined}
+        editableAvailability={{ availability }}
       />
     </div>
   );
