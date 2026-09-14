@@ -30,10 +30,7 @@ export function ShiftBlock({ shift, compact, href }: { shift: PersonalScheduleSh
   );
   const body = (
     <>
-      <p className="font-bold uppercase tracking-wide opacity-80 leading-tight">
-        {done ? "Done" : confirmed ? "Now" : "Assigned"}
-      </p>
-      <p className={cn("font-semibold mt-0.5 leading-tight", compact && "line-clamp-2")}>{shift.department.name}</p>
+      <p className={cn("font-semibold leading-tight", compact && "line-clamp-2")}>{shift.department.name}</p>
       {!compact && <p className="opacity-90">{shift.roleNeeded}</p>}
       <p className="mt-0.5 opacity-90 tabular-nums">
         {hospitalTime(shift.startsAt, false)}–{hospitalTime(shift.endsAt, false)}
