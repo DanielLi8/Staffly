@@ -6,6 +6,7 @@ import { format, isSameDay, isSameMonth } from "date-fns";
 import { Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { parseTimeInput } from "@/lib/shifts/time";
+import { hospitalTime } from "@/lib/timezone";
 import { saveAvailability } from "@/app/actions/availability";
 import type { AvailabilityDTO } from "@/lib/availability/types";
 import type { ScheduleView } from "@/lib/schedule/range";
@@ -14,8 +15,10 @@ import { ShiftSwapPanel } from "@/features/shift-swap/shift-swap-panel";
 import type { ShiftSwapKind } from "@/features/shift-swap/types";
 import { NewRequestMenu, type NewRequestChoice } from "./new-request-menu";
 import { ChangeAvailabilityPanel, type BlockDraft, newBlockDraft } from "./change-availability-panel";
+import { DayDetailsPanel } from "./day-details-panel";
 
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const MONTH_CELL_SHIFT_CAP = 3;
 
 /**
  * The Day/Week/Month availability editor for `/worker/schedule` - tap+drag
@@ -65,9 +68,14 @@ export function AvailabilityEditor({
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Independent of `selected` (the multi-day batch-edit set) - a plain click
+  // sets both, but toggling a day off `selected` keeps its Day Details shown.
+  const [focusedDay, setFocusedDay] = useState<Date>(today);
 
   const dragAnchorIndexRef = useRef<number | null>(null);
   const dragMovedRef = useRef(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const panelMountedRef = useRef(false);
 
   useEffect(() => {
     function endDrag() {
@@ -100,6 +108,19 @@ export function AvailabilityEditor({
     };
   }, []);
 
+  // Below `md` the grid and panel stack, so a tap on a day gives no visual
+  // cue anything happened until the user scrolls down themselves - nudge
+  // them there. Skipped on first mount so the page doesn't jump on load.
+  useEffect(() => {
+    if (!panelMountedRef.current) {
+      panelMountedRef.current = true;
+      return;
+    }
+    if (window.matchMedia("(max-width: 767px)").matches) {
+      panelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [focusedDay, panelMode]);
+
   function showFeedback(next: { type: "success" | "error"; message: string }) {
     setFeedback(next);
     if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
@@ -131,7 +152,14 @@ export function AvailabilityEditor({
   function handleMouseUp(index: number) {
     if (dragAnchorIndexRef.current === index && !dragMovedRef.current) {
       toggleDay(index);
+      setFocusedDay(cells[index]);
     }
+  }
+
+  function handleEditAvailability(day: Date) {
+    const key = format(day, "yyyy-MM-dd");
+    setSelected((prev) => (prev.has(key) ? prev : new Set(prev).add(key)));
+    setPanelMode("change-availability");
   }
 
   function handleNewRequestChoice(choice: NewRequestChoice) {
@@ -191,10 +219,10 @@ export function AvailabilityEditor({
 
       {swapFlow && <ShiftSwapPanel kind={swapFlow} onClose={() => setSwapFlow(null)} />}
 
-      <div className="flex flex-col lg:flex-row gap-4 items-start">
+      <div className="flex flex-col md:flex-row gap-4 items-start">
         <div className="card-base overflow-x-auto select-none flex-1 min-w-0 w-full">
           {view !== "day" && (
-            <div className="min-w-[320px] sm:min-w-full grid grid-cols-7 border-b border-neutral-200 bg-neutral-50/80">
+            <div className="min-w-[480px] sm:min-w-full grid grid-cols-7 border-b border-neutral-200 bg-neutral-50/80">
               {(view === "month"
                 ? WEEKDAY_LABELS
                 : weekDays.map((d) => `${format(d, "EEE")} ${format(d, "d")}`)
@@ -208,7 +236,7 @@ export function AvailabilityEditor({
 
           <div
             className={cn(
-              "min-w-[320px] sm:min-w-full grid divide-neutral-100 border-b border-neutral-200",
+              "min-w-[480px] sm:min-w-full grid divide-neutral-100 border-b border-neutral-200",
               view === "month" && "grid-cols-7 auto-rows-fr divide-x divide-y",
               view === "week" && "grid-cols-7 divide-x",
               view === "day" && "grid-cols-1"
@@ -237,11 +265,12 @@ export function AvailabilityEditor({
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
                       toggleDay(index);
+                      setFocusedDay(d);
                     }
                   }}
                   className={cn(
                     "flex flex-col cursor-pointer transition-colors overflow-hidden",
-                    view === "month" && "min-h-[88px] sm:min-h-[112px]",
+                    view === "month" && "min-h-[96px] sm:min-h-[112px]",
                     view === "week" && "min-h-[220px] sm:min-h-[320px]",
                     view === "day" && "min-h-[360px] sm:min-h-[480px]",
                     !inMonth && "bg-neutral-50/60 text-neutral-400",
@@ -250,9 +279,9 @@ export function AvailabilityEditor({
                     (isSelected || inPreview) && "bg-primary-50 ring-2 ring-inset ring-primary-500"
                   )}
                 >
-                  <AvailabilityBand dayAvailability={dayAvailability} />
-
                   <div className="flex-1 min-h-0 flex flex-col gap-1 p-1 sm:p-2">
+                    <AvailabilityBand dayAvailability={dayAvailability} />
+
                     <div className="flex items-center justify-between shrink-0">
                       <p
                         className={cn(
@@ -277,11 +306,26 @@ export function AvailabilityEditor({
                         view === "day" && "max-h-[300px] sm:max-h-[400px]"
                       )}
                     >
-                      {dayShifts.map((s) => (
-                        <ShiftBlock key={s.id} shift={s} compact={view !== "day"} />
-                      ))}
-                      {dayShifts.length === 0 && view === "day" && (
-                        <p className="text-sm text-neutral-400">No shifts assigned.</p>
+                      {view === "day" ? (
+                        <>
+                          {dayShifts.map((s) => (
+                            <ShiftBlock key={s.id} shift={s} />
+                          ))}
+                          {dayShifts.length === 0 && <p className="text-sm text-neutral-400">No shifts assigned.</p>}
+                        </>
+                      ) : view === "month" ? (
+                        <>
+                          {dayShifts.slice(0, MONTH_CELL_SHIFT_CAP).map((s) => (
+                            <CompactShiftChip key={s.id} shift={s} />
+                          ))}
+                          {dayShifts.length > MONTH_CELL_SHIFT_CAP && (
+                            <p className="text-[9px] font-semibold text-neutral-400">
+                              +{dayShifts.length - MONTH_CELL_SHIFT_CAP} more
+                            </p>
+                          )}
+                        </>
+                      ) : (
+                        dayShifts.map((s) => <CompactShiftChip key={s.id} shift={s} />)
                       )}
                     </div>
                   </div>
@@ -291,11 +335,14 @@ export function AvailabilityEditor({
           </div>
         </div>
 
-        <div className="w-full lg:w-80 shrink-0">
+        <div ref={panelRef} className="w-full md:w-80 shrink-0">
           {panelMode === "empty" ? (
-            <div className="card-base h-full min-h-[220px] lg:min-h-[520px] flex items-center justify-center text-center p-6 text-sm text-neutral-400">
-              Pick &ldquo;+ New Request&rdquo; above to change your availability, request a shift swap, or give away a shift.
-            </div>
+            <DayDetailsPanel
+              day={focusedDay}
+              shifts={shifts.filter((s) => isSameDay(s.startsAt, focusedDay))}
+              availability={availability.filter((a) => isSameDay(a.startsAt, focusedDay))}
+              onEditAvailability={() => handleEditAvailability(focusedDay)}
+            />
           ) : (
             <ChangeAvailabilityPanel
               selectedDays={selectedDays}
@@ -312,25 +359,75 @@ export function AvailabilityEditor({
   );
 }
 
+const STATUS_SEGMENT_CLASSNAMES: Record<AvailabilityDTO["status"], string> = {
+  AVAILABLE: "bg-emerald-400",
+  UNAVAILABLE: "bg-accent-400",
+  TENTATIVE: "bg-neutral-300",
+};
+
+function minutesSinceMidnight(date: Date): number {
+  return date.getHours() * 60 + date.getMinutes();
+}
+
+/**
+ * A thin strip sized by real clock-time percentage (minutes / 1440), not an
+ * equal share per distinct status - the track's own `bg-neutral-100`
+ * background is what shows through any uncovered minute, so a gap is
+ * visible by construction rather than a special case. Availability rows are
+ * always confined to one calendar day (`src/lib/availability/build.ts`), so
+ * no cross-midnight clipping is needed. Overlapping blocks (not prevented
+ * upstream) paint later-starting segments over earlier ones via DOM order.
+ */
 function AvailabilityBand({ dayAvailability }: { dayAvailability: AvailabilityDTO[] }) {
-  const segments: { key: string; className: string }[] = [];
-  if (dayAvailability.some((a) => a.status === "AVAILABLE")) {
-    segments.push({ key: "available", className: "bg-emerald-200" });
-  }
-  if (dayAvailability.some((a) => a.status === "UNAVAILABLE")) {
-    segments.push({ key: "unavailable", className: "bg-accent-200" });
-  }
-  if (dayAvailability.some((a) => a.status === "TENTATIVE")) {
-    segments.push({ key: "tentative", className: "bg-neutral-300" });
-  }
+  const segments = [...dayAvailability].sort(
+    (a, b) => minutesSinceMidnight(a.startsAt) - minutesSinceMidnight(b.startsAt)
+  );
 
   return (
-    <div className="flex h-1/4 min-h-[6px] w-full shrink-0">
-      {segments.length === 0 ? (
-        <span className="flex-1" />
-      ) : (
-        segments.map((s) => <span key={s.key} className={cn("flex-1", s.className)} />)
+    <div className="relative h-1.5 w-full shrink-0 rounded-full bg-neutral-100 overflow-hidden">
+      {segments.map((a) => {
+        const startMinutes = minutesSinceMidnight(a.startsAt);
+        const endMinutes = minutesSinceMidnight(a.endsAt);
+        return (
+          <span
+            key={a.id}
+            className={cn("absolute inset-y-0", STATUS_SEGMENT_CLASSNAMES[a.status])}
+            style={{
+              left: `${(startMinutes / 1440) * 100}%`,
+              width: `${((endMinutes - startMinutes) / 1440) * 100}%`,
+            }}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * Abbreviated single-line shift label for week/month grid cells - department
+ * code + 24h time range (e.g. "EMERG 07:30-15:30") instead of `ShiftBlock`'s
+ * full department name, which clips illegibly at narrow cell widths. Kept
+ * local to this file rather than added to `ShiftBlock` so the admin
+ * staff-mode reuse of `PersonalScheduleCalendar` (a separate, read-only
+ * render branch) is unaffected.
+ */
+function CompactShiftChip({ shift }: { shift: PersonalScheduleShift }) {
+  const now = new Date();
+  const done = shift.endsAt < now;
+  const confirmed = shift.startsAt <= now && shift.endsAt >= now;
+  const label = `${shift.department.code} ${hospitalTime(shift.startsAt, false)}–${hospitalTime(shift.endsAt, false)}`;
+
+  return (
+    <div
+      title={`${shift.department.name} · ${label}`}
+      className={cn(
+        "rounded-md border px-1 py-0.5 text-[9px] sm:text-[10px] font-semibold tabular-nums truncate",
+        done && "bg-neutral-100 border-neutral-200 text-neutral-700",
+        confirmed && "bg-primary-700 border-primary-800 text-white",
+        !done && !confirmed && "bg-white border-neutral-200 text-neutral-800"
       )}
+    >
+      {label}
     </div>
   );
 }

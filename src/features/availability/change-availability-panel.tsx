@@ -60,75 +60,110 @@ export function ChangeAvailabilityPanel({
     blocks.length > 0 && blocks.every((b) => parseTimeInput(b.from) && parseTimeInput(b.to));
   const canSubmit = selectedDays.length > 0 && blocksValid && !saving;
 
+  const submitDisabledReason = saving
+    ? null
+    : selectedDays.length === 0
+      ? "Select at least one day to save availability for."
+      : blocks.length === 0
+        ? "Add at least one time block."
+        : !blocksValid
+          ? "Fix the highlighted time field above."
+          : null;
+
   return (
-    <div className="card-base flex flex-col h-full min-h-[420px] lg:min-h-[520px]">
+    <div className="card-base flex flex-col h-full min-h-[420px] md:min-h-[520px]">
       <div className="px-3 py-2.5 border-b border-neutral-200 bg-neutral-50/80 rounded-t-2xl">
         <p className="text-xs font-bold text-primary-800">New Request &middot; Change Availability</p>
         <p className="text-xs text-neutral-500 mt-0.5">{formatSelectedDaysLabel(selectedDays)}</p>
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-2.5">
-        {blocks.map((block) => (
-          <div key={block.key} className="relative rounded-lg border border-neutral-200 p-2.5">
-            <button
-              type="button"
-              onClick={() => removeBlock(block.key)}
-              aria-label="Remove block"
-              className="absolute top-2 right-2 text-neutral-400 hover:text-neutral-600"
-            >
-              <X className="h-3.5 w-3.5" aria-hidden />
-            </button>
+        {blocks.map((block) => {
+          const fromError = block.from.trim() !== "" && !parseTimeInput(block.from);
+          const toError = block.to.trim() !== "" && !parseTimeInput(block.to);
+          const fromErrorId = `${block.key}-from-error`;
+          const toErrorId = `${block.key}-to-error`;
 
-            <div className="flex rounded-md border border-neutral-200 overflow-hidden mb-2 text-xs font-semibold">
+          return (
+            <div key={block.key} className="relative rounded-lg border border-neutral-200 p-2.5">
               <button
                 type="button"
-                onClick={() => updateBlock(block.key, { status: "AVAILABLE" })}
-                className={cn(
-                  "flex-1 py-1.5 text-center",
-                  block.status === "AVAILABLE" ? "bg-emerald-600 text-white" : "text-neutral-500 hover:bg-neutral-50"
-                )}
+                onClick={() => removeBlock(block.key)}
+                aria-label="Remove block"
+                className="absolute top-2 right-2 text-neutral-400 hover:text-neutral-600"
               >
-                Available
+                <X className="h-3.5 w-3.5" aria-hidden />
               </button>
-              <button
-                type="button"
-                onClick={() => updateBlock(block.key, { status: "UNAVAILABLE" })}
-                className={cn(
-                  "flex-1 py-1.5 text-center",
-                  block.status === "UNAVAILABLE" ? "bg-accent text-white" : "text-neutral-500 hover:bg-neutral-50"
-                )}
-              >
-                Unavailable
-              </button>
-            </div>
 
-            <div className="flex items-center gap-1.5">
-              <input
-                type="text"
-                value={block.from}
-                onChange={(e) => updateBlock(block.key, { from: e.target.value })}
-                placeholder="7:00 AM"
-                aria-label="Block start time"
-                className={cn(
-                  "min-w-0 flex-1 h-8 rounded-md border px-2 text-xs",
-                  parseTimeInput(block.from) ? "border-neutral-300" : "border-accent-300"
-                )}
-              />
-              <span className="text-neutral-400 text-xs">&ndash;</span>
-              <input
-                type="text"
-                value={block.to}
-                onChange={(e) => updateBlock(block.key, { to: e.target.value })}
-                placeholder="3:00 PM"
-                aria-label="Block end time"
-                className={cn(
-                  "min-w-0 flex-1 h-8 rounded-md border px-2 text-xs",
-                  parseTimeInput(block.to) ? "border-neutral-300" : "border-accent-300"
-                )}
-              />
+              <div className="flex rounded-md border border-neutral-200 overflow-hidden mb-2 text-xs font-semibold">
+                <button
+                  type="button"
+                  onClick={() => updateBlock(block.key, { status: "AVAILABLE" })}
+                  className={cn(
+                    "flex-1 py-1.5 text-center",
+                    block.status === "AVAILABLE" ? "bg-emerald-600 text-white" : "text-neutral-500 hover:bg-neutral-50"
+                  )}
+                >
+                  Available
+                </button>
+                <button
+                  type="button"
+                  onClick={() => updateBlock(block.key, { status: "UNAVAILABLE" })}
+                  className={cn(
+                    "flex-1 py-1.5 text-center",
+                    block.status === "UNAVAILABLE" ? "bg-accent text-white" : "text-neutral-500 hover:bg-neutral-50"
+                  )}
+                >
+                  Unavailable
+                </button>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="text"
+                  value={block.from}
+                  onChange={(e) => updateBlock(block.key, { from: e.target.value })}
+                  placeholder="7:00 AM"
+                  aria-label="Block start time"
+                  aria-invalid={fromError}
+                  aria-describedby={fromError ? fromErrorId : undefined}
+                  className={cn(
+                    "min-w-0 flex-1 h-8 rounded-md border px-2 text-xs",
+                    fromError ? "border-2 border-accent-400 bg-accent-50/40" : "border-neutral-300"
+                  )}
+                />
+                <span className="text-neutral-400 text-xs">&ndash;</span>
+                <input
+                  type="text"
+                  value={block.to}
+                  onChange={(e) => updateBlock(block.key, { to: e.target.value })}
+                  placeholder="3:00 PM"
+                  aria-label="Block end time"
+                  aria-invalid={toError}
+                  aria-describedby={toError ? toErrorId : undefined}
+                  className={cn(
+                    "min-w-0 flex-1 h-8 rounded-md border px-2 text-xs",
+                    toError ? "border-2 border-accent-400 bg-accent-50/40" : "border-neutral-300"
+                  )}
+                />
+              </div>
+              {(fromError || toError) && (
+                <div className="mt-1 space-y-0.5">
+                  {fromError && (
+                    <p id={fromErrorId} className="text-[11px] text-accent-600 font-medium">
+                      Enter a time like 7:00 AM or 19:00
+                    </p>
+                  )}
+                  {toError && (
+                    <p id={toErrorId} className="text-[11px] text-accent-600 font-medium">
+                      Enter a time like 7:00 AM or 19:00
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
 
         <button
           type="button"
@@ -139,23 +174,28 @@ export function ChangeAvailabilityPanel({
         </button>
       </div>
 
-      <div className="mt-auto flex gap-2 p-3 border-t border-dashed border-neutral-200">
-        <button
-          type="button"
-          onClick={onCancel}
-          disabled={saving}
-          className="flex-1 h-9 rounded-md border border-neutral-300 text-neutral-600 text-sm font-semibold hover:bg-neutral-50 disabled:opacity-50"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          onClick={onSubmit}
-          disabled={!canSubmit}
-          className="flex-[2] h-9 rounded-md bg-primary-700 text-white text-sm font-semibold hover:bg-primary-800 disabled:opacity-50"
-        >
-          {saving ? "Saving…" : "Submit"}
-        </button>
+      <div className="mt-auto border-t border-dashed border-neutral-200">
+        {submitDisabledReason && (
+          <p className="px-3 pt-2 text-[11px] text-accent-600 font-medium">{submitDisabledReason}</p>
+        )}
+        <div className="flex gap-2 p-3">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={saving}
+            className="flex-1 h-9 rounded-md border border-neutral-300 text-neutral-600 text-sm font-semibold hover:bg-neutral-50 disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onSubmit}
+            disabled={!canSubmit}
+            className="flex-[2] h-9 rounded-md bg-primary-700 text-white text-sm font-semibold hover:bg-primary-800 disabled:opacity-50"
+          >
+            {saving ? "Saving…" : "Submit"}
+          </button>
+        </div>
       </div>
     </div>
   );
