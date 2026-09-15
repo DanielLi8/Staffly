@@ -6,6 +6,7 @@ import { Search, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   searchScheduleTargets,
+  getDefaultScheduleTargets,
   type ScheduleSearchResult,
   type ScheduleSearchScope,
 } from "@/app/actions/schedule-search";
@@ -45,6 +46,7 @@ function SingleScopeSearch({
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<ScheduleSearchResult[]>([]);
+  const [defaultResults, setDefaultResults] = useState<ScheduleSearchResult[]>([]);
   const [open, setOpen] = useState(false);
   const [highlighted, setHighlighted] = useState(0);
   const [isPending, startTransition] = useTransition();
@@ -59,12 +61,32 @@ function SingleScopeSearch({
     return () => document.removeEventListener("mousedown", onClickOutside);
   }, []);
 
+  // Prefetched on mount so the suggestion dropdown is ready the instant the
+  // field is focused, rather than showing a spinner before anything appears.
+  useEffect(() => {
+    let cancelled = false;
+    getDefaultScheduleTargets(scope).then((r) => {
+      if (cancelled) return;
+      setDefaultResults(r);
+      setResults((current) => (current.length === 0 ? r : current));
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scope]);
+
   function handleChange(value: string) {
     setQuery(value);
     setHighlighted(0);
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
     const trimmed = value.trim();
+    if (trimmed.length === 0) {
+      setResults(defaultResults);
+      setOpen(true);
+      return;
+    }
     if (trimmed.length < 2) {
       setResults([]);
       setOpen(false);
@@ -117,7 +139,14 @@ function SingleScopeSearch({
             type="search"
             value={query}
             onChange={(e) => handleChange(e.target.value)}
-            onFocus={() => results.length > 0 && setOpen(true)}
+            onFocus={() => {
+              if (query.trim().length === 0) {
+                setResults(defaultResults);
+                setOpen(true);
+              } else if (results.length > 0) {
+                setOpen(true);
+              }
+            }}
             onKeyDown={onKeyDown}
             placeholder={placeholder}
             role="combobox"
@@ -142,7 +171,9 @@ function SingleScopeSearch({
           className="absolute z-20 mt-2 w-full rounded-xl border border-neutral-200 bg-white shadow-lg overflow-hidden max-h-80 overflow-y-auto"
         >
           {results.length === 0 ? (
-            <p className="px-4 py-6 text-sm text-neutral-500 text-center">No matches for &ldquo;{query}&rdquo;.</p>
+            <p className="px-4 py-6 text-sm text-neutral-500 text-center">
+              {query.trim().length === 0 ? "No results available." : <>No matches for &ldquo;{query}&rdquo;.</>}
+            </p>
           ) : (
             results.map((item, index) => (
               <ResultRow
