@@ -118,6 +118,7 @@ export async function loadFillDashboard(
       startsAt: true,
       endsAt: true,
       departmentId: true,
+      roleNeeded: true,
       campaign: true,
       bids: {
         include: {

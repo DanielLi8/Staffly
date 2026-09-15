@@ -4,6 +4,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { db } from "@/lib/db";
 import { getSession, actorFromSession } from "@/lib/auth";
 import { workerAvailableShiftWhere } from "@/lib/authz";
+import { positionMatchesRole } from "@/lib/shifts/role-match";
 import { redirect } from "next/navigation";
 import { shiftCardInclude } from "@/lib/shift-include";
 import type { ShiftWithRelations } from "@/types";
@@ -14,11 +15,15 @@ export default async function WorkerShiftsPage() {
   const session = await getSession();
   if (!session) redirect("/login");
 
-  const shifts = await db.shift.findMany({
-    where: workerAvailableShiftWhere(actorFromSession(session)),
-    orderBy: { startsAt: "asc" },
-    include: shiftCardInclude,
-  });
+  const [matchableShifts, worker] = await Promise.all([
+    db.shift.findMany({
+      where: workerAvailableShiftWhere(actorFromSession(session)),
+      orderBy: { startsAt: "asc" },
+      include: shiftCardInclude,
+    }),
+    db.user.findUnique({ where: { id: session.user.id }, select: { position: true } }),
+  ]);
+  const shifts = matchableShifts.filter((s) => positionMatchesRole(worker?.position, s.roleNeeded));
 
   return (
     <div className="space-y-6">

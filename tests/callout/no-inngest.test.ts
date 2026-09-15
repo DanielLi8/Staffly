@@ -53,6 +53,7 @@ function staff(overrides: Partial<FakeStaff> & { id: string }): FakeStaff {
     email: `${overrides.id}@example.com`,
     phone: null,
     phoneVerifiedAt: null,
+    position: "Registered Nurse",
     seniorityRank: null,
     hireDate: null,
     departmentIds: [],

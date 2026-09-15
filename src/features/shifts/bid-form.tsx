@@ -33,6 +33,7 @@ interface BidFormProps {
   } | null;
   shiftOpen: boolean;
   deadlinePassed: boolean;
+  positionMismatch: boolean;
 }
 
 export function BidForm({
@@ -42,6 +43,7 @@ export function BidForm({
   existingBid,
   shiftOpen,
   deadlinePassed,
+  positionMismatch,
 }: BidFormProps) {
   const shiftStart = useMemo(() => new Date(shiftStartsAtIso), [shiftStartsAtIso]);
   const shiftEnd = useMemo(() => new Date(shiftEndsAtIso), [shiftEndsAtIso]);
@@ -83,6 +85,14 @@ export function BidForm({
     return (
       <div className="px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-md text-sm text-neutral-500">
         The bid deadline has passed.
+      </div>
+    );
+  }
+
+  if (!existingBid && positionMismatch) {
+    return (
+      <div className="px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-md text-sm text-neutral-500">
+        Your position doesn&apos;t match the role this shift needs.
       </div>
     );
   }
