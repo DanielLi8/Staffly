@@ -41,7 +41,7 @@ export default async function AdminDepartmentsPage({
   const workers = await db.user.findMany({
     where: { role: "STAFF" },
     orderBy: { name: "asc" },
-    select: { id: true, name: true, position: true },
+    select: { id: true, name: true, position: true, department: true },
   });
 
   const filtered =
@@ -169,7 +169,7 @@ export default async function AdminDepartmentsPage({
                         .filter((w) => !assignedIds.has(w.id))
                         .map((w) => (
                           <option key={w.id} value={w.id}>
-                            {w.name} — {w.position}
+                            {w.name} — {[w.department, w.position].filter(Boolean).join(", ") || "No department/position on file"}
                           </option>
                         ))}
                     </select>

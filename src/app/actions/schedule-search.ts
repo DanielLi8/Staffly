@@ -10,6 +10,7 @@ export interface ScheduleSearchStaffResult {
   id: string;
   name: string;
   position: string | null;
+  department: string | null;
 }
 
 export interface ScheduleSearchDepartmentResult {
@@ -43,11 +44,17 @@ export async function searchScheduleTargets(
   if (scope === "staff") {
     const staff = await db.user.findMany({
       where: { role: "STAFF", name: { contains: q, mode: "insensitive" } },
-      select: { id: true, name: true, position: true },
+      select: { id: true, name: true, position: true, department: true },
       orderBy: { name: "asc" },
       take: RESULT_LIMIT,
     });
-    return staff.map((s) => ({ type: "staff" as const, id: s.id, name: s.name, position: s.position }));
+    return staff.map((s) => ({
+      type: "staff" as const,
+      id: s.id,
+      name: s.name,
+      position: s.position,
+      department: s.department,
+    }));
   }
 
   const departments = await db.department.findMany({
