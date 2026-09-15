@@ -5,6 +5,9 @@ import Link from "next/link";
 import { signOut } from "next-auth/react";
 import { Home, LogOut, Settings } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
+import { setViewMode } from "@/app/actions/view-mode";
+import type { Role } from "@/types";
+import type { ViewMode } from "@/lib/view-mode";
 
 export interface DrawerLink {
   href: string;
@@ -15,8 +18,13 @@ interface HamburgerDrawerProps {
   userName: string;
   homeHref: string;
   moreLinks: DrawerLink[];
+  role: Role;
+  viewMode: ViewMode;
   onClose: () => void;
 }
+
+const setAdminViewMode = setViewMode.bind(null, "ADMIN");
+const setWorkerViewMode = setViewMode.bind(null, "WORKER");
 
 /**
  * Slide-in-from-left drawer, opened from the hamburger in `StafflyHeader`.
@@ -25,7 +33,7 @@ interface HamburgerDrawerProps {
  * (justify-start instead of justify-end); Escape-to-close follows the
  * pattern in `user-menu.tsx`/`new-request-menu.tsx`.
  */
-export function HamburgerDrawer({ userName, homeHref, moreLinks, onClose }: HamburgerDrawerProps) {
+export function HamburgerDrawer({ userName, homeHref, moreLinks, role, viewMode, onClose }: HamburgerDrawerProps) {
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
@@ -41,10 +49,59 @@ export function HamburgerDrawer({ userName, homeHref, moreLinks, onClose }: Hamb
         <div className="flex items-center gap-3 border-b border-neutral-200 p-5">
           <Avatar name={userName} size="lg" />
           <div className="min-w-0">
-            <p className="truncate font-semibold text-neutral-900">{userName}</p>
-            <p className="text-xs text-neutral-500">Signed in</p>
+            <p className="truncate font-semibold text-neutral-900">
+              {userName}
+              {role === "ADMIN" && (
+                <span className="ml-1.5 rounded bg-primary-50 px-1.5 py-0.5 align-middle text-[10px] font-bold uppercase tracking-wide text-primary-700">
+                  Admin
+                </span>
+              )}
+            </p>
+            <p className="text-xs text-neutral-500">
+              {role === "ADMIN"
+                ? viewMode === "ADMIN"
+                  ? "Viewing as Admin"
+                  : "Viewing as Worker (preview)"
+                : "Signed in"}
+            </p>
           </div>
         </div>
+
+        {role === "ADMIN" && (
+          <div className="border-b border-neutral-100 px-4 py-3">
+            <p className="pb-1.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400">View as</p>
+            <div className="flex gap-1 rounded-lg bg-neutral-100 p-1">
+              <form action={setAdminViewMode} className="flex-1">
+                <button
+                  type="submit"
+                  disabled={viewMode === "ADMIN"}
+                  aria-pressed={viewMode === "ADMIN"}
+                  className={
+                    viewMode === "ADMIN"
+                      ? "w-full rounded-md bg-white px-2 py-1.5 text-sm font-semibold text-primary-700 shadow-sm"
+                      : "w-full rounded-md px-2 py-1.5 text-sm text-neutral-600 hover:text-neutral-900"
+                  }
+                >
+                  Admin
+                </button>
+              </form>
+              <form action={setWorkerViewMode} className="flex-1">
+                <button
+                  type="submit"
+                  disabled={viewMode === "WORKER"}
+                  aria-pressed={viewMode === "WORKER"}
+                  className={
+                    viewMode === "WORKER"
+                      ? "w-full rounded-md bg-white px-2 py-1.5 text-sm font-semibold text-primary-700 shadow-sm"
+                      : "w-full rounded-md px-2 py-1.5 text-sm text-neutral-600 hover:text-neutral-900"
+                  }
+                >
+                  Worker
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
 
         <div className="space-y-0.5 border-b border-neutral-100 px-3 py-2">
           <Link

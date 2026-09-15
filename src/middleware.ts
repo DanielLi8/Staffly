@@ -1,21 +1,20 @@
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
 import type { Role } from "@prisma/client";
-
-/** The landing area for each role after login / when redirected off a foreign area. */
-function homeFor(role: Role | undefined): string {
-  if (role === "ADMIN") return "/admin";
-  return "/worker";
-}
+import { adminRouteRedirect, VIEW_MODE_COOKIE } from "@/lib/view-mode";
 
 export default withAuth(
   function middleware(req) {
     const { pathname } = req.nextUrl;
     const role = req.nextauth.token?.role as Role | undefined;
+    const viewModeCookie = req.cookies.get(VIEW_MODE_COOKIE)?.value;
 
-    // /admin is the merged scheduler + admin area.
-    if (pathname.startsWith("/admin") && role !== "ADMIN") {
-      return NextResponse.redirect(new URL(homeFor(role), req.url));
+    // /admin is the merged scheduler + admin area. Blocks STAFF outright, and
+    // blocks an ADMIN whose persisted "view as" toggle is currently WORKER -
+    // the toggle is the only way back in, not a raw URL.
+    const redirectTo = adminRouteRedirect(pathname, role, viewModeCookie);
+    if (redirectTo) {
+      return NextResponse.redirect(new URL(redirectTo, req.url));
     }
 
     return NextResponse.next();
