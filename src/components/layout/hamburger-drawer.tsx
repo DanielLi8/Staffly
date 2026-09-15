@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
-import { Home, LogOut, Search, Settings } from "lucide-react";
+import { Home, LogOut, Settings } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 
 export interface DrawerLink {
@@ -65,21 +65,7 @@ export function HamburgerDrawer({ userName, homeHref, moreLinks, onClose }: Hamb
           </button>
         </div>
 
-        <div className="px-4 pb-2 pt-3">
-          <div className="relative">
-            <Search
-              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400"
-              aria-hidden
-            />
-            <input
-              disabled
-              placeholder="Search (coming soon)"
-              className="h-9 w-full rounded-lg border border-neutral-200 bg-neutral-50 pl-9 pr-3 text-sm text-neutral-400 placeholder:text-neutral-400"
-            />
-          </div>
-        </div>
-
-        <nav className="px-2 py-1">
+        <nav className="px-2 py-1 pt-3">
           <Link
             href={homeHref}
             className="flex items-center gap-2.5 rounded-lg bg-primary-50 px-3 py-2.5 text-sm font-semibold text-primary-700"
