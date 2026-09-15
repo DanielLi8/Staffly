@@ -148,7 +148,11 @@ function SingleScopeSearch({
               <ResultRow
                 key={item.id}
                 primary={item.name}
-                secondary={item.type === "staff" ? item.position : item.code}
+                secondary={
+                  item.type === "staff"
+                    ? [item.department, item.position].filter(Boolean).join(" · ")
+                    : item.code
+                }
                 active={index === highlighted}
                 onSelect={() => select(item)}
               />
@@ -181,7 +185,11 @@ function ResultRow({
       )}
     >
       <span className="font-medium text-neutral-900 truncate">{primary}</span>
-      {secondary && <span className="text-xs text-neutral-400 uppercase shrink-0">{secondary}</span>}
+      {secondary && (
+        <span className="text-xs text-neutral-400 uppercase shrink-0 max-w-[55%] truncate text-right">
+          {secondary}
+        </span>
+      )}
     </button>
   );
 }
