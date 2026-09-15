@@ -71,7 +71,7 @@ export function StafflyHeader({ userName, variant, role, viewMode }: StafflyHead
   return (
     <>
       <header className="sticky top-0 z-40 bg-primary-700">
-        <div className="mx-auto flex h-16 w-full max-w-6xl items-center gap-3 px-4 lg:px-8">
+        <div className="flex h-16 w-full items-center gap-3 px-4 lg:px-8">
           <button
             type="button"
             onClick={() => setDrawerOpen(true)}
