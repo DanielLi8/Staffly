@@ -6,10 +6,14 @@ import { usePathname } from "next/navigation";
 import { HelpCircle, Home, Menu } from "lucide-react";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { HamburgerDrawer, type DrawerLink } from "@/components/layout/hamburger-drawer";
+import type { Role } from "@/types";
+import type { ViewMode } from "@/lib/view-mode";
 
 interface StafflyHeaderProps {
   userName: string;
   variant: "admin" | "worker";
+  role: Role;
+  viewMode: ViewMode;
 }
 
 interface TitleEntry {
@@ -57,7 +61,7 @@ const adminMoreLinks: DrawerLink[] = [
   { href: "/admin/workers", label: "Workers" },
 ];
 
-export function StafflyHeader({ userName, variant }: StafflyHeaderProps) {
+export function StafflyHeader({ userName, variant, role, viewMode }: StafflyHeaderProps) {
   const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const homeHref = variant === "admin" ? "/admin" : "/worker";
@@ -111,6 +115,8 @@ export function StafflyHeader({ userName, variant }: StafflyHeaderProps) {
           userName={userName}
           homeHref={homeHref}
           moreLinks={moreLinks}
+          role={role}
+          viewMode={viewMode}
           onClose={() => setDrawerOpen(false)}
         />
       )}

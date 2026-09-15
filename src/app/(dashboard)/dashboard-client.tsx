@@ -4,28 +4,35 @@ import { usePathname } from "next/navigation";
 import { StafflyHeader } from "@/components/layout/staffly-header";
 import { StafflyFooter } from "@/components/layout/staffly-footer";
 import type { Role } from "@/types";
+import type { ViewMode } from "@/lib/view-mode";
 
 interface DashboardClientProps {
   userName: string;
   role: Role;
+  viewMode: ViewMode;
   children: React.ReactNode;
 }
 
-export function DashboardClient({ userName, role, children }: DashboardClientProps) {
+export function DashboardClient({ userName, role, viewMode, children }: DashboardClientProps) {
   const pathname = usePathname();
 
+  // Nav content follows the current view, not raw role, so an ADMIN
+  // previewing as WORKER sees exactly the worker nav. /admin/* is only ever
+  // reachable when view is ADMIN (middleware enforces it), so it stays
+  // unconditionally "admin"; /worker/* stays unconditionally "worker" since
+  // both roles can land there.
   let variant: "admin" | "worker";
   if (pathname.startsWith("/admin")) {
     variant = "admin";
   } else if (pathname === "/profile") {
-    variant = role === "ADMIN" ? "admin" : "worker";
+    variant = viewMode === "ADMIN" ? "admin" : "worker";
   } else {
     variant = "worker";
   }
 
   return (
     <div className="flex min-h-screen flex-col bg-staffly-bg">
-      <StafflyHeader userName={userName} variant={variant} />
+      <StafflyHeader userName={userName} variant={variant} role={role} viewMode={viewMode} />
       <div className="flex-1 flex flex-col w-full">
         <div className="flex-1 w-full max-w-6xl mx-auto px-4 lg:px-8 py-8">{children}</div>
         <StafflyFooter />
