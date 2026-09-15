@@ -32,7 +32,6 @@ const pageTitles: TitleEntry[] = [
   { match: (p) => p === "/admin/shifts/new", title: "Create New Shift" },
   { match: (p) => p.startsWith("/admin/shifts/"), title: "Shift Details" },
   { match: (p) => p === "/admin/shifts", title: "Shifts" },
-  { match: (p) => p.startsWith("/admin/departments"), title: "Departments" },
   { match: (p) => p.startsWith("/admin/schedule"), title: "Location Schedule" },
   { match: (p) => p.startsWith("/admin/shift-swaps"), title: "Shift Swaps" },
   { match: (p) => p.startsWith("/admin/workers"), title: "Workers" },
@@ -55,7 +54,6 @@ const workerMoreLinks: DrawerLink[] = [
 ];
 
 const adminMoreLinks: DrawerLink[] = [
-  { href: "/admin/departments", label: "Departments" },
   { href: "/admin/schedule", label: "Schedule" },
   { href: "/admin/shift-swaps", label: "Shift Swaps" },
   { href: "/admin/workers", label: "Workers" },
