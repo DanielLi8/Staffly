@@ -1,7 +1,7 @@
 import type { ElementType } from "react";
 import { redirect } from "next/navigation";
 import { format } from "date-fns";
-import { Mail, User, Briefcase, Building2, Phone, Calendar } from "lucide-react";
+import { Mail, User, Briefcase, Building2, Phone, Calendar, ShieldCheck } from "lucide-react";
 import { getSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -74,6 +74,9 @@ export default async function ProfilePage() {
         <CardContent className="space-y-4 text-sm">
           <ProfileRow icon={Building2} label="Primary department" value={user.department ?? "—"} />
           <ProfileRow icon={Briefcase} label="Position" value={user.position ?? "—"} />
+          {user.isTeamLead && (
+            <ProfileRow icon={ShieldCheck} label="Tag" value="Team Lead" />
+          )}
           {user.departmentMemberships.length > 0 && (
             <div>
               <p className="text-xs font-medium uppercase tracking-wide text-neutral-400 mb-2">Department assignments</p>

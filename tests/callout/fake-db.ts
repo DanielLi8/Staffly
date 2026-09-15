@@ -14,6 +14,8 @@ export interface FakeStaff {
   email: string;
   phone: string | null;
   phoneVerifiedAt: Date | null;
+  /** Base clinical position, matched against `Shift.roleNeeded`. */
+  position: string | null;
   seniorityRank: number | null;
   hireDate: Date | null;
   departmentIds: string[];
@@ -224,6 +226,7 @@ export function createFakeDb(state: FakeState) {
           email: s.email,
           phone: s.phone,
           phoneVerifiedAt: s.phoneVerifiedAt,
+          position: s.position,
           seniorityRank: s.seniorityRank,
           hireDate: s.hireDate,
           departmentMemberships: s.departmentIds.map((departmentId) => ({ departmentId })),

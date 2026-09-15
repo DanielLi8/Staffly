@@ -21,6 +21,7 @@ import { notifySchedulerOfCallout } from "@/lib/notifications";
 import { isInngestConfigured, sendCalloutEvent } from "@/lib/inngest/client";
 import { buildTierRoster, nextTier, MAX_TIER, type Tier, type TierCandidate } from "./tiers";
 import { decideNextStep, type CampaignDecision, type CampaignState } from "./decide";
+import { positionMatchesRole } from "@/lib/shifts/role-match";
 
 /** Statuses from which no further escalation may happen. */
 const TERMINAL: CampaignStatus[] = ["CANCELLED", "FILLED", "EXHAUSTED"];
@@ -117,13 +118,17 @@ export function toCampaignState(campaign: {
 /* ------------------------------------------------------- candidate targeting */
 
 /**
- * Load the callout candidate pool for a shift: every STAFF user, with their
- * department memberships and only the availability windows that could touch the
- * shift. Tier assignment itself is left to the pure targeting module.
+ * Load the callout candidate pool for a shift: every STAFF user whose
+ * clinical position qualifies them for the shift's required role (see
+ * `positionMatchesRole` - a Lead RN/Team Lead tag never affects this, only
+ * `position` does), with their department memberships and only the
+ * availability windows that could touch the shift. Tier assignment itself is
+ * left to the pure targeting module.
  */
 export async function loadTierCandidates(shift: {
   startsAt: Date;
   endsAt: Date;
+  roleNeeded: string;
 }): Promise<(TierCandidate & OutreachRecipient)[]> {
   const staff = await db.user.findMany({
     where: { role: "STAFF" },
@@ -133,6 +138,7 @@ export async function loadTierCandidates(shift: {
       email: true,
       phone: true,
       phoneVerifiedAt: true,
+      position: true,
       seniorityRank: true,
       hireDate: true,
       departmentMemberships: { select: { departmentId: true } },
@@ -143,17 +149,19 @@ export async function loadTierCandidates(shift: {
     },
   });
 
-  return staff.map((u) => ({
-    id: u.id,
-    name: u.name,
-    email: u.email,
-    phone: u.phone,
-    phoneVerifiedAt: u.phoneVerifiedAt,
-    seniorityRank: u.seniorityRank,
-    hireDate: u.hireDate,
-    departmentIds: u.departmentMemberships.map((m) => m.departmentId),
-    availabilities: u.availabilities,
-  }));
+  return staff
+    .filter((u) => positionMatchesRole(u.position, shift.roleNeeded))
+    .map((u) => ({
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      phone: u.phone,
+      phoneVerifiedAt: u.phoneVerifiedAt,
+      seniorityRank: u.seniorityRank,
+      hireDate: u.hireDate,
+      departmentIds: u.departmentMemberships.map((m) => m.departmentId),
+      availabilities: u.availabilities,
+    }));
 }
 
 /**
@@ -166,7 +174,7 @@ export async function loadTierCandidates(shift: {
 export async function runTierOutreach(shiftId: string, tier: Tier): Promise<number> {
   const shift = await db.shift.findUnique({
     where: { id: shiftId },
-    select: { id: true, departmentId: true, startsAt: true, endsAt: true },
+    select: { id: true, departmentId: true, startsAt: true, endsAt: true, roleNeeded: true },
   });
   if (!shift) return 0;
 

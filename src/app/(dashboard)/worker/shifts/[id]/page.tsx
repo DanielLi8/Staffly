@@ -8,6 +8,7 @@ import { BidForm } from "@/features/shifts/bid-form";
 import { db } from "@/lib/db";
 import { getSession, actorFromSession } from "@/lib/auth";
 import { workerAvailableShiftWhere } from "@/lib/authz";
+import { positionMatchesRole } from "@/lib/shifts/role-match";
 import { formatShiftDate, formatShiftRange } from "@/lib/utils";
 
 export async function generateMetadata({ params }: { params: { id: string } }) {
@@ -19,7 +20,7 @@ export default async function WorkerShiftDetailPage({ params }: { params: { id: 
   const session = await getSession();
   if (!session) redirect("/login");
 
-  const [shift, existingBid] = await Promise.all([
+  const [shift, existingBid, worker] = await Promise.all([
     db.shift.findFirst({
       where: { AND: [workerAvailableShiftWhere(actorFromSession(session)), { id: params.id }] },
       include: {
@@ -43,12 +44,14 @@ export default async function WorkerShiftDetailPage({ params }: { params: { id: 
         partialEndsAt: true,
       },
     }),
+    db.user.findUnique({ where: { id: session.user.id }, select: { position: true } }),
   ]);
 
   if (!shift) notFound();
 
   const shiftOpen = shift.status === "OPEN";
   const deadlinePassed = new Date() > shift.bidDeadlineAt;
+  const positionMismatch = !positionMatchesRole(worker?.position, shift.roleNeeded);
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -134,6 +137,7 @@ export default async function WorkerShiftDetailPage({ params }: { params: { id: 
             existingBid={existingBid}
             shiftOpen={shiftOpen}
             deadlinePassed={deadlinePassed}
+            positionMismatch={positionMismatch}
           />
         </CardContent>
       </Card>

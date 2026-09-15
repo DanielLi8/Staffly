@@ -57,6 +57,8 @@ export async function placeBid(rawInput: unknown) {
         throw new Error("The bid deadline has passed");
       case "INVALID_WINDOW":
         throw new Error("Your times must fall within the posted shift hours.");
+      case "POSITION_MISMATCH":
+        throw new Error("Your position doesn't match the role this shift needs.");
     }
   }
 
