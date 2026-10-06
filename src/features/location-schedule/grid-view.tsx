@@ -39,7 +39,7 @@ export function LocationScheduleGrid({
         className="grid min-w-[720px]"
         style={{ gridTemplateColumns: `200px repeat(${days.length}, minmax(130px, 1fr))` }}
       >
-        <div className="sticky left-0 z-10 bg-neutral-50/80 border-b border-r border-neutral-200 px-3 py-2 text-xs font-bold text-neutral-400 uppercase">
+        <div className="sticky left-0 z-10 bg-neutral-50 border-b border-r border-neutral-200 px-3 py-2 text-xs font-bold text-neutral-400 uppercase">
           Staff
         </div>
         {days.map((d) => (
@@ -116,7 +116,7 @@ export function LocationScheduleMonthHeatmap({
         className="grid min-w-max"
         style={{ gridTemplateColumns: `180px repeat(${days.length}, 32px)` }}
       >
-        <div className="sticky left-0 z-10 bg-neutral-50/80 border-b border-r border-neutral-200 px-3 py-2 text-xs font-bold text-neutral-400 uppercase">
+        <div className="sticky left-0 z-10 bg-neutral-50 border-b border-r border-neutral-200 px-3 py-2 text-xs font-bold text-neutral-400 uppercase">
           Staff
         </div>
         {days.map((d) => (
