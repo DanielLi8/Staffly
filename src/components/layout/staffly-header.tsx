@@ -54,17 +54,19 @@ const workerMoreLinks: DrawerLink[] = [
   { href: "/worker/location", label: "Location Schedule" },
 ];
 
-const adminMoreLinks: DrawerLink[] = [
-  { href: "/admin/departments", label: "Departments" },
+const adminTopLinks: DrawerLink[] = [
   { href: "/admin/schedule", label: "Schedule" },
   { href: "/admin/shift-swaps", label: "Shift Swaps" },
   { href: "/admin/workers", label: "Workers" },
 ];
 
+const adminMoreLinks: DrawerLink[] = [{ href: "/admin/departments", label: "Departments" }];
+
 export function StafflyHeader({ userName, variant, role, viewMode }: StafflyHeaderProps) {
   const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const homeHref = variant === "admin" ? "/admin" : "/worker";
+  const topLinks = variant === "admin" ? adminTopLinks : [];
   const moreLinks = variant === "admin" ? adminMoreLinks : workerMoreLinks;
   const title = pathname === homeHref ? null : pageTitleFor(pathname);
 
@@ -114,6 +116,7 @@ export function StafflyHeader({ userName, variant, role, viewMode }: StafflyHead
         <HamburgerDrawer
           userName={userName}
           homeHref={homeHref}
+          topLinks={topLinks}
           moreLinks={moreLinks}
           role={role}
           viewMode={viewMode}
