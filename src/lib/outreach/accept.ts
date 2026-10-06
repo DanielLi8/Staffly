@@ -8,6 +8,7 @@ import { BidDurationScope, Channel } from "@prisma/client";
 import type { ShiftBid } from "@prisma/client";
 import { db } from "@/lib/db";
 import { notifyAdminOfNewBid } from "@/lib/notifications";
+import { positionMatchesRole } from "@/lib/shifts/role-match";
 
 /** Where an acceptance originated. Drives the scheduler-notification wording. */
 export type BidSource = "IN_APP" | "SMS" | "VOICE";
@@ -25,7 +26,15 @@ export interface SubmitBidInput {
 
 export type SubmitBidResult =
   | { ok: true; bid: ShiftBid }
-  | { ok: false; reason: "SHIFT_NOT_FOUND" | "SHIFT_CLOSED" | "DEADLINE_PASSED" | "INVALID_WINDOW" };
+  | {
+      ok: false;
+      reason:
+        | "SHIFT_NOT_FOUND"
+        | "SHIFT_CLOSED"
+        | "DEADLINE_PASSED"
+        | "INVALID_WINDOW"
+        | "POSITION_MISMATCH";
+    };
 
 const SOURCE_LABEL: Record<BidSource, string | null> = {
   IN_APP: null,
@@ -52,12 +61,21 @@ export async function submitBid(input: SubmitBidInput): Promise<SubmitBidResult>
       createdById: true,
       startsAt: true,
       endsAt: true,
+      roleNeeded: true,
     },
   });
 
   if (!shift) return { ok: false, reason: "SHIFT_NOT_FOUND" };
   if (shift.status !== "OPEN") return { ok: false, reason: "SHIFT_CLOSED" };
   if (new Date() > shift.bidDeadlineAt) return { ok: false, reason: "DEADLINE_PASSED" };
+
+  const worker = await db.user.findUnique({
+    where: { id: input.workerId },
+    select: { name: true, position: true },
+  });
+  if (!positionMatchesRole(worker?.position, shift.roleNeeded)) {
+    return { ok: false, reason: "POSITION_MISMATCH" };
+  }
 
   let partialStartsAt: Date | null = null;
   let partialEndsAt: Date | null = null;
@@ -107,11 +125,6 @@ export async function submitBid(input: SubmitBidInput): Promise<SubmitBidResult>
       data: { response: "ACCEPTED", respondedAt: new Date() },
     });
   }
-
-  const worker = await db.user.findUnique({
-    where: { id: input.workerId },
-    select: { name: true },
-  });
 
   await notifyAdminOfNewBid({
     adminId: shift.createdById,

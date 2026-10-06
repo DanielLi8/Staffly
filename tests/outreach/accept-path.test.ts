@@ -25,6 +25,7 @@ const OPEN_SHIFT = {
   createdById: "scheduler-1",
   startsAt: new Date("2026-08-10T07:00:00Z"),
   endsAt: new Date("2026-08-10T15:00:00Z"),
+  roleNeeded: "Registered Nurse (RN)",
 };
 
 beforeEach(() => {
@@ -32,7 +33,7 @@ beforeEach(() => {
   dbMock.shift.findUnique.mockResolvedValue(OPEN_SHIFT);
   dbMock.shiftBid.upsert.mockImplementation(async ({ create }: any) => ({ id: "bid-1", ...create }));
   dbMock.outreachAttempt.updateMany.mockResolvedValue({ count: 1 });
-  dbMock.user.findUnique.mockResolvedValue({ name: "Maria Santos" });
+  dbMock.user.findUnique.mockResolvedValue({ name: "Maria Santos", position: "Registered Nurse" });
   dbMock.notification.create.mockResolvedValue({});
 });
 
@@ -117,5 +118,24 @@ describe("submitBid - the single accept path", () => {
     dbMock.shift.findUnique.mockResolvedValue(null);
     const result = await submitBid({ shiftId: "nope", workerId: "w", scope: "FULL", source: "SMS" });
     expect(result).toEqual({ ok: false, reason: "SHIFT_NOT_FOUND" });
+  });
+
+  it("rejects (no bid) when the worker's position doesn't match the shift's required role", async () => {
+    dbMock.user.findUnique.mockResolvedValue({ name: "Thomas Nguyen", position: "Personal Support Worker" });
+    const result = await submitBid({ shiftId: "shift-1", workerId: "w", scope: "FULL", source: "IN_APP" });
+    expect(result).toEqual({ ok: false, reason: "POSITION_MISMATCH" });
+    expect(dbMock.shiftBid.upsert).not.toHaveBeenCalled();
+    expect(dbMock.notification.create).not.toHaveBeenCalled();
+  });
+
+  it("still accepts a Lead RN-tagged RN - the tag never factors into position matching", async () => {
+    // isTeamLead lives on User but submitBid never reads it; only position does.
+    dbMock.user.findUnique.mockResolvedValue({
+      name: "Maria Santos",
+      position: "Registered Nurse",
+      isTeamLead: true,
+    });
+    const result = await submitBid({ shiftId: "shift-1", workerId: "w", scope: "FULL", source: "IN_APP" });
+    expect(result.ok).toBe(true);
   });
 });
