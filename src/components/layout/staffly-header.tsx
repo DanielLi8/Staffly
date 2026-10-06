@@ -53,23 +53,26 @@ const workerMoreLinks: DrawerLink[] = [
   { href: "/worker/location", label: "Location Schedule" },
 ];
 
-const adminMoreLinks: DrawerLink[] = [
+const adminTopLinks: DrawerLink[] = [
   { href: "/admin/schedule", label: "Schedule" },
   { href: "/admin/shift-swaps", label: "Shift Swaps" },
   { href: "/admin/workers", label: "Workers" },
 ];
 
+const adminMoreLinks: DrawerLink[] = [{ href: "/admin/departments", label: "Departments" }];
+
 export function StafflyHeader({ userName, variant, role, viewMode }: StafflyHeaderProps) {
   const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const homeHref = variant === "admin" ? "/admin" : "/worker";
+  const topLinks = variant === "admin" ? adminTopLinks : [];
   const moreLinks = variant === "admin" ? adminMoreLinks : workerMoreLinks;
   const title = pathname === homeHref ? null : pageTitleFor(pathname);
 
   return (
     <>
       <header className="sticky top-0 z-40 bg-primary-700">
-        <div className="mx-auto flex h-16 w-full max-w-6xl items-center gap-3 px-4 lg:px-8">
+        <div className="flex h-16 w-full items-center gap-3 px-4 lg:px-8">
           <button
             type="button"
             onClick={() => setDrawerOpen(true)}
@@ -112,6 +115,7 @@ export function StafflyHeader({ userName, variant, role, viewMode }: StafflyHead
         <HamburgerDrawer
           userName={userName}
           homeHref={homeHref}
+          topLinks={topLinks}
           moreLinks={moreLinks}
           role={role}
           viewMode={viewMode}

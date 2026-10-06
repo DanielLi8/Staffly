@@ -116,6 +116,11 @@ model User {
   image           String?
   department      String?
   position        String?
+  /// Lead RN / Team Lead designation - a tag layered on top of `position`,
+  /// never a replacement for it. Settable independent of clinical position
+  /// from the admin staff UI; must never be used to gate ordinary
+  /// position-based callout/bid matching (see `src/lib/shifts/role-match.ts`).
+  isTeamLead      Boolean   @default(false)
   phone           String?
   hireDate        DateTime?
   seniorityRank   Int?

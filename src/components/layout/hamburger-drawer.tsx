@@ -17,6 +17,7 @@ export interface DrawerLink {
 interface HamburgerDrawerProps {
   userName: string;
   homeHref: string;
+  topLinks?: DrawerLink[];
   moreLinks: DrawerLink[];
   role: Role;
   viewMode: ViewMode;
@@ -33,7 +34,7 @@ const setWorkerViewMode = setViewMode.bind(null, "WORKER");
  * (justify-start instead of justify-end); Escape-to-close follows the
  * pattern in `user-menu.tsx`/`new-request-menu.tsx`.
  */
-export function HamburgerDrawer({ userName, homeHref, moreLinks, role, viewMode, onClose }: HamburgerDrawerProps) {
+export function HamburgerDrawer({ userName, homeHref, topLinks = [], moreLinks, role, viewMode, onClose }: HamburgerDrawerProps) {
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
@@ -131,6 +132,16 @@ export function HamburgerDrawer({ userName, homeHref, moreLinks, role, viewMode,
             <Home className="h-4 w-4" aria-hidden />
             Home
           </Link>
+          {topLinks.map((l) => (
+            <Link
+              key={l.href}
+              href={l.href}
+              className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-semibold text-neutral-700 hover:bg-neutral-50"
+              onClick={onClose}
+            >
+              {l.label}
+            </Link>
+          ))}
         </nav>
 
         <div className="mt-2 flex-1 overflow-y-auto px-2">

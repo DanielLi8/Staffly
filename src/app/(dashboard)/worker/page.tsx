@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { getSession, actorFromSession } from "@/lib/auth";
 import { workerAvailableShiftWhere } from "@/lib/authz";
 import { resolveStaffDepartmentIds } from "@/lib/authz/staff-departments";
+import { positionMatchesRole } from "@/lib/shifts/role-match";
 import { redirect } from "next/navigation";
 import { shiftCardInclude } from "@/lib/shift-include";
 import { addDays, endOfWeek, format, isSameDay, startOfDay, startOfWeek } from "date-fns";
@@ -40,11 +41,11 @@ export default async function WorkerDashboardPage() {
   const agendaStart = startOfDay(new Date());
   const agendaEnd = addDays(agendaStart, AGENDA_DAYS);
 
-  const [openShifts, scheduledWeek, upcomingAssigned, bidCount, staffDepartmentIds] = await Promise.all([
+  const [matchableShifts, scheduledWeek, upcomingAssigned, bidCount, staffDepartmentIds, worker] =
+    await Promise.all([
     db.shift.findMany({
       where: workerAvailableShiftWhere(actor),
       orderBy: { startsAt: "asc" },
-      take: 6,
       include: shiftCardInclude,
     }),
     db.shift.findMany({
@@ -65,7 +66,12 @@ export default async function WorkerDashboardPage() {
     }),
     db.shiftBid.count({ where: { workerId } }),
     resolveStaffDepartmentIds(actor),
+    db.user.findUnique({ where: { id: workerId }, select: { position: true } }),
   ]);
+
+  const openShifts = matchableShifts
+    .filter((s) => positionMatchesRole(worker?.position, s.roleNeeded))
+    .slice(0, 6);
 
   const hoursScheduled =
     scheduledWeek.reduce((acc, s) => acc + (s.endsAt.getTime() - s.startsAt.getTime()) / 3_600_000, 0) || 0;
