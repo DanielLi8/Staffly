@@ -82,7 +82,7 @@ export function EditShiftTimeForm({ shiftId, startsAt, endsAt }: EditShiftTimeFo
         <button
           type="button"
           onClick={startEditing}
-          className="text-neutral-400 hover:text-primary-700 transition-colors"
+          className="text-neutral-500 hover:text-primary-700 transition-colors"
           aria-label="Edit shift hours"
         >
           <Pencil className="w-3.5 h-3.5" aria-hidden="true" />

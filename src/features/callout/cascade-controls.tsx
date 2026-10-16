@@ -122,7 +122,7 @@ export function CascadeControls({ shiftId, status, currentTier, maxTier }: Casca
         )}
       </div>
 
-      <p className="text-xs text-neutral-400">
+      <p className="text-xs text-neutral-500">
         Stopping ends outreach only. The shift stays open and can still be filled from
         existing bids.
       </p>

@@ -34,33 +34,33 @@ export function CalendarNav({
         <h2 className="text-2xl font-semibold text-neutral-900 tracking-tight">{heading}</h2>
       </div>
 
-      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3">
-        <div className="inline-flex items-center rounded-full border border-neutral-200 bg-white px-1 py-1 self-start">
+      <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+        <div className="inline-flex items-center rounded-full border border-neutral-200 bg-white p-0.5">
           <Link
             href={hrefFor(prevDate, view)}
-            className="p-2 rounded-full hover:bg-neutral-100 text-neutral-700"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-neutral-100 text-neutral-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
             aria-label={view === "month" ? "Previous month" : view === "week" ? "Previous week" : "Previous day"}
           >
-            <ChevronLeft className="w-4 h-4" />
+            <ChevronLeft className="w-4 h-4" aria-hidden />
           </Link>
           <Link
             href={hrefFor(nextDate, view)}
-            className="p-2 rounded-full hover:bg-neutral-100 text-neutral-700"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-neutral-100 text-neutral-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
             aria-label={view === "month" ? "Next month" : view === "week" ? "Next week" : "Next day"}
           >
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight className="w-4 h-4" aria-hidden />
           </Link>
         </div>
 
         <Link
           href={hrefFor(today, view)}
-          className="h-10 px-4 inline-flex items-center justify-center rounded-full border border-neutral-200 bg-white text-sm font-medium text-neutral-800 hover:bg-neutral-50 self-start"
+          className="h-10 px-4 inline-flex items-center justify-center rounded-full border border-neutral-200 bg-white text-sm font-medium text-neutral-800 hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
         >
           Today
         </Link>
 
         <div
-          className="inline-flex rounded-full border border-neutral-200 p-0.5 bg-neutral-100 gap-0.5 self-start max-w-full overflow-x-auto"
+          className="inline-flex rounded-full border border-neutral-200 p-0.5 bg-neutral-100 gap-0.5 max-w-full overflow-x-auto"
           role="group"
           aria-label="Calendar view"
         >
@@ -74,9 +74,10 @@ export function CalendarNav({
             <Link
               key={v}
               href={hrefFor(anchor, v)}
+              aria-current={view === v ? "page" : undefined}
               className={cn(
-                "px-3 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm font-semibold whitespace-nowrap transition-colors",
-                view === v ? "bg-white text-primary-900 shadow-sm" : "text-neutral-500 hover:text-neutral-800"
+                "inline-flex h-9 items-center px-3 sm:px-4 rounded-full text-xs sm:text-sm font-semibold whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500",
+                view === v ? "bg-white text-primary-900 shadow-sm" : "text-neutral-600 hover:text-neutral-800"
               )}
             >
               {label}

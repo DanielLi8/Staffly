@@ -58,7 +58,7 @@ export function AdminApprovalsList({ requests }: { requests: PendingShiftSwapApp
                 {KIND_LABEL[r.kind]}: {r.requesterName} → {r.targetName}
               </p>
               {r.respondedAt && (
-                <span className="text-xs text-neutral-400">Accepted {formatRelative(r.respondedAt)}</span>
+                <span className="text-xs text-neutral-500">Accepted {formatRelative(r.respondedAt)}</span>
               )}
             </div>
             <div className="text-xs text-neutral-500 space-y-1">

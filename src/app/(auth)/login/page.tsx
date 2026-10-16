@@ -16,7 +16,7 @@ export default async function LoginPage() {
             <span className="text-white text-2xl font-bold">+</span>
           </div>
           <h1 className="font-display text-3xl font-bold text-primary-900">Staffly</h1>
-          <p className="text-[11px] font-semibold tracking-[0.2em] text-neutral-400 mt-2 uppercase">
+          <p className="text-[11px] font-semibold tracking-[0.2em] text-neutral-500 mt-2 uppercase">
             Secure internal access
           </p>
         </div>
@@ -25,7 +25,7 @@ export default async function LoginPage() {
           <LoginForm />
         </div>
 
-        <div className="mt-8 text-center space-y-3 text-[10px] uppercase tracking-wider text-neutral-400">
+        <div className="mt-8 text-center space-y-3 text-[10px] uppercase tracking-wider text-neutral-500">
           <div className="flex flex-wrap justify-center gap-4">
             <span className="cursor-default">Privacy Policy</span>
             <span className="cursor-default">Terms of Service</span>
@@ -44,7 +44,7 @@ export default async function LoginPage() {
             Staff: <span className="font-mono">worker1@staffly.com</span> /{" "}
             <span className="font-mono">worker123</span>
           </p>
-          <p className="mt-2 text-neutral-500">Select the matching portal tab before signing in.</p>
+          <p className="mt-2 text-neutral-600">Select the matching portal tab before signing in.</p>
         </div>
       </div>
     </main>

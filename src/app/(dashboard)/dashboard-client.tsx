@@ -34,7 +34,7 @@ export function DashboardClient({ userName, role, viewMode, children }: Dashboar
     <div className="flex min-h-screen flex-col bg-staffly-bg">
       <StafflyHeader userName={userName} variant={variant} role={role} viewMode={viewMode} />
       <div className="flex-1 flex flex-col w-full">
-        <div className="flex-1 w-full max-w-6xl mx-auto px-4 lg:px-8 py-8">{children}</div>
+        <main className="flex-1 w-full max-w-6xl mx-auto px-4 lg:px-8 py-8">{children}</main>
         <StafflyFooter />
       </div>
     </div>

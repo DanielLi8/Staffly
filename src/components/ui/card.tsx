@@ -13,8 +13,9 @@ export function CardHeader({ className, ...props }: React.HTMLAttributes<HTMLDiv
   return <div className={cn("px-5 py-4 border-b border-neutral-100", className)} {...props} />;
 }
 
+// An h2: every card sits directly under its page's h1, so h3 skipped a level.
 export function CardTitle({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
-  return <h3 className={cn("font-semibold text-neutral-900", className)} {...props} />;
+  return <h2 className={cn("font-semibold text-neutral-900", className)} {...props} />;
 }
 
 export function CardDescription({ className, ...props }: React.HTMLAttributes<HTMLParagraphElement>) {

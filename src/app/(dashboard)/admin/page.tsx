@@ -113,7 +113,7 @@ function AssignedRow({ shift }: { shift: ShiftWithRelations }) {
           ASSIGNED
         </span>
         <div className="text-right">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400">Staff assigned</p>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-600">Staff assigned</p>
           <div className="flex items-center justify-end gap-2 mt-1">
             <Avatar name={shift.assignedWorker?.name ?? "?"} size="sm" src={shift.assignedWorker?.image ?? undefined} />
             <span className="text-sm font-medium text-neutral-900">{shift.assignedWorker?.name}</span>

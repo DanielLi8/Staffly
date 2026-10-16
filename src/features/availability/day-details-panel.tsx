@@ -45,9 +45,9 @@ export function DayDetailsPanel({
 
       <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3.5">
         <div>
-          <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide mb-1.5">Availability</p>
+          <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-wide mb-1.5">Availability</p>
           {sortedAvailability.length === 0 ? (
-            <p className="text-xs text-neutral-400">No availability set for this day.</p>
+            <p className="text-xs text-neutral-500">No availability set for this day.</p>
           ) : (
             <div className="space-y-1">
               {sortedAvailability.map((a) => (
@@ -61,9 +61,9 @@ export function DayDetailsPanel({
         </div>
 
         <div>
-          <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide mb-1.5">Scheduled shifts</p>
+          <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-wide mb-1.5">Scheduled shifts</p>
           {sortedShifts.length === 0 ? (
-            <p className="text-xs text-neutral-400">No shifts assigned.</p>
+            <p className="text-xs text-neutral-500">No shifts assigned.</p>
           ) : (
             <div className="space-y-1.5">
               {sortedShifts.map((s) => (

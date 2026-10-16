@@ -17,6 +17,7 @@ import {
 import { format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ScrollAreaX } from "@/components/ui/scroll-area-x";
 import { cn } from "@/lib/utils";
 import { MAX_TIER } from "@/lib/callout/tiers";
 import type { ChannelAttempt, FillDashboard } from "@/lib/callout/dashboard";
@@ -45,7 +46,7 @@ const CHANNEL_ICON: Record<Channel, React.ElementType> = {
 };
 
 const DELIVERY_STYLE: Record<DeliveryStatus, string> = {
-  QUEUED: "bg-neutral-100 text-neutral-500 border-neutral-200",
+  QUEUED: "bg-neutral-100 text-neutral-600 border-neutral-200",
   SENT: "bg-sky-50 text-sky-700 border-sky-200",
   DELIVERED: "bg-emerald-50 text-emerald-700 border-emerald-200",
   ANSWERED: "bg-emerald-50 text-emerald-700 border-emerald-200",
@@ -132,9 +133,9 @@ export function FillDashboardPanel({ data }: { data: FillDashboard }) {
 
         {/* Tier progress */}
         <div className="space-y-2">
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
             Tiers
-          </h4>
+          </h3>
           <ol className="space-y-2">
             {data.tiers.map((tier) => {
               const active = tier.tier === campaign.currentTier;
@@ -166,9 +167,9 @@ export function FillDashboardPanel({ data }: { data: FillDashboard }) {
 
         {/* Controls */}
         <div className="space-y-2">
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
             Controls
-          </h4>
+          </h3>
           <CascadeControls
             shiftId={data.shift.id}
             status={campaign.status}
@@ -179,16 +180,16 @@ export function FillDashboardPanel({ data }: { data: FillDashboard }) {
 
         {/* Delivery tracking */}
         <div className="space-y-2">
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
             Outreach log
-          </h4>
+          </h3>
           {data.reached.length === 0 ? (
             <p className="text-sm text-neutral-500">Nobody has been contacted yet.</p>
           ) : (
-            <div className="overflow-x-auto">
+            <ScrollAreaX label="Outreach log">
               <table className="w-full min-w-[32rem] text-sm">
                 <thead>
-                  <tr className="text-left text-xs uppercase tracking-wide text-neutral-400">
+                  <tr className="text-left text-xs uppercase tracking-wide text-neutral-500">
                     <th className="pb-2 pr-3 font-medium">Staff</th>
                     <th className="pb-2 pr-3 font-medium">Tier</th>
                     <th className="pb-2 pr-3 font-medium">Channels</th>
@@ -214,7 +215,7 @@ export function FillDashboardPanel({ data }: { data: FillDashboard }) {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </ScrollAreaX>
           )}
         </div>
       </CardContent>
@@ -225,7 +226,7 @@ export function FillDashboardPanel({ data }: { data: FillDashboard }) {
 function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2">
-      <dt className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400">
+      <dt className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
         {label}
       </dt>
       <dd className="mt-0.5 text-base font-semibold text-neutral-900">{value}</dd>
@@ -244,6 +245,7 @@ function ChannelChip({ attempt }: { attempt: ChannelAttempt }) {
       )}
     >
       <Icon className="h-3 w-3" aria-hidden="true" />
+      <span className="sr-only">{attempt.channel.toLowerCase()}: </span>
       {attempt.status.toLowerCase()}
     </span>
   );
@@ -272,5 +274,5 @@ function ResponseChip({
       </span>
     );
   }
-  return <span className="text-xs text-neutral-400">No response</span>;
+  return <span className="text-xs text-neutral-500">No response</span>;
 }
