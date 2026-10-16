@@ -13,3 +13,8 @@ build/
 .vercel/
 .DS_Store
 *.tsbuildinfo
+
+# impeccable design skill: the engine binary is fetched per platform on first
+# use by .claude/skills/impeccable/scripts/impeccable; per-developer overrides
+.claude/skills/impeccable/scripts/bin/
+.impeccable/config.local.json
