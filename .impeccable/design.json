@@ -80,11 +80,11 @@
       },
       "body": {
         "displayName": "Body",
-        "purpose": "Default UI text; 16px in form fields below sm."
+        "purpose": "Default UI text (15px text-sm / 16px page default); 16px in form fields below sm. Nothing routine below 14px."
       },
       "label": {
         "displayName": "Label",
-        "purpose": "Uppercase micro-labels: field labels, metric captions, status pills."
+        "purpose": "Uppercase micro-labels (13px text-2xs): field labels, metric captions, status pills."
       }
     },
     "shadows": [
@@ -138,7 +138,7 @@
       "refersTo": "button-primary",
       "description": "The one main action on a screen.",
       "html": "<button class=\"ds-btn-primary\">Create New Shift</button>",
-      "css": ".ds-btn-primary{display:inline-flex;align-items:center;justify-content:center;height:40px;padding:0 16px;border:0;border-radius:6px;background:#3B2461;color:#fff;font:500 14px/1 Inter,system-ui,sans-serif;transition:background-color 150ms ease-out;cursor:pointer}.ds-btn-primary:hover{background:#2E1C4D}.ds-btn-primary:active{background:#22153A}.ds-btn-primary:focus-visible{outline:none;box-shadow:0 0 0 2px #fff,0 0 0 4px #6B5A9C}"
+      "css": ".ds-btn-primary{display:inline-flex;align-items:center;justify-content:center;height:40px;padding:0 16px;border:0;border-radius:6px;background:#3B2461;color:#fff;font:500 15px/1 Inter,system-ui,sans-serif;transition:background-color 150ms ease-out;cursor:pointer}.ds-btn-primary:hover{background:#2E1C4D}.ds-btn-primary:active{background:#22153A}.ds-btn-primary:focus-visible{outline:none;box-shadow:0 0 0 2px #fff,0 0 0 4px #6B5A9C}"
     },
     {
       "name": "Outline Button",
@@ -146,7 +146,7 @@
       "refersTo": "button-outline",
       "description": "Secondary actions (Cancel Shift, Select, Hold).",
       "html": "<button class=\"ds-btn-outline\">Cancel Shift</button>",
-      "css": ".ds-btn-outline{display:inline-flex;align-items:center;height:40px;padding:0 16px;border:1px solid #CBD5E1;border-radius:6px;background:#fff;color:#334155;font:500 14px/1 Inter,system-ui,sans-serif;transition:background-color 150ms ease-out;cursor:pointer}.ds-btn-outline:hover{background:#F8FAFC}.ds-btn-outline:focus-visible{outline:none;box-shadow:0 0 0 2px #fff,0 0 0 4px #6B5A9C}"
+      "css": ".ds-btn-outline{display:inline-flex;align-items:center;height:40px;padding:0 16px;border:1px solid #CBD5E1;border-radius:6px;background:#fff;color:#334155;font:500 15px/1 Inter,system-ui,sans-serif;transition:background-color 150ms ease-out;cursor:pointer}.ds-btn-outline:hover{background:#F8FAFC}.ds-btn-outline:focus-visible{outline:none;box-shadow:0 0 0 2px #fff,0 0 0 4px #6B5A9C}"
     },
     {
       "name": "Danger Button",
@@ -154,7 +154,7 @@
       "refersTo": "button-danger",
       "description": "Destructive actions only.",
       "html": "<button class=\"ds-btn-danger\">Stop</button>",
-      "css": ".ds-btn-danger{display:inline-flex;align-items:center;height:40px;padding:0 16px;border:0;border-radius:6px;background:#C41230;color:#fff;font:500 14px/1 Inter,system-ui,sans-serif;transition:background-color 150ms ease-out;cursor:pointer}.ds-btn-danger:hover{background:#A00E27}.ds-btn-danger:focus-visible{outline:none;box-shadow:0 0 0 2px #fff,0 0 0 4px #6B5A9C}"
+      "css": ".ds-btn-danger{display:inline-flex;align-items:center;height:40px;padding:0 16px;border:0;border-radius:6px;background:#C41230;color:#fff;font:500 15px/1 Inter,system-ui,sans-serif;transition:background-color 150ms ease-out;cursor:pointer}.ds-btn-danger:hover{background:#A00E27}.ds-btn-danger:focus-visible{outline:none;box-shadow:0 0 0 2px #fff,0 0 0 4px #6B5A9C}"
     },
     {
       "name": "Text Input",
@@ -162,7 +162,7 @@
       "refersTo": "input",
       "description": "Default form field.",
       "html": "<input class=\"ds-input\" placeholder=\"Unit 4B\" aria-label=\"Unit\">",
-      "css": ".ds-input{height:40px;width:240px;padding:8px 12px;border:1px solid #CBD5E1;border-radius:6px;background:#fff;color:#0F172A;font:400 14px/1.4 Inter,system-ui,sans-serif;transition:border-color 150ms ease-out}.ds-input::placeholder{color:#94A3B8}.ds-input:focus-visible{outline:none;border-color:#6B5A9C;box-shadow:0 0 0 2px #6B5A9C}"
+      "css": ".ds-input{height:40px;width:240px;padding:8px 12px;border:1px solid #CBD5E1;border-radius:6px;background:#fff;color:#0F172A;font:400 15px/1.4 Inter,system-ui,sans-serif;transition:border-color 150ms ease-out}.ds-input::placeholder{color:#94A3B8}.ds-input:focus-visible{outline:none;border-color:#6B5A9C;box-shadow:0 0 0 2px #6B5A9C}"
     },
     {
       "name": "Card",
@@ -170,7 +170,7 @@
       "refersTo": "card",
       "description": "White card on the near-white page.",
       "html": "<div class=\"ds-card\"><p class=\"ds-card-title\">Available Shifts</p><p class=\"ds-card-body\">2 open shifts matching your profile.</p></div>",
-      "css": ".ds-card{width:280px;padding:20px;border:1px solid rgba(226,232,240,.8);border-radius:12px;background:#fff;box-shadow:0 1px 3px rgba(59,36,97,.06),0 4px 12px rgba(59,36,97,.04);font-family:Inter,system-ui,sans-serif}.ds-card-title{margin:0 0 4px;font:600 18px/1.4 Inter,system-ui,sans-serif;color:#0F172A}.ds-card-body{margin:0;font:400 14px/1.45 Inter,system-ui,sans-serif;color:#64748B}"
+      "css": ".ds-card{width:280px;padding:20px;border:1px solid rgba(226,232,240,.8);border-radius:12px;background:#fff;box-shadow:0 1px 3px rgba(59,36,97,.06),0 4px 12px rgba(59,36,97,.04);font-family:Inter,system-ui,sans-serif}.ds-card-title{margin:0 0 4px;font:600 18px/1.4 Inter,system-ui,sans-serif;color:#0F172A}.ds-card-body{margin:0;font:400 15px/1.47 Inter,system-ui,sans-serif;color:#64748B}"
     },
     {
       "name": "Status Pill",
@@ -178,7 +178,7 @@
       "refersTo": "status-pill-open",
       "description": "Shift status (OPEN / ASSIGNED / CLOSED / CANCELLED).",
       "html": "<span class=\"ds-pill ds-pill-open\">Open</span> <span class=\"ds-pill ds-pill-assigned\">Assigned</span>",
-      "css": ".ds-pill{display:inline-flex;align-items:center;padding:2px 10px;border:1px solid;border-radius:9999px;font:700 10px/1.5 Inter,system-ui,sans-serif;letter-spacing:.05em;text-transform:uppercase}.ds-pill-open{background:#F4F1FA;color:#2E1C4D;border-color:#D1C8E5}.ds-pill-assigned{background:#ECFDF5;color:#065F46;border-color:#A7F3D0}"
+      "css": ".ds-pill{display:inline-flex;align-items:center;padding:2px 10px;border:1px solid;border-radius:9999px;font:700 13px/1.38 Inter,system-ui,sans-serif;letter-spacing:.05em;text-transform:uppercase}.ds-pill-open{background:#F4F1FA;color:#2E1C4D;border-color:#D1C8E5}.ds-pill-assigned{background:#ECFDF5;color:#065F46;border-color:#A7F3D0}"
     },
     {
       "name": "Top Bar",

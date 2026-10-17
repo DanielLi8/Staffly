@@ -55,7 +55,7 @@ export function ShiftCell({
 }
 
 function ShiftChip({ shift, href }: { shift: GridShift; href?: string }) {
-  const className = "block rounded-md border px-1.5 py-1 text-[11px] leading-tight bg-white border-neutral-200 text-neutral-800";
+  const className = "block rounded-md border px-1.5 py-1 text-2xs leading-tight bg-white border-neutral-200 text-neutral-800";
   const body = (
     <>
       <p className="font-semibold truncate">{formatCellLabel(shift)}</p>

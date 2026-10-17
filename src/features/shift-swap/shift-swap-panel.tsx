@@ -171,7 +171,7 @@ export function ShiftSwapPanel({ kind, onClose }: { kind: ShiftSwapKind; onClose
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-200">
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-wide text-primary-500">Step {step} of 3</p>
+            <p className="text-2xs font-bold uppercase tracking-wide text-primary-500">Step {step} of 3</p>
             <h2 id="shift-swap-panel-title" className="text-lg font-semibold text-primary-900">
               {KIND_LABEL[kind]}
             </h2>
@@ -241,7 +241,7 @@ export function ShiftSwapPanel({ kind, onClose }: { kind: ShiftSwapKind; onClose
               <div className="space-y-3">
                 {swapByDay.map(([day, rows]) => (
                   <div key={day}>
-                    <p className="text-[10px] font-bold uppercase tracking-wide text-neutral-500 mb-1">
+                    <p className="text-2xs font-bold uppercase tracking-wide text-neutral-500 mb-1">
                       {hospitalWeekday(rows[0].startsAt)}, {day}
                     </p>
                     <div className="space-y-1.5">
@@ -375,7 +375,7 @@ export function ShiftSwapPanel({ kind, onClose }: { kind: ShiftSwapKind; onClose
 
 function PayPeriodPill({ start, end }: { start: Date; end: Date }) {
   return (
-    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-primary-700 bg-primary-50 border border-primary-200 rounded-full px-2.5 py-1">
+    <span className="inline-flex items-center gap-1 text-2xs font-bold text-primary-700 bg-primary-50 border border-primary-200 rounded-full px-2.5 py-1">
       Pay period: {hospitalMonthDay(start)} – {hospitalMonthDay(end)}
     </span>
   );
@@ -404,7 +404,7 @@ function CandidateRow({
         eligible ? "bg-emerald-50 hover:bg-emerald-100 cursor-pointer" : "bg-neutral-100 opacity-80 cursor-not-allowed"
       )}
     >
-      <span className="w-7 h-7 rounded-full bg-primary-100 text-primary-700 text-[10px] font-extrabold flex items-center justify-center shrink-0">
+      <span className="w-7 h-7 rounded-full bg-primary-100 text-primary-700 text-2xs font-extrabold flex items-center justify-center shrink-0">
         {name
           .split(" ")
           .map((n) => n[0])
@@ -414,12 +414,12 @@ function CandidateRow({
       </span>
       <span className="flex-1 min-w-0">
         <p className="text-xs font-semibold text-neutral-800 truncate">{name}</p>
-        <p className={cn("text-[11px] truncate", eligible ? "text-emerald-700 font-semibold" : "text-accent-700 font-semibold")}>
+        <p className={cn("text-2xs truncate", eligible ? "text-emerald-700 font-semibold" : "text-accent-700 font-semibold")}>
           {detail}
         </p>
       </span>
       {eligible && (
-        <span className="text-[10px] font-bold bg-primary-700 text-white rounded px-1.5 py-0.5 shrink-0">
+        <span className="text-2xs font-bold bg-primary-700 text-white rounded px-1.5 py-0.5 shrink-0">
           {actionLabel}
         </span>
       )}

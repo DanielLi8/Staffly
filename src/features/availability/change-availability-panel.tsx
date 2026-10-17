@@ -150,12 +150,12 @@ export function ChangeAvailabilityPanel({
               {(fromError || toError) && (
                 <div className="mt-1 space-y-0.5">
                   {fromError && (
-                    <p id={fromErrorId} className="text-[11px] text-accent-600 font-medium">
+                    <p id={fromErrorId} className="text-2xs text-accent-600 font-medium">
                       Enter a time like 7:00 AM or 19:00
                     </p>
                   )}
                   {toError && (
-                    <p id={toErrorId} className="text-[11px] text-accent-600 font-medium">
+                    <p id={toErrorId} className="text-2xs text-accent-600 font-medium">
                       Enter a time like 7:00 AM or 19:00
                     </p>
                   )}
@@ -176,7 +176,7 @@ export function ChangeAvailabilityPanel({
 
       <div className="mt-auto border-t border-dashed border-neutral-200">
         {submitDisabledReason && (
-          <p className="px-3 pt-2 text-[11px] text-accent-600 font-medium">{submitDisabledReason}</p>
+          <p className="px-3 pt-2 text-2xs text-accent-600 font-medium">{submitDisabledReason}</p>
         )}
         <div className="flex gap-2 p-3">
           <button

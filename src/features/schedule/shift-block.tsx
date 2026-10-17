@@ -22,7 +22,7 @@ export function ShiftBlock({ shift, compact, href }: { shift: PersonalScheduleSh
   const confirmed = shift.startsAt <= new Date() && shift.endsAt >= new Date();
   const className = cn(
     "rounded-md border text-left w-full",
-    compact ? "p-1 sm:p-1.5 text-[9px] sm:text-[10px]" : "rounded-lg p-2 text-[11px]",
+    compact ? "p-1 sm:p-1.5 text-2xs sm:text-2xs" : "rounded-lg p-2 text-2xs",
     done && "bg-neutral-100 border-neutral-200 text-neutral-700",
     confirmed && "bg-primary-700 border-primary-800 text-white",
     !done && !confirmed && "bg-white border-neutral-200 text-neutral-800",

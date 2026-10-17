@@ -19,6 +19,8 @@ import { DayDetailsPanel } from "./day-details-panel";
 
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MONTH_CELL_SHIFT_CAP = 3;
+/** Below `sm` a month cell is ~50px square: room for one stacked chip. */
+const MONTH_CELL_SHIFT_CAP_PHONE = 1;
 
 /**
  * The Day/Week/Month availability editor for `/worker/schedule` - tap+drag
@@ -224,11 +226,14 @@ export function AvailabilityEditor({
           {view !== "day" && (
             <div className="grid grid-cols-7 border-b border-neutral-200 bg-neutral-50/80">
               {(view === "month"
-                ? WEEKDAY_LABELS
-                : weekDays.map((d) => `${format(d, "EEE")} ${format(d, "d")}`)
-              ).map((label) => (
-                <div key={label} className="px-0.5 py-2 text-center text-[10px] sm:text-xs font-bold text-neutral-500 uppercase">
+                ? WEEKDAY_LABELS.map((label) => ({ key: label, label, day: null }))
+                : weekDays.map((d) => ({ key: format(d, "yyyy-MM-dd"), label: format(d, "EEE"), day: format(d, "d") }))
+              ).map(({ key, label, day }) => (
+                <div key={key} className="px-0.5 py-2 text-center text-2xs sm:text-xs font-bold text-neutral-500 uppercase">
                   {label}
+                  {/* The cell below already shows the day number; repeating it
+                      here only fits once the columns are wider than a phone's. */}
+                  {day && <span className="hidden sm:inline"> {day}</span>}
                 </div>
               ))}
             </div>
@@ -284,7 +289,7 @@ export function AvailabilityEditor({
                     <div className="flex items-center justify-between shrink-0">
                       <p
                         className={cn(
-                          "text-[11px] sm:text-sm font-semibold tabular-nums",
+                          "text-2xs sm:text-sm font-semibold tabular-nums",
                           isToday ? "text-primary-800" : inMonth ? "text-neutral-900" : "text-neutral-500"
                         )}
                       >
@@ -323,11 +328,21 @@ export function AvailabilityEditor({
                         </>
                       ) : view === "month" ? (
                         <>
-                          {dayShifts.slice(0, MONTH_CELL_SHIFT_CAP).map((s) => (
-                            <CompactShiftChip key={s.id} shift={s} />
+                          {dayShifts.slice(0, MONTH_CELL_SHIFT_CAP).map((s, i) => (
+                            <CompactShiftChip
+                              key={s.id}
+                              shift={s}
+                              hideEndOnPhone
+                              className={i >= MONTH_CELL_SHIFT_CAP_PHONE ? "hidden sm:block" : undefined}
+                            />
                           ))}
+                          {dayShifts.length > MONTH_CELL_SHIFT_CAP_PHONE && (
+                            <p className="text-2xs font-semibold text-neutral-500 sm:hidden">
+                              +{dayShifts.length - MONTH_CELL_SHIFT_CAP_PHONE}
+                            </p>
+                          )}
                           {dayShifts.length > MONTH_CELL_SHIFT_CAP && (
-                            <p className="text-[9px] font-semibold text-neutral-500">
+                            <p className="hidden text-2xs font-semibold text-neutral-500 sm:block">
                               +{dayShifts.length - MONTH_CELL_SHIFT_CAP} more
                             </p>
                           )}
@@ -419,7 +434,16 @@ function AvailabilityBand({ dayAvailability }: { dayAvailability: AvailabilityDT
  * staff-mode reuse of `PersonalScheduleCalendar` (a separate, read-only
  * render branch) is unaffected.
  */
-function CompactShiftChip({ shift }: { shift: PersonalScheduleShift }) {
+function CompactShiftChip({
+  shift,
+  hideEndOnPhone = false,
+  className,
+}: {
+  shift: PersonalScheduleShift;
+  /** Month cells on a phone only fit code + start; Day details has the full range. */
+  hideEndOnPhone?: boolean;
+  className?: string;
+}) {
   const now = new Date();
   const done = shift.endsAt < now;
   const confirmed = shift.startsAt <= now && shift.endsAt >= now;
@@ -427,22 +451,28 @@ function CompactShiftChip({ shift }: { shift: PersonalScheduleShift }) {
   const end = hospitalTime(shift.endsAt, false);
   const label = `${shift.department.code} ${start}–${end}`;
 
-  // Below `sm` a week/month column is ~50px wide, so the one-line label would
-  // truncate to "ER 07:00..." and hide the end time; stack code / start / end
-  // instead so the whole shift stays readable at phone width.
+  // Never truncate: an "ER 07:00..." chip hides the end time. Below `sm` a
+  // week/month column is ~50px wide, so stack code / start / end (start over
+  // end reads as a range, so the dash only shows inline); above it the parts
+  // stay inline and wrap between start and end when the column is narrow.
   return (
     <div
       title={`${shift.department.name} · ${label}`}
       className={cn(
-        "rounded-md border px-0.5 sm:px-1 py-0.5 text-[10px] font-semibold leading-tight tabular-nums sm:truncate",
+        "rounded-md border px-0.5 sm:px-1 py-0.5 text-2xs font-semibold leading-tight tabular-nums",
         done && "bg-neutral-100 border-neutral-200 text-neutral-700",
         confirmed && "bg-primary-700 border-primary-800 text-white",
-        !done && !confirmed && "bg-white border-neutral-200 text-neutral-800"
+        !done && !confirmed && "bg-white border-neutral-200 text-neutral-800",
+        className
       )}
     >
-      <span className="block sm:inline">{shift.department.code}</span>{" "}
-      <span className="block whitespace-nowrap sm:inline">{start}–</span>
-      <span className="block whitespace-nowrap sm:inline">{end}</span>
+      <span className="block whitespace-nowrap sm:inline">{shift.department.code}</span>{" "}
+      <span className="block whitespace-nowrap sm:inline">
+        {start}
+        <span className="hidden sm:inline">–</span>
+      </span>
+      <wbr />
+      <span className={cn("whitespace-nowrap sm:inline", hideEndOnPhone ? "hidden" : "block")}>{end}</span>
     </div>
   );
 }

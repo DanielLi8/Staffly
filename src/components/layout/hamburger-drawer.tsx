@@ -20,7 +20,8 @@ interface HamburgerDrawerProps {
   userName: string;
   homeHref: string;
   topLinks?: DrawerLink[];
-  moreLinks: DrawerLink[];
+  /** Rendered under a "More" heading; the whole group is omitted when empty. */
+  moreLinks?: DrawerLink[];
   role: Role;
   viewMode: ViewMode;
   onClose: () => void;
@@ -37,7 +38,7 @@ const setWorkerViewMode = setViewMode.bind(null, "WORKER");
  * handling come from `useModalPanel`. The current page's link is the
  * highlighted one (`aria-current`), not always Home.
  */
-export function HamburgerDrawer({ userName, homeHref, topLinks = [], moreLinks, role, viewMode, onClose }: HamburgerDrawerProps) {
+export function HamburgerDrawer({ userName, homeHref, topLinks = [], moreLinks = [], role, viewMode, onClose }: HamburgerDrawerProps) {
   const panelRef = useModalPanel<HTMLDivElement>(onClose);
   const pathname = usePathname();
   const isCurrent = (href: string) => pathname === href;
@@ -59,7 +60,7 @@ export function HamburgerDrawer({ userName, homeHref, topLinks = [], moreLinks, 
             <p className="truncate font-semibold text-neutral-900">
               {userName}
               {role === "ADMIN" && (
-                <span className="ml-1.5 rounded bg-primary-50 px-1.5 py-0.5 align-middle text-[10px] font-bold uppercase tracking-wide text-primary-700">
+                <span className="ml-1.5 rounded bg-primary-50 px-1.5 py-0.5 align-middle text-2xs font-bold uppercase tracking-wide text-primary-700">
                   Admin
                 </span>
               )}
@@ -76,7 +77,7 @@ export function HamburgerDrawer({ userName, homeHref, topLinks = [], moreLinks, 
 
         {role === "ADMIN" && (
           <div className="border-b border-neutral-100 px-4 py-3">
-            <p className="pb-1.5 text-[10px] font-bold uppercase tracking-wider text-neutral-500">View as</p>
+            <p className="pb-1.5 text-2xs font-bold uppercase tracking-wider text-neutral-500">View as</p>
             <div className="flex gap-1 rounded-lg bg-neutral-100 p-1">
               <form action={setAdminViewMode} className="flex-1">
                 <button
@@ -158,25 +159,27 @@ export function HamburgerDrawer({ userName, homeHref, topLinks = [], moreLinks, 
           ))}
         </nav>
 
-        <div className="mt-2 flex-1 overflow-y-auto px-2">
-          <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-neutral-500">More</p>
-          <div className="space-y-0.5">
-            {moreLinks.map((l) => (
-              <Link
-                key={l.href}
-                href={l.href}
-                aria-current={isCurrent(l.href) ? "page" : undefined}
-                className={cn(
-                  "flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm",
-                  isCurrent(l.href) ? "bg-primary-50 font-semibold text-primary-700" : "text-neutral-700 hover:bg-neutral-50"
-                )}
-                onClick={onClose}
-              >
-                {l.label}
-              </Link>
-            ))}
+        {moreLinks.length > 0 && (
+          <div className="mt-2 flex-1 overflow-y-auto px-2">
+            <p className="px-3 pb-1 text-2xs font-bold uppercase tracking-wider text-neutral-500">More</p>
+            <div className="space-y-0.5">
+              {moreLinks.map((l) => (
+                <Link
+                  key={l.href}
+                  href={l.href}
+                  aria-current={isCurrent(l.href) ? "page" : undefined}
+                  className={cn(
+                    "flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm",
+                    isCurrent(l.href) ? "bg-primary-50 font-semibold text-primary-700" : "text-neutral-700 hover:bg-neutral-50"
+                  )}
+                  onClick={onClose}
+                >
+                  {l.label}
+                </Link>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

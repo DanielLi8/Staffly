@@ -48,14 +48,14 @@ typography:
     lineHeight: 1.55
   body:
     fontFamily: "Inter, system-ui, sans-serif"
-    fontSize: "0.875rem"
+    fontSize: "0.9375rem"
     fontWeight: 400
-    lineHeight: 1.43
+    lineHeight: 1.47
   label:
     fontFamily: "Inter, system-ui, sans-serif"
-    fontSize: "0.625rem"
+    fontSize: "0.8125rem"
     fontWeight: 600
-    lineHeight: 1.5
+    lineHeight: 1.38
     letterSpacing: "0.05em"
 rounded:
   sm: "6px"
@@ -168,14 +168,18 @@ A restrained plum-and-slate clinical palette with semantic status accents.
 **Display Font:** DM Serif Display (with Georgia, serif), loaded via `next/font` as `--font-dm-serif`.
 **Body Font:** Inter (with system-ui, sans-serif), loaded via `next/font` as `--font-inter`.
 
-**Character:** A single editorial serif gives page titles and the wordmark a calm, institutional voice; Inter keeps every data-bearing line neutral and highly legible at small sizes.
+**Character:** A single editorial serif gives page titles and the wordmark a calm, institutional voice; Inter keeps every data-bearing line neutral and highly legible.
+
+**Scale (set centrally in `tailwind.config.ts` `fontSize`, never per component):** Tailwind's small steps are raised so routine text is never below 14px - `text-2xs` 13px (new, eyebrow labels and pills only), `text-xs` 14px, `text-sm` 15px, `text-base` 16px (the `body` default). Don't reintroduce arbitrary `text-[10px]`-style sizes; use `text-2xs` for the rare uppercase caption.
+
+**Font loading:** both families come from `next/font` as CSS variables, and the Tailwind stacks reference them as `var(--font-inter, Inter)` / `var(--font-dm-serif, Georgia)`. Keep the fallback inside `var()`: a bare `var(--font-inter)` that fails to resolve (e.g. a stale dev CSS chunk whose font class hash no longer matches the HTML) invalidates the whole `font-family` declaration and drops every element to the browser's default serif.
 
 ### Hierarchy
-- **Display** (400, 1.5rem mobile / 1.875rem desktop, `.page-title`, plum 700): one per page, the page title.
+- **Display** (400, 1.5rem mobile / 1.875rem desktop, `.page-title`, plum 700): one per page, the page title. DM Serif Display ships one weight - never put `font-bold` on it (the browser fakes a muddy synthetic bold).
 - **Headline** (600, 1.5rem, tight tracking): schedule range headings ("October 12-18, 2026").
 - **Title** (600, 1.125rem, `.section-title` / card titles): card and section headers.
-- **Body** (400, 0.875rem): default UI text; 1rem in form fields below `sm` so iOS never zooms on focus.
-- **Label** (600-700, 0.625-0.6875rem, uppercase, 0.05-0.1em tracking): field labels, metric captions, status pills, column headers.
+- **Body** (400, 0.9375rem `text-sm` for UI copy, 1rem page default): default UI text; 1rem in form fields below `sm` so iOS never zooms on focus.
+- **Label** (600-700, 0.8125rem `text-2xs`, uppercase, 0.05-0.1em tracking): field labels, metric captions, status pills, column headers.
 
 ### Named Rules
 **The One Serif Rule.** DM Serif Display appears only in the page title and the wordmark. Everything that carries data is Inter.
@@ -213,7 +217,7 @@ Gently rounded and consistent: 6px (`rounded-md`) for buttons and inputs, 12px (
 - **Focus:** 2px `primary-500` ring with 2px offset (`focus-visible` only). Disabled is 50% opacity, no pointer events.
 
 ### Chips and Pills
-- **Status pills:** uppercase 10px bold, full radius, tinted fill + matching border (`.status-open`, `.status-assigned`, `.status-closed`, `.status-cancelled`).
+- **Status pills:** uppercase 13px (`text-2xs`) bold, full radius, tinted fill + matching border (`.status-open`, `.status-assigned`, `.status-closed`, `.status-cancelled`).
 - **Bid pills:** sentence case (`.bid-pending`, `.bid-selected`, `.bid-not-selected`).
 - **Muted pill** (`.pill-muted`): neutral-100 fill, neutral-600 text.
 
@@ -224,7 +228,7 @@ Gently rounded and consistent: 6px (`rounded-md`) for buttons and inputs, 12px (
 - **Internal Padding:** 16-20px.
 
 ### Inputs / Fields
-- **Style:** white, 1px slate-300 border, 6px radius, 40px tall (44px on login/search), 16px text below `sm` / 14px above.
+- **Style:** white, 1px slate-300 border, 6px radius, 40px tall (44px on login/search), 16px text below `sm` / 15px above.
 - **Focus:** 2px `primary-500` ring and plum border.
 - **Error:** clinical red border plus an inline `text-accent` message, linked with `aria-invalid` / `aria-describedby`.
 
@@ -242,7 +246,7 @@ Roster rows down the left (sticky staff column), day columns across, one compact
 - **Do** use `primary-700` for the single most important action on a screen and outline/ghost for the rest.
 - **Do** keep text at `neutral-500` or darker on white and `neutral-600` or darker on tinted fills.
 - **Do** give every icon-only control an `aria-label` and a 40-44px hit area, even when the icon is 16px.
-- **Do** use `transition-colors` / explicit property lists with 150-200ms `ease-out`; add `motion-reduce:transition-none` to anything that moves.
+- **Do** use `transition-colors` / explicit property lists with 150-200ms `ease-out`; add `motion-reduce:transition-none` to anything that moves. Segmented controls slide one shared pill with `transform` (see `PortalToggle` in `src/features/auth/login-form.tsx`) rather than snapping the white fill between options.
 - **Do** wrap horizontally scrolling content in `ScrollAreaX` so hidden columns are marked.
 
 ### Don't:

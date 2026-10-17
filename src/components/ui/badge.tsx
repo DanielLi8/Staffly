@@ -34,7 +34,7 @@ const shiftStatusLabel: Record<ShiftStatus, string> = {
 
 export function ShiftStatusBadge({ status }: { status: ShiftStatus }) {
   return (
-    <Badge className={cn("border text-[10px] font-bold tracking-wide uppercase", shiftStatusMap[status])}>
+    <Badge className={cn("border text-2xs font-bold tracking-wide uppercase", shiftStatusMap[status])}>
       {shiftStatusLabel[status]}
     </Badge>
   );

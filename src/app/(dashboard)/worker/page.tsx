@@ -3,7 +3,7 @@ import { CalendarDays, ListChecks, BarChart3, Building2, ArrowUpRight } from "lu
 import { db } from "@/lib/db";
 import { getSession, actorFromSession } from "@/lib/auth";
 import { workerAvailableShiftWhere } from "@/lib/authz";
-import { resolveStaffDepartmentIds } from "@/lib/authz/staff-departments";
+import { resolveLocationScheduleDepartmentIds } from "@/lib/authz/staff-departments";
 import { positionMatchesRole } from "@/lib/shifts/role-match";
 import { redirect } from "next/navigation";
 import { shiftCardInclude } from "@/lib/shift-include";
@@ -65,7 +65,7 @@ export default async function WorkerDashboardPage() {
       include: { department: { select: { name: true, code: true } } },
     }),
     db.shiftBid.count({ where: { workerId } }),
-    resolveStaffDepartmentIds(actor),
+    resolveLocationScheduleDepartmentIds(actor),
     db.user.findUnique({ where: { id: workerId }, select: { position: true } }),
   ]);
 
@@ -104,7 +104,7 @@ export default async function WorkerDashboardPage() {
         </div>
         <Card className="shrink-0 w-full lg:w-56 border-primary-100 shadow-card">
           <CardContent className="pt-5">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">Hours scheduled</p>
+            <p className="text-2xs font-bold uppercase tracking-wider text-neutral-500">Hours scheduled</p>
             <p className="text-2xl font-bold text-primary-900 mt-1">
               {hoursScheduled.toFixed(1)} <span className="text-neutral-500 font-medium">/ 40h</span>
             </p>
@@ -143,9 +143,9 @@ export default async function WorkerDashboardPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-semibold text-neutral-900 truncate">{shift.department.name}</p>
-                      <p className="text-[11px] text-neutral-500 truncate">{shift.roleNeeded}</p>
+                      <p className="text-2xs text-neutral-500 truncate">{shift.roleNeeded}</p>
                     </div>
-                    <p className="text-[11px] text-neutral-500 shrink-0 text-right">
+                    <p className="text-2xs text-neutral-500 shrink-0 text-right">
                       {formatShiftDate(shift.startsAt)}
                     </p>
                   </Link>
@@ -171,7 +171,7 @@ export default async function WorkerDashboardPage() {
               return (
                 <div key={day.toISOString()} className="flex items-start gap-3 py-1.5 border-b border-neutral-100 last:border-0">
                   <div className="w-11 shrink-0 text-center">
-                    <p className="text-[10px] font-bold uppercase tracking-wide text-neutral-500">
+                    <p className="text-2xs font-bold uppercase tracking-wide text-neutral-500">
                       {format(day, "EEE")}
                     </p>
                     <p className="text-xs font-semibold text-neutral-700">{format(day, "MMM d")}</p>

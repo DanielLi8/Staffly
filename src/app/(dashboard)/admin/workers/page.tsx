@@ -50,7 +50,7 @@ export default async function AdminWorkersPage() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-semibold text-neutral-900 text-sm leading-tight">{worker.name}</p>
                       {worker.isTeamLead && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-primary-50 text-primary-700 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-primary-50 text-primary-700 text-2xs font-bold uppercase tracking-wide px-2 py-0.5">
                           <ShieldCheck className="w-3 h-3" aria-hidden />
                           Team Lead
                         </span>

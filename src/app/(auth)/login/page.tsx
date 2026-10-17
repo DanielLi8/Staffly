@@ -15,8 +15,8 @@ export default async function LoginPage() {
           <div className="inline-flex w-14 h-14 rounded-2xl bg-primary-700 items-center justify-center mb-4 shadow-card">
             <span className="text-white text-2xl font-bold">+</span>
           </div>
-          <h1 className="font-display text-3xl font-bold text-primary-900">Staffly</h1>
-          <p className="text-[11px] font-semibold tracking-[0.2em] text-neutral-500 mt-2 uppercase">
+          <h1 className="font-display text-3xl font-normal text-primary-900">Staffly</h1>
+          <p className="text-2xs font-semibold tracking-[0.2em] text-neutral-500 mt-2 uppercase">
             Secure internal access
           </p>
         </div>
@@ -25,11 +25,10 @@ export default async function LoginPage() {
           <LoginForm />
         </div>
 
-        <div className="mt-8 text-center space-y-3 text-[10px] uppercase tracking-wider text-neutral-500">
+        <div className="mt-8 text-center space-y-3 text-2xs uppercase tracking-wider text-neutral-500">
           <div className="flex flex-wrap justify-center gap-4">
             <span className="cursor-default">Privacy Policy</span>
             <span className="cursor-default">Terms of Service</span>
-            <span className="cursor-default">IT Support</span>
           </div>
           <p>© {new Date().getFullYear()} Staffly Systems. Secure internal access only.</p>
         </div>

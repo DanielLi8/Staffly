@@ -27,7 +27,6 @@ function renderDrawer(onClose = vi.fn()) {
         { href: "/admin/schedule", label: "Schedule" },
         { href: "/admin/workers", label: "Workers" },
       ]}
-      moreLinks={[{ href: "/admin/departments", label: "Departments" }]}
       role="ADMIN"
       viewMode="ADMIN"
       onClose={onClose}
@@ -59,6 +58,27 @@ describe("HamburgerDrawer", () => {
     renderDrawer();
     expect(screen.getByRole("link", { name: "Workers" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("link", { name: "Home" })).not.toHaveAttribute("aria-current");
+  });
+
+  it("omits the More group entirely when it has no links", () => {
+    renderDrawer();
+    expect(screen.queryByText("More")).not.toBeInTheDocument();
+  });
+
+  it("renders the More group when it has links", () => {
+    pathname = "/worker";
+    render(
+      <HamburgerDrawer
+        userName="Maria Santos"
+        homeHref="/worker"
+        moreLinks={[{ href: "/worker/location", label: "Location Schedule" }]}
+        role="STAFF"
+        viewMode="WORKER"
+        onClose={vi.fn()}
+      />
+    );
+    expect(screen.getByText("More")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Location Schedule" })).toHaveAttribute("href", "/worker/location");
   });
 
   it("returns focus to the opener when it closes", () => {
