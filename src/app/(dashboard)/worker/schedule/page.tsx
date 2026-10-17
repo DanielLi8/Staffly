@@ -1,8 +1,9 @@
 import { db } from "@/lib/db";
-import { getSession } from "@/lib/auth";
+import { actorFromSession, getSession } from "@/lib/auth";
+import { shiftListWhere } from "@/lib/authz";
 import { redirect } from "next/navigation";
-import { format, addDays, subDays } from "date-fns";
-import { parseScheduleAnchor, parseScheduleView, resolveScheduleRange, type ScheduleView } from "@/lib/schedule/range";
+import { format } from "date-fns";
+import { parseScheduleAnchor, parseScheduleView, resolveScheduleDays, type ScheduleView } from "@/lib/schedule/range";
 import { PersonalScheduleCalendar } from "@/features/schedule/personal-schedule-calendar";
 import { IncomingRequestsPanel } from "@/features/shift-swap/incoming-requests-panel";
 import { listIncomingShiftSwapRequests } from "@/app/actions/shift-swap";
@@ -20,35 +21,35 @@ export default async function WorkerSchedulePage({
 }) {
   const session = await getSession();
   if (!session) redirect("/login");
+  const actor = actorFromSession(session);
 
   const anchor = parseScheduleAnchor(searchParams.date ?? searchParams.week);
   const view = parseScheduleView(searchParams.view);
-  const { rangeStart, rangeEnd } = resolveScheduleRange(view, anchor);
+  // Overlap, not `startsAt` in range: a night shift that began the evening
+  // before the first visible day still draws its morning half, and a night
+  // availability block spilling in from that evening still tints it.
+  const { rangeStart, rangeEnd } = resolveScheduleDays(view, anchor);
+  const overlapping = { startsAt: { lt: rangeEnd }, endsAt: { gt: rangeStart } };
 
-  const shifts = await db.shift.findMany({
-    where: {
-      assignedWorkerId: session.user.id,
-      status: { not: "CANCELLED" },
-      startsAt: { gte: rangeStart, lt: rangeEnd },
-    },
-    include: { department: { select: { name: true, code: true } } },
-    orderBy: { startsAt: "asc" },
-  });
-
-  // Availability editing happens on all three views. Only the month grid
-  // spans outside `rangeStart`/`rangeEnd` (it shows whole weeks around the
-  // month, per `resolveScheduleRange`) - pad generously there rather than
-  // duplicating that week-padding math; day/week already query exactly the
-  // visible range.
-  const availability = await db.availability.findMany({
-    where: {
-      userId: session.user.id,
-      startsAt: {
-        gte: view === "month" ? subDays(rangeStart, 7) : rangeStart,
-        lt: view === "month" ? addDays(rangeEnd, 7) : rangeEnd,
+  const [shifts, availability] = await Promise.all([
+    db.shift.findMany({
+      where: shiftListWhere(actor, { assignedWorkerId: actor.id, status: { not: "CANCELLED" }, ...overlapping }),
+      select: {
+        id: true,
+        startsAt: true,
+        endsAt: true,
+        roleNeeded: true,
+        unit: true,
+        department: { select: { name: true, code: true } },
       },
-    },
-  });
+      orderBy: { startsAt: "asc" },
+    }),
+    db.availability.findMany({
+      where: { userId: actor.id, ...overlapping },
+      select: { id: true, startsAt: true, endsAt: true, status: true },
+      orderBy: { startsAt: "asc" },
+    }),
+  ]);
 
   // `listIncomingShiftSwapRequests` requires a STAFF actor; an ADMIN can also
   // land on this page (middleware doesn't fence /worker off from ADMIN), so
@@ -59,13 +60,12 @@ export default async function WorkerSchedulePage({
     <div className="space-y-4">
       <IncomingRequestsPanel requests={incomingRequests} />
       <PersonalScheduleCalendar
-        title="Your Schedule"
-        subtitle="Review your assigned clinical rotations."
         shifts={shifts}
+        availability={availability}
         anchor={anchor}
         view={view}
         hrefFor={scheduleHref}
-        editableAvailability={{ availability }}
+        editable
       />
     </div>
   );

@@ -3,11 +3,10 @@ import { hospitalTime } from "@/lib/timezone";
 import { cn } from "@/lib/utils";
 
 /**
- * Split out of `personal-schedule-calendar.tsx` so the availability editor's
- * client-side month grid (`src/features/availability/availability-month-grid.tsx`)
- * can render the same shift blocks without a circular import between the two
- * (that grid renders inside `PersonalScheduleCalendar`'s month view, so the
- * dependency can only run one way).
+ * The shift shape every personal-schedule surface shares (the time grid, the
+ * month grid, the worker home agenda). `ShiftBlock` itself is the home-screen
+ * agenda card; the schedule page draws shifts with `ScheduleTimeGrid` /
+ * `ScheduleMonthGrid` instead.
  */
 export interface PersonalScheduleShift {
   id: string;
@@ -15,6 +14,7 @@ export interface PersonalScheduleShift {
   endsAt: Date;
   department: { name: string; code: string };
   roleNeeded: string;
+  unit?: string;
 }
 
 export function ShiftBlock({ shift, compact, href }: { shift: PersonalScheduleShift; compact?: boolean; href?: string }) {

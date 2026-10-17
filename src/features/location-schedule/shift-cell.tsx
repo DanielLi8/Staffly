@@ -58,7 +58,8 @@ function ShiftChip({ shift, href }: { shift: GridShift; href?: string }) {
   const className = "block rounded-md border px-1.5 py-1 text-2xs leading-tight bg-white border-neutral-200 text-neutral-800";
   const body = (
     <>
-      <p className="font-semibold truncate">{formatCellLabel(shift)}</p>
+      {/* Wraps (at the space before the times) instead of truncating the end time. */}
+      <p className="font-semibold">{formatCellLabel(shift)}</p>
       <p className="text-neutral-500 truncate">Unit {shift.unit}</p>
     </>
   );

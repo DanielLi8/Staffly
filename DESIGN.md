@@ -151,7 +151,7 @@ A restrained plum-and-slate clinical palette with semantic status accents.
 
 ### Tertiary
 - **Assigned Green** (#065F46 on #ECFDF5): assigned status, delivered/answered outreach, eligible swap candidates (Tailwind `emerald-*`).
-- **Overlap Amber** (#92400E on #FFFBEB): a likely double-booking (2+ shifts for one person on one day) in the Location Schedule (Tailwind `amber-*`).
+- **Overlap Amber** (#92400E on #FFFBEB, ring `amber-400`): a likely double-booking (2+ shifts for one person on one day) in the Location Schedule, and a shift that falls outside the worker's declared availability on their own schedule (Tailwind `amber-*`).
 
 ### Neutral
 - **Ward White** (#F8F9FB): page background (`staffly-bg`).
@@ -162,6 +162,14 @@ A restrained plum-and-slate clinical palette with semantic status accents.
 **The 4.5 Floor Rule.** Text never goes lighter than `neutral-500` on white, and never lighter than `neutral-600` on a tinted fill (`neutral-100`, `primary-50`, card tints). `neutral-400` and lighter are for decorative `aria-hidden` icons, placeholders, and disabled states only.
 
 **The One Alarm Rule.** Clinical red means "something is wrong or destructive". It is never used for emphasis, branding, or decoration.
+
+**The Schedule Color Rule.** Every schedule surface (time grid, month calendar, day panel, availability editor, legend) speaks one color language, defined once in `src/features/schedule/schedule-visuals.tsx`:
+- **Your shift = plum.** Solid `primary-700` with white text; a shift that has already ended drops to `primary-100` fill / `primary-900` text.
+- **Available = soft emerald.** `emerald-100` as the background tint behind shifts on the time grid; `emerald-200`/`-300` on thin bars where the lighter tint would vanish.
+- **Not available = slate diagonal stripes**, never red: `.bg-unavailable` (slate-300 stripes on slate-100) for areas, `.bg-unavailable-strong` (slate-400 on slate-200) for swatches and thin bars. Unavailability is a worker's own declaration, not an alarm.
+- **Conflict = amber.** A shift outside availability gets an `amber-400` ring plus a small warning badge, and the panel explains it in an `amber-50` notice. Amber never fills a whole block.
+- **Not set = empty.** No tint at all; the plain track or white column shows through.
+Every screen that uses these colors shows the legend (`ScheduleLegend`).
 
 ## Typography
 
@@ -236,6 +244,9 @@ Gently rounded and consistent: 6px (`rounded-md`) for buttons and inputs, 12px (
 - **Top bar:** plum, white 44px icon buttons (menu, home, help, notifications), page title or the serif wordmark.
 - **Drawer:** left slide-over (`z-50`, `role="dialog"`), account block, "View as" segmented toggle for admins, direct links, then "More". The current page's link is the highlighted one (`aria-current="page"`).
 - **Calendar nav:** prev/next pill, Today pill, Day/Week/Month segmented toggle on one row.
+
+### Personal schedule time grid
+One person's schedule (`ScheduleTimeGrid` / `ScheduleMonthGrid` in `src/features/schedule/`). Day and Week sit on a real 24-hour axis (22px per hour on a phone, 28px from `sm`), so every block is at its actual start and end; an overnight shift is cut at midnight into two blocks with flat inner edges. Availability is the tint behind the blocks; blocks leave a 10px strip of it showing on their left (3px on a phone). Week keeps all seven columns at 390px by stacking start over end in each block. Month is a calendar of compact chips (start time, plus end time from `xl`) over a thin per-day availability bar. The date heading, prev/next, Today, the view toggle and the page action share one header row (two lines on a phone).
 
 ### Location Schedule grid (signature component)
 Roster rows down the left (sticky staff column), day columns across, one compact "Day 07:00-19:00 / Unit 4B" chip per shift; two shifts in one cell turn the cell amber. Month view collapses to a per-day count heatmap that links to the day.

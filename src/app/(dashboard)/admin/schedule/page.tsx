@@ -11,7 +11,13 @@ import { PersonalScheduleCalendar } from "@/features/schedule/personal-schedule-
 import { LocationScheduleGrid, LocationScheduleMonthHeatmap } from "@/features/location-schedule/grid-view";
 import { ScheduleSearchBox } from "@/features/location-schedule/schedule-search-box";
 import { loadLocationSchedule } from "@/lib/location-schedule/load";
-import { parseScheduleAnchor, parseScheduleView, resolveScheduleRange, type ScheduleView } from "@/lib/schedule/range";
+import {
+  parseScheduleAnchor,
+  parseScheduleView,
+  resolveScheduleDays,
+  resolveScheduleRange,
+  type ScheduleView,
+} from "@/lib/schedule/range";
 
 export const metadata = { title: "Location Schedule – Staffly" };
 
@@ -82,26 +88,34 @@ async function StaffMode({ userId, anchor, view }: { userId: string; anchor: Dat
   });
   if (!user || user.role !== "STAFF") notFound();
 
-  const { rangeStart, rangeEnd } = resolveScheduleRange(view, anchor);
+  const { rangeStart, rangeEnd } = resolveScheduleDays(view, anchor);
   const shifts = await db.shift.findMany({
     where: {
       assignedWorkerId: user.id,
       status: { not: "CANCELLED" },
-      startsAt: { gte: rangeStart, lt: rangeEnd },
+      // Overlap, so a night shift from the evening before still draws its morning half.
+      startsAt: { lt: rangeEnd },
+      endsAt: { gt: rangeStart },
     },
-    include: { department: { select: { name: true, code: true } } },
+    select: {
+      id: true,
+      startsAt: true,
+      endsAt: true,
+      roleNeeded: true,
+      unit: true,
+      department: { select: { name: true, code: true } },
+    },
     orderBy: { startsAt: "asc" },
   });
 
   return (
     <PersonalScheduleCalendar
-      title={`${user.name}'s Schedule`}
-      subtitle="Personal calendar - the same view staff see for themselves at /worker/schedule."
+      title={`${user.name}'s schedule`}
       shifts={shifts}
       anchor={anchor}
       view={view}
       hrefFor={(d, v) => scheduleHref({ type: "staff", id: user.id }, d, v)}
-      shiftHref={(shift) => `/admin/shifts/${shift.id}`}
+      shiftHrefBase="/admin/shifts/"
     />
   );
 }

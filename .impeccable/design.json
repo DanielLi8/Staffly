@@ -42,7 +42,8 @@
       "overlap-amber": {
         "role": "tertiary",
         "displayName": "Overlap Amber",
-        "canonical": "#92400E"
+        "canonical": "#92400E",
+        "usage": "Location Schedule double-booking; a shift outside the worker's availability (ring + badge)."
       },
       "ward-white": {
         "role": "neutral",
@@ -208,6 +209,11 @@
       {
         "name": "The One Alarm Rule",
         "body": "Clinical red means \"something is wrong or destructive\". It is never used for emphasis, branding, or decoration.",
+        "section": "colors"
+      },
+      {
+        "name": "The Schedule Color Rule",
+        "body": "Every schedule surface speaks one color language (`src/features/schedule/schedule-visuals.tsx`): your shift = plum (`primary-700`, past shifts `primary-100`), available = soft emerald (`emerald-100` tint, `emerald-200`/`-300` on thin bars), not available = slate diagonal stripes (`.bg-unavailable`, never red), conflict = an `amber-400` ring plus badge, not set = empty. Show the legend wherever these appear.",
         "section": "colors"
       },
       {
