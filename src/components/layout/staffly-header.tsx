@@ -72,11 +72,11 @@ export function StafflyHeader({ userName, variant, role, viewMode }: StafflyHead
   return (
     <>
       <header className="sticky top-0 z-40 bg-primary-700">
-        <div className="flex h-16 w-full items-center gap-3 px-4 lg:px-8">
+        <div className="flex h-16 w-full items-center gap-1 px-2 sm:gap-2 sm:px-4 lg:px-8">
           <button
             type="button"
             onClick={() => setDrawerOpen(true)}
-            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white/90 transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-white/90 transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
             aria-label="Open menu"
           >
             <Menu className="h-5 w-5" aria-hidden />
@@ -84,24 +84,24 @@ export function StafflyHeader({ userName, variant, role, viewMode }: StafflyHead
 
           <Link
             href={homeHref}
-            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white/90 transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-white/90 transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
             aria-label="Home"
           >
             <Home className="h-5 w-5" aria-hidden />
           </Link>
 
           {title ? (
-            <span className="truncate text-[17px] font-semibold tracking-tight text-white">{title}</span>
+            <span className="ml-1 truncate text-[17px] font-semibold tracking-tight text-white">{title}</span>
           ) : (
-            <span className="font-display truncate text-xl font-bold leading-none tracking-tight text-white">
+            <span className="ml-1 font-display truncate text-xl font-bold leading-none tracking-tight text-white">
               Staffly
             </span>
           )}
 
-          <div className="ml-auto flex shrink-0 items-center gap-1">
+          <div className="ml-auto flex shrink-0 items-center">
             <button
               type="button"
-              className="hidden h-9 w-9 items-center justify-center rounded-lg text-white/85 transition-colors hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 sm:inline-flex"
+              className="hidden h-11 w-11 items-center justify-center rounded-lg text-white/85 transition-colors hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 sm:inline-flex"
               aria-label="Help"
             >
               <HelpCircle className="h-5 w-5" aria-hidden />

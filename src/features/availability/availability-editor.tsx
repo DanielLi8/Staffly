@@ -222,12 +222,12 @@ export function AvailabilityEditor({
       <div className="flex flex-col md:flex-row gap-4 items-start">
         <div className="card-base overflow-x-auto select-none flex-1 min-w-0 w-full">
           {view !== "day" && (
-            <div className="min-w-[480px] sm:min-w-full grid grid-cols-7 border-b border-neutral-200 bg-neutral-50/80">
+            <div className="grid grid-cols-7 border-b border-neutral-200 bg-neutral-50/80">
               {(view === "month"
                 ? WEEKDAY_LABELS
                 : weekDays.map((d) => `${format(d, "EEE")} ${format(d, "d")}`)
               ).map((label) => (
-                <div key={label} className="px-1 py-2 text-center text-[10px] sm:text-xs font-bold text-neutral-400 uppercase">
+                <div key={label} className="px-0.5 py-2 text-center text-[10px] sm:text-xs font-bold text-neutral-500 uppercase">
                   {label}
                 </div>
               ))}
@@ -236,7 +236,7 @@ export function AvailabilityEditor({
 
           <div
             className={cn(
-              "min-w-[480px] sm:min-w-full grid divide-neutral-100 border-b border-neutral-200",
+              "grid divide-neutral-100 border-b border-neutral-200",
               view === "month" && "grid-cols-7 auto-rows-fr divide-x divide-y",
               view === "week" && "grid-cols-7 divide-x",
               view === "day" && "grid-cols-1"
@@ -257,7 +257,6 @@ export function AvailabilityEditor({
                   role="button"
                   tabIndex={0}
                   aria-pressed={isSelected}
-                  aria-label={`${format(d, "EEEE, MMMM d")}${isSelected ? ", selected" : ""}`}
                   onMouseDown={() => handleMouseDown(index)}
                   onMouseEnter={() => handleMouseEnter(index)}
                   onMouseUp={() => handleMouseUp(index)}
@@ -273,7 +272,7 @@ export function AvailabilityEditor({
                     view === "month" && "min-h-[96px] sm:min-h-[112px]",
                     view === "week" && "min-h-[220px] sm:min-h-[320px]",
                     view === "day" && "min-h-[360px] sm:min-h-[480px]",
-                    !inMonth && "bg-neutral-50/60 text-neutral-400",
+                    !inMonth && "bg-neutral-50/60 text-neutral-500",
                     inMonth && "bg-white",
                     isToday && !isSelected && "ring-1 ring-inset ring-primary-300 bg-primary-50/40",
                     (isSelected || inPreview) && "bg-primary-50 ring-2 ring-inset ring-primary-500"
@@ -286,10 +285,19 @@ export function AvailabilityEditor({
                       <p
                         className={cn(
                           "text-[11px] sm:text-sm font-semibold tabular-nums",
-                          isToday ? "text-primary-800" : inMonth ? "text-neutral-900" : "text-neutral-400"
+                          isToday ? "text-primary-800" : inMonth ? "text-neutral-900" : "text-neutral-500"
                         )}
                       >
-                        {view === "day" ? format(d, "EEEE, MMMM d") : format(d, "d")}
+                        {view === "day" ? (
+                          format(d, "EEEE, MMMM d")
+                        ) : (
+                          // The cell's accessible name is its own text (full date, then
+                          // its shifts) rather than an aria-label that would hide them.
+                          <>
+                            <span className="sr-only">{format(d, "EEEE, MMMM d")}</span>
+                            <span aria-hidden>{format(d, "d")}</span>
+                          </>
+                        )}
                       </p>
                       {isSelected && (
                         <span className="flex h-4 w-4 items-center justify-center rounded-full bg-primary-700 text-white">
@@ -311,7 +319,7 @@ export function AvailabilityEditor({
                           {dayShifts.map((s) => (
                             <ShiftBlock key={s.id} shift={s} />
                           ))}
-                          {dayShifts.length === 0 && <p className="text-sm text-neutral-400">No shifts assigned.</p>}
+                          {dayShifts.length === 0 && <p className="text-sm text-neutral-500">No shifts assigned.</p>}
                         </>
                       ) : view === "month" ? (
                         <>
@@ -319,7 +327,7 @@ export function AvailabilityEditor({
                             <CompactShiftChip key={s.id} shift={s} />
                           ))}
                           {dayShifts.length > MONTH_CELL_SHIFT_CAP && (
-                            <p className="text-[9px] font-semibold text-neutral-400">
+                            <p className="text-[9px] font-semibold text-neutral-500">
                               +{dayShifts.length - MONTH_CELL_SHIFT_CAP} more
                             </p>
                           )}
@@ -415,19 +423,26 @@ function CompactShiftChip({ shift }: { shift: PersonalScheduleShift }) {
   const now = new Date();
   const done = shift.endsAt < now;
   const confirmed = shift.startsAt <= now && shift.endsAt >= now;
-  const label = `${shift.department.code} ${hospitalTime(shift.startsAt, false)}–${hospitalTime(shift.endsAt, false)}`;
+  const start = hospitalTime(shift.startsAt, false);
+  const end = hospitalTime(shift.endsAt, false);
+  const label = `${shift.department.code} ${start}–${end}`;
 
+  // Below `sm` a week/month column is ~50px wide, so the one-line label would
+  // truncate to "ER 07:00..." and hide the end time; stack code / start / end
+  // instead so the whole shift stays readable at phone width.
   return (
     <div
       title={`${shift.department.name} · ${label}`}
       className={cn(
-        "rounded-md border px-1 py-0.5 text-[9px] sm:text-[10px] font-semibold tabular-nums truncate",
+        "rounded-md border px-0.5 sm:px-1 py-0.5 text-[10px] font-semibold leading-tight tabular-nums sm:truncate",
         done && "bg-neutral-100 border-neutral-200 text-neutral-700",
         confirmed && "bg-primary-700 border-primary-800 text-white",
         !done && !confirmed && "bg-white border-neutral-200 text-neutral-800"
       )}
     >
-      {label}
+      <span className="block sm:inline">{shift.department.code}</span>{" "}
+      <span className="block whitespace-nowrap sm:inline">{start}–</span>
+      <span className="block whitespace-nowrap sm:inline">{end}</span>
     </div>
   );
 }

@@ -153,7 +153,7 @@ function SingleScopeSearch({
             aria-expanded={open}
             aria-controls={`${inputId}-results`}
             aria-autocomplete="list"
-            className="h-11 w-full rounded-xl border border-neutral-200 bg-white pl-9 pr-9 text-sm placeholder:text-neutral-400 focus:border-primary-300 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
+            className="h-11 w-full rounded-xl border border-neutral-200 bg-white pl-9 pr-9 text-base sm:text-sm placeholder:text-neutral-400 focus:border-primary-300 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
           />
           {isPending && (
             <Loader2
@@ -217,7 +217,7 @@ function ResultRow({
     >
       <span className="font-medium text-neutral-900 truncate">{primary}</span>
       {secondary && (
-        <span className="text-xs text-neutral-400 uppercase shrink-0 max-w-[55%] truncate text-right">
+        <span className="text-xs text-neutral-500 uppercase shrink-0 max-w-[55%] truncate text-right">
           {secondary}
         </span>
       )}

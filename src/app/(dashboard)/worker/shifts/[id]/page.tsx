@@ -95,7 +95,7 @@ export default async function WorkerShiftDetailPage({ params }: { params: { id: 
               {shift.notes}
             </InfoRow>
           )}
-          <div className="pt-2 border-t border-neutral-100 text-xs text-neutral-400">
+          <div className="pt-2 border-t border-neutral-100 text-xs text-neutral-500">
             Bid deadline: {formatShiftDate(shift.bidDeadlineAt)}
           </div>
         </CardContent>
@@ -158,7 +158,7 @@ function InfoRow({
     <div className="flex items-start gap-2.5">
       <Icon className="w-4 h-4 text-neutral-400 mt-0.5 flex-shrink-0" aria-hidden="true" />
       <div>
-        <p className="text-xs text-neutral-400 font-medium uppercase tracking-wide">{label}</p>
+        <p className="text-xs text-neutral-500 font-medium uppercase tracking-wide">{label}</p>
         <p className="text-neutral-800">{children}</p>
       </div>
     </div>

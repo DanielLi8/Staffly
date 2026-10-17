@@ -187,7 +187,7 @@ export function BidForm({
             />
             <span>
               <span className="font-medium text-neutral-900">Full shift</span>
-              <span className="block text-xs text-neutral-500 mt-0.5">
+              <span className="block text-xs text-neutral-600 mt-0.5">
                 {format(shiftStart, "MMM d, h:mm a")} – {format(shiftEnd, "h:mm a")}
               </span>
             </span>
@@ -208,7 +208,7 @@ export function BidForm({
             />
             <span>
               <span className="font-medium text-neutral-900">Partial shift</span>
-              <span className="block text-xs text-neutral-500 mt-0.5">
+              <span className="block text-xs text-neutral-600 mt-0.5">
                 Bid for a window inside the posted hours (must stay within the shift times above).
               </span>
             </span>
@@ -232,7 +232,7 @@ export function BidForm({
                 value={partialStart}
                 onChange={(e) => setPartialStart(e.target.value)}
                 disabled={isPending}
-                className="mt-1 w-full rounded-md border border-neutral-200 bg-white px-2 py-1.5 text-sm"
+                className="mt-1 w-full rounded-md border border-neutral-200 bg-white px-2 py-1.5 text-base sm:text-sm"
               />
             </div>
             <div>
@@ -247,7 +247,7 @@ export function BidForm({
                 value={partialEnd}
                 onChange={(e) => setPartialEnd(e.target.value)}
                 disabled={isPending}
-                className="mt-1 w-full rounded-md border border-neutral-200 bg-white px-2 py-1.5 text-sm"
+                className="mt-1 w-full rounded-md border border-neutral-200 bg-white px-2 py-1.5 text-base sm:text-sm"
               />
             </div>
           </div>

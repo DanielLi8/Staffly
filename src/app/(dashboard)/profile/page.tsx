@@ -79,7 +79,7 @@ export default async function ProfilePage() {
           )}
           {user.departmentMemberships.length > 0 && (
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-neutral-400 mb-2">Department assignments</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-neutral-500 mb-2">Department assignments</p>
               <ul className="space-y-2">
                 {user.departmentMemberships.map((m) => (
                   <li
@@ -87,9 +87,9 @@ export default async function ProfilePage() {
                     className="rounded-lg border border-neutral-100 bg-neutral-50/80 px-3 py-2 text-neutral-800"
                   >
                     <span className="font-medium">{m.department.name}</span>
-                    <span className="text-neutral-400 mx-1.5">·</span>
+                    <span className="text-neutral-500 mx-1.5">·</span>
                     <span className="text-neutral-600">{m.title}</span>
-                    <span className="text-xs text-neutral-400 ml-2">({m.department.code})</span>
+                    <span className="text-xs text-neutral-500 ml-2">({m.department.code})</span>
                   </li>
                 ))}
               </ul>
@@ -114,7 +114,7 @@ function ProfileRow({
     <div className="flex gap-3">
       <Icon className="w-4 h-4 text-neutral-400 mt-0.5 shrink-0" aria-hidden />
       <div className="min-w-0">
-        <p className="text-xs font-medium uppercase tracking-wide text-neutral-400">{label}</p>
+        <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">{label}</p>
         <p className="text-neutral-900 mt-0.5 break-words">{value}</p>
       </div>
     </div>

@@ -1,0 +1,239 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-16T23:40:47+00:00",
+  "title": "Design System: Staffly",
+  "extensions": {
+    "colorMeta": {
+      "clinical-plum": {
+        "role": "primary",
+        "displayName": "Clinical Plum",
+        "canonical": "#3B2461",
+        "tonalRamp": [
+          "#22153A",
+          "#2E1C4D",
+          "#3B2461",
+          "#4A3A7A",
+          "#6B5A9C",
+          "#8F7AB8",
+          "#B3A5D4",
+          "#E8E4F2"
+        ]
+      },
+      "alert-red": {
+        "role": "secondary",
+        "displayName": "Alert Red",
+        "canonical": "#C41230",
+        "tonalRamp": [
+          "#34040C",
+          "#580715",
+          "#7C0B1E",
+          "#A00E27",
+          "#C41230",
+          "#E05169",
+          "#EB8B9B",
+          "#FBE9EC"
+        ]
+      },
+      "assigned-green": {
+        "role": "tertiary",
+        "displayName": "Assigned Green",
+        "canonical": "#065F46"
+      },
+      "overlap-amber": {
+        "role": "tertiary",
+        "displayName": "Overlap Amber",
+        "canonical": "#92400E"
+      },
+      "ward-white": {
+        "role": "neutral",
+        "displayName": "Ward White",
+        "canonical": "#F8F9FB"
+      },
+      "slate-500": {
+        "role": "neutral",
+        "displayName": "Slate (secondary text)",
+        "canonical": "#64748B",
+        "tonalRamp": [
+          "#0F172A",
+          "#1E293B",
+          "#334155",
+          "#475569",
+          "#64748B",
+          "#94A3B8",
+          "#CBD5E1",
+          "#F1F5F9"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Page titles and the wordmark only."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Schedule range headings."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Card and section headers."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Default UI text; 16px in form fields below sm."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Uppercase micro-labels: field labels, metric captions, status pills."
+      }
+    },
+    "shadows": [
+      {
+        "name": "card",
+        "value": "0 1px 3px rgba(59, 36, 97, 0.06), 0 4px 12px rgba(59, 36, 97, 0.04)",
+        "purpose": "Resting cards (.card-base)."
+      },
+      {
+        "name": "lifted",
+        "value": "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)",
+        "purpose": "Hover on clickable shift cards."
+      },
+      {
+        "name": "overlay",
+        "value": "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)",
+        "purpose": "Drawer, swap panel, popovers."
+      }
+    ],
+    "motion": [
+      {
+        "name": "state",
+        "value": "150ms ease-out (transition-colors / named properties)",
+        "purpose": "Hover, press, and selection color changes."
+      },
+      {
+        "name": "affordance-fade",
+        "value": "opacity 150ms ease-out, none under prefers-reduced-motion",
+        "purpose": "Scroll edge fades (ScrollAreaX)."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "md",
+        "value": "768px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one main action on a screen.",
+      "html": "<button class=\"ds-btn-primary\">Create New Shift</button>",
+      "css": ".ds-btn-primary{display:inline-flex;align-items:center;justify-content:center;height:40px;padding:0 16px;border:0;border-radius:6px;background:#3B2461;color:#fff;font:500 14px/1 Inter,system-ui,sans-serif;transition:background-color 150ms ease-out;cursor:pointer}.ds-btn-primary:hover{background:#2E1C4D}.ds-btn-primary:active{background:#22153A}.ds-btn-primary:focus-visible{outline:none;box-shadow:0 0 0 2px #fff,0 0 0 4px #6B5A9C}"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Secondary actions (Cancel Shift, Select, Hold).",
+      "html": "<button class=\"ds-btn-outline\">Cancel Shift</button>",
+      "css": ".ds-btn-outline{display:inline-flex;align-items:center;height:40px;padding:0 16px;border:1px solid #CBD5E1;border-radius:6px;background:#fff;color:#334155;font:500 14px/1 Inter,system-ui,sans-serif;transition:background-color 150ms ease-out;cursor:pointer}.ds-btn-outline:hover{background:#F8FAFC}.ds-btn-outline:focus-visible{outline:none;box-shadow:0 0 0 2px #fff,0 0 0 4px #6B5A9C}"
+    },
+    {
+      "name": "Danger Button",
+      "kind": "button",
+      "refersTo": "button-danger",
+      "description": "Destructive actions only.",
+      "html": "<button class=\"ds-btn-danger\">Stop</button>",
+      "css": ".ds-btn-danger{display:inline-flex;align-items:center;height:40px;padding:0 16px;border:0;border-radius:6px;background:#C41230;color:#fff;font:500 14px/1 Inter,system-ui,sans-serif;transition:background-color 150ms ease-out;cursor:pointer}.ds-btn-danger:hover{background:#A00E27}.ds-btn-danger:focus-visible{outline:none;box-shadow:0 0 0 2px #fff,0 0 0 4px #6B5A9C}"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Default form field.",
+      "html": "<input class=\"ds-input\" placeholder=\"Unit 4B\" aria-label=\"Unit\">",
+      "css": ".ds-input{height:40px;width:240px;padding:8px 12px;border:1px solid #CBD5E1;border-radius:6px;background:#fff;color:#0F172A;font:400 14px/1.4 Inter,system-ui,sans-serif;transition:border-color 150ms ease-out}.ds-input::placeholder{color:#94A3B8}.ds-input:focus-visible{outline:none;border-color:#6B5A9C;box-shadow:0 0 0 2px #6B5A9C}"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "White card on the near-white page.",
+      "html": "<div class=\"ds-card\"><p class=\"ds-card-title\">Available Shifts</p><p class=\"ds-card-body\">2 open shifts matching your profile.</p></div>",
+      "css": ".ds-card{width:280px;padding:20px;border:1px solid rgba(226,232,240,.8);border-radius:12px;background:#fff;box-shadow:0 1px 3px rgba(59,36,97,.06),0 4px 12px rgba(59,36,97,.04);font-family:Inter,system-ui,sans-serif}.ds-card-title{margin:0 0 4px;font:600 18px/1.4 Inter,system-ui,sans-serif;color:#0F172A}.ds-card-body{margin:0;font:400 14px/1.45 Inter,system-ui,sans-serif;color:#64748B}"
+    },
+    {
+      "name": "Status Pill",
+      "kind": "chip",
+      "refersTo": "status-pill-open",
+      "description": "Shift status (OPEN / ASSIGNED / CLOSED / CANCELLED).",
+      "html": "<span class=\"ds-pill ds-pill-open\">Open</span> <span class=\"ds-pill ds-pill-assigned\">Assigned</span>",
+      "css": ".ds-pill{display:inline-flex;align-items:center;padding:2px 10px;border:1px solid;border-radius:9999px;font:700 10px/1.5 Inter,system-ui,sans-serif;letter-spacing:.05em;text-transform:uppercase}.ds-pill-open{background:#F4F1FA;color:#2E1C4D;border-color:#D1C8E5}.ds-pill-assigned{background:#ECFDF5;color:#065F46;border-color:#A7F3D0}"
+    },
+    {
+      "name": "Top Bar",
+      "kind": "nav",
+      "refersTo": "top-bar",
+      "description": "Sticky plum app bar with 44px icon buttons and the page title.",
+      "html": "<header class=\"ds-topbar\"><button class=\"ds-topbar-btn\" aria-label=\"Open menu\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M4 6h16M4 12h16M4 18h16\"/></svg></button><span class=\"ds-topbar-title\">Staffly</span></header>",
+      "css": ".ds-topbar{display:flex;align-items:center;gap:8px;height:64px;padding:0 16px;background:#3B2461;color:#fff}.ds-topbar-btn{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border:0;border-radius:8px;background:transparent;color:rgba(255,255,255,.9);cursor:pointer;transition:background-color 150ms ease-out}.ds-topbar-btn:hover{background:rgba(255,255,255,.1)}.ds-topbar-btn:focus-visible{outline:none;box-shadow:0 0 0 2px rgba(255,255,255,.4)}.ds-topbar-title{font:400 20px/1 'DM Serif Display',Georgia,serif;color:#fff}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Charge Desk",
+    "overview": "Staffly should feel like a well-run charge nurse's desk: quiet, ordered, and instantly legible to someone who has been interrupted three times in the last minute. A single deep plum carries identity and primary action; everything else is cool slate on near-white, so status color (open, assigned, overlap, alert) is the loudest thing on a screen only when it needs to be. Hierarchy comes from type weight, spacing, and the one serif display face, not from decoration.\n\nDensity follows the user. Admin screens (desktop, `max-w-6xl` content column) pack cards, metrics, and tables side by side; worker screens are single-column stacks of cards with large touch targets because they are used one-handed on a phone mid-shift. The same components serve both; layouts change at Tailwind's `sm` (640px) and `md` (768px) breakpoints rather than forking components.\n\nMotion is functional and brief: color and shadow transitions on hover/press, opacity fades for affordances, no decorative movement.",
+    "keyCharacteristics": [
+      "One brand hue (clinical plum `#3B2461`) for the top bar, primary buttons, focus rings, and selection.",
+      "Clinical red reserved for alerts, destructive actions, and errors - never decoration.",
+      "Serif display (DM Serif Display) only for page titles and the wordmark; Inter everywhere else.",
+      "White cards with a hairline slate border and a faint plum-tinted shadow on a cool near-white page.",
+      "Pills and badges in uppercase micro-labels for status; plain sentence case for content."
+    ],
+    "rules": [
+      {
+        "name": "The 4.5 Floor Rule",
+        "body": "Text never goes lighter than `neutral-500` on white, and never lighter than `neutral-600` on a tinted fill (`neutral-100`, `primary-50`, card tints). `neutral-400` and lighter are for decorative `aria-hidden` icons, placeholders, and disabled states only.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Alarm Rule",
+        "body": "Clinical red means \"something is wrong or destructive\". It is never used for emphasis, branding, or decoration.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Serif Rule",
+        "body": "DM Serif Display appears only in the page title and the wordmark. Everything that carries data is Inter.",
+        "section": "typography"
+      },
+      {
+        "name": "The Layering Rule",
+        "body": "Sticky header is `z-40`; anything that overlays it (drawer, swap panel) is `z-50`. A new overlay below `z-50` will be painted over by the header.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** use `primary-700` for the single most important action on a screen and outline/ghost for the rest.",
+      "**Do** keep text at `neutral-500` or darker on white and `neutral-600` or darker on tinted fills.",
+      "**Do** give every icon-only control an `aria-label` and a 40-44px hit area, even when the icon is 16px.",
+      "**Do** use `transition-colors` / explicit property lists with 150-200ms `ease-out`; add `motion-reduce:transition-none` to anything that moves.",
+      "**Do** wrap horizontally scrolling content in `ScrollAreaX` so hidden columns are marked."
+    ],
+    "donts": [
+      "**Don't** use `transition-all`; name the properties.",
+      "**Don't** introduce a second brand hue or use clinical red for emphasis.",
+      "**Don't** use DM Serif Display outside page titles and the wordmark.",
+      "**Don't** render an overlay below `z-50`, or inside a `space-y-*` stack without `!m-0`.",
+      "**Don't** set form-field text below 16px at phone width."
+    ]
+  }
+}

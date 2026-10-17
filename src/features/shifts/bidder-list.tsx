@@ -57,7 +57,7 @@ export function BidderList({ shiftId, bidders, shiftOpen }: BidderListProps) {
         </div>
       )}
 
-      <p className="text-xs text-neutral-400">
+      <p className="text-xs text-neutral-500">
         Ranked by seniority. Overtime flags project this shift against the bidder&rsquo;s
         already-assigned hours for the same work week.
       </p>
@@ -101,7 +101,7 @@ export function BidderList({ shiftId, bidders, shiftOpen }: BidderListProps) {
             <p className="text-xs text-neutral-500 mt-0.5">
               {bidder.position} · {bidder.department}
             </p>
-            <p className="text-xs text-neutral-400 mt-1">
+            <p className="text-xs text-neutral-500 mt-1">
               Week projection: {formatHours(bidder.overtime.assignedHours)} assigned +{" "}
               {formatHours(bidder.overtime.shiftHours)} this shift ={" "}
               <span className={bidder.overtime.isOvertime ? "text-amber-700 font-semibold" : ""}>
@@ -114,7 +114,7 @@ export function BidderList({ shiftId, bidders, shiftOpen }: BidderListProps) {
                 &ldquo;{bidder.note}&rdquo;
               </p>
             )}
-            <p className="text-xs text-neutral-400 mt-2">
+            <p className="text-xs text-neutral-500 mt-2">
               Bid submitted {formatRelative(bidder.createdAt)}
             </p>
           </div>

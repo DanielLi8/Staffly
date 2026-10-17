@@ -69,7 +69,7 @@ export default async function WorkerBidsPage({
             name="q"
             defaultValue={q}
             placeholder="Search by Unit or Role..."
-            className="w-full h-11 pl-10 pr-4 rounded-xl border border-neutral-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/25"
+            className="w-full h-11 pl-10 pr-4 rounded-xl border border-neutral-200 bg-white text-base sm:text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/30"
           />
         </div>
         <div className="flex gap-2 shrink-0">

@@ -52,8 +52,15 @@ export function NotificationBell() {
         setOpen(false);
       }
     }
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
     document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
   }, []);
 
   function handleOpen() {
@@ -65,12 +72,13 @@ export function NotificationBell() {
     <div ref={ref} className="relative">
       <button
         onClick={handleOpen}
-        className="relative inline-flex h-9 w-9 items-center justify-center rounded-lg text-white/85 transition-colors hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+        className="relative inline-flex h-11 w-11 items-center justify-center rounded-lg text-white/85 transition-colors hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
         aria-label={`Notifications${unread > 0 ? `, ${unread} unread` : ""}`}
+        aria-expanded={open}
       >
         <Bell className="h-5 w-5" aria-hidden="true" />
         {unread > 0 && (
-          <span className="absolute right-0.5 top-0.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-accent px-1 text-[10px] font-bold leading-none text-white ring-2 ring-primary-700">
+          <span className="absolute right-1.5 top-1.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-accent px-1 text-[10px] font-bold leading-none text-white ring-2 ring-primary-700">
             {unread > 9 ? "9+" : unread}
           </span>
         )}
@@ -92,10 +100,10 @@ export function NotificationBell() {
 
           <ul className="max-h-80 overflow-y-auto divide-y divide-neutral-100">
             {loading && (
-              <li className="px-4 py-8 text-center text-sm text-neutral-400">Loading…</li>
+              <li className="px-4 py-8 text-center text-sm text-neutral-500">Loading…</li>
             )}
             {!loading && notifications.length === 0 && (
-              <li className="px-4 py-8 text-center text-sm text-neutral-400">
+              <li className="px-4 py-8 text-center text-sm text-neutral-500">
                 No notifications yet.
               </li>
             )}
@@ -163,7 +171,7 @@ function NotificationItem({
         <div className={cn("flex-1", notification.read && "pl-4")}>
           <p className="text-sm font-medium text-neutral-800">{notification.title}</p>
           <p className="text-xs text-neutral-500 mt-0.5 line-clamp-2">{notification.message}</p>
-          <p className="text-xs text-neutral-400 mt-1">{formatRelative(notification.createdAt)}</p>
+          <p className="text-xs text-neutral-500 mt-1">{formatRelative(notification.createdAt)}</p>
         </div>
       </div>
     </Link>

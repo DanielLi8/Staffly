@@ -18,12 +18,12 @@ export const metadata = { title: "Staffly Portal – Dashboard" };
 
 const AGENDA_DAYS = 5;
 
-function ExpandLink({ href }: { href: string }) {
+function ExpandLink({ href, label }: { href: string; label: string }) {
   return (
     <Link
       href={href}
-      aria-label="Open"
-      className="absolute top-4 right-4 text-neutral-300 hover:text-primary-600 transition-colors"
+      aria-label={`Open ${label}`}
+      className="absolute top-2 right-2 rounded-lg p-2 text-neutral-500 hover:text-primary-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
     >
       <ArrowUpRight className="h-4 w-4" aria-hidden />
     </Link>
@@ -104,9 +104,9 @@ export default async function WorkerDashboardPage() {
         </div>
         <Card className="shrink-0 w-full lg:w-56 border-primary-100 shadow-card">
           <CardContent className="pt-5">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">Hours scheduled</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">Hours scheduled</p>
             <p className="text-2xl font-bold text-primary-900 mt-1">
-              {hoursScheduled.toFixed(1)} <span className="text-neutral-400 font-medium">/ 40h</span>
+              {hoursScheduled.toFixed(1)} <span className="text-neutral-500 font-medium">/ 40h</span>
             </p>
           </CardContent>
         </Card>
@@ -115,7 +115,7 @@ export default async function WorkerDashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Available Shifts */}
         <div className="card-base p-5 relative flex flex-col">
-          <ExpandLink href="/worker/shifts" />
+          <ExpandLink href="/worker/shifts" label="Available Shifts" />
           <Link href="/worker/shifts" className="flex flex-col gap-1">
             <div className="h-11 w-11 rounded-xl bg-primary-50 text-primary-700 flex items-center justify-center mb-2">
               <ListChecks className="h-5 w-5" aria-hidden />
@@ -128,7 +128,7 @@ export default async function WorkerDashboardPage() {
           </Link>
           <div className="mt-3 max-h-48 overflow-y-auto pr-1">
             {openShifts.length === 0 ? (
-              <p className="text-xs text-neutral-400 italic py-2">No open shifts right now.</p>
+              <p className="text-xs text-neutral-500 italic py-2">No open shifts right now.</p>
             ) : (
               openShifts.map((shift) => {
                 const Icon = getDepartmentIcon(shift.department.iconKey);
@@ -157,7 +157,7 @@ export default async function WorkerDashboardPage() {
 
         {/* My Schedule */}
         <div className="card-base p-5 relative flex flex-col">
-          <ExpandLink href="/worker/schedule" />
+          <ExpandLink href="/worker/schedule" label="My Schedule" />
           <Link href="/worker/schedule" className="flex flex-col gap-1">
             <div className="h-11 w-11 rounded-xl bg-primary-50 text-primary-700 flex items-center justify-center mb-2">
               <CalendarDays className="h-5 w-5" aria-hidden />
@@ -171,14 +171,14 @@ export default async function WorkerDashboardPage() {
               return (
                 <div key={day.toISOString()} className="flex items-start gap-3 py-1.5 border-b border-neutral-100 last:border-0">
                   <div className="w-11 shrink-0 text-center">
-                    <p className="text-[10px] font-bold uppercase tracking-wide text-neutral-400">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-neutral-500">
                       {format(day, "EEE")}
                     </p>
                     <p className="text-xs font-semibold text-neutral-700">{format(day, "MMM d")}</p>
                   </div>
                   <div className="flex-1 min-w-0 space-y-1">
                     {dayShifts.length === 0 ? (
-                      <p className="text-xs text-neutral-400 italic pt-1">Nothing scheduled</p>
+                      <p className="text-xs text-neutral-500 italic pt-1">Nothing scheduled</p>
                     ) : (
                       dayShifts.map((shift) => <ShiftBlock key={shift.id} shift={shift} compact />)
                     )}
@@ -191,7 +191,7 @@ export default async function WorkerDashboardPage() {
 
         {/* Shift Bids */}
         <div className="card-base p-5 relative flex flex-col">
-          <ExpandLink href="/worker/bids" />
+          <ExpandLink href="/worker/bids" label="Shift Bids" />
           <Link href="/worker/bids" className="flex flex-col gap-1">
             <div className="h-11 w-11 rounded-xl bg-primary-50 text-primary-700 flex items-center justify-center mb-2">
               <BarChart3 className="h-5 w-5" aria-hidden />
@@ -205,7 +205,7 @@ export default async function WorkerDashboardPage() {
 
         {/* Location Schedule */}
         <div className="card-base p-5 relative flex flex-col">
-          <ExpandLink href="/worker/location" />
+          <ExpandLink href="/worker/location" label="Location Schedule" />
           <Link href="/worker/location" className="flex flex-col gap-1">
             <div className="h-11 w-11 rounded-xl bg-primary-50 text-primary-700 flex items-center justify-center mb-2">
               <Building2 className="h-5 w-5" aria-hidden />

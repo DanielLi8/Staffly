@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
 import { cn, formatShiftRange } from "@/lib/utils";
+import { useModalPanel } from "@/lib/use-modal-panel";
 import { hospitalMonthDay, hospitalWeekday } from "@/lib/timezone";
 import { payPeriodFor } from "@/lib/shift-swap/pay-period";
 import {
@@ -29,6 +30,7 @@ type Step = 1 | 2 | 3;
  */
 export function ShiftSwapPanel({ kind, onClose }: { kind: ShiftSwapKind; onClose: () => void }) {
   const router = useRouter();
+  const panelRef = useModalPanel<HTMLDivElement>(onClose);
   const [step, setStep] = useState<Step>(1);
 
   const [giveShifts, setGiveShifts] = useState<GiveableShift[] | null>(null);
@@ -153,16 +155,34 @@ export function ShiftSwapPanel({ kind, onClose }: { kind: ShiftSwapKind; onClose
   }, [swapCandidates]);
 
   return (
-    <div className="fixed inset-0 z-30 flex items-stretch justify-end">
+    // z-50, above the sticky header's z-40 - at z-30 the header painted over
+    // the panel's title on phones (same layering as `HamburgerDrawer`).
+    // `!m-0` because the caller renders this inside a `space-y-*` stack,
+    // whose top margin would otherwise push the fixed overlay down 12px.
+    <div className="fixed inset-0 z-50 !m-0 flex items-stretch justify-end">
       <div className="absolute inset-0 bg-neutral-900/40" onClick={onClose} aria-hidden />
-      <div className="relative w-full sm:w-[420px] bg-white shadow-xl flex flex-col h-full">
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="shift-swap-panel-title"
+        tabIndex={-1}
+        className="relative w-full sm:w-[420px] bg-white shadow-xl flex flex-col h-full focus:outline-none"
+      >
         <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-200">
           <div>
             <p className="text-[11px] font-bold uppercase tracking-wide text-primary-500">Step {step} of 3</p>
-            <h2 className="text-lg font-semibold text-primary-900">{KIND_LABEL[kind]}</h2>
+            <h2 id="shift-swap-panel-title" className="text-lg font-semibold text-primary-900">
+              {KIND_LABEL[kind]}
+            </h2>
           </div>
-          <button type="button" onClick={onClose} aria-label="Close" className="p-2 rounded-full hover:bg-neutral-100">
-            <X className="w-4 h-4" />
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+          >
+            <X className="w-4 h-4" aria-hidden />
           </button>
         </div>
 
@@ -177,7 +197,7 @@ export function ShiftSwapPanel({ kind, onClose }: { kind: ShiftSwapKind; onClose
             <>
               <p className="text-sm text-neutral-500">Only your own upcoming assigned shifts, this pay period.</p>
               <PayPeriodPill start={period.start} end={period.end} />
-              {loading && <p className="text-sm text-neutral-400 py-4">Loading your shifts…</p>}
+              {loading && <p className="text-sm text-neutral-500 py-4">Loading your shifts…</p>}
               {!loading && giveShifts?.length === 0 && (
                 <p className="text-sm text-neutral-500 py-4">
                   No upcoming assigned shifts in this pay period to {kind === "SWAP" ? "swap" : "give away"}.
@@ -189,6 +209,7 @@ export function ShiftSwapPanel({ kind, onClose }: { kind: ShiftSwapKind; onClose
                     key={s.id}
                     type="button"
                     onClick={() => setGiveShiftId(s.id)}
+                    aria-pressed={giveShiftId === s.id}
                     className={cn(
                       "w-full text-left border rounded-lg px-3 py-2.5 text-sm transition-colors",
                       giveShiftId === s.id
@@ -213,14 +234,14 @@ export function ShiftSwapPanel({ kind, onClose }: { kind: ShiftSwapKind; onClose
               <p className="text-sm text-neutral-500">
                 {giveShift?.departmentName}, same pay period only. Eligible shifts are selectable.
               </p>
-              {loading && <p className="text-sm text-neutral-400 py-4">Loading your unit&apos;s roster…</p>}
+              {loading && <p className="text-sm text-neutral-500 py-4">Loading your unit&apos;s roster…</p>}
               {!loading && swapByDay.length === 0 && (
                 <p className="text-sm text-neutral-500 py-4">No colleague shifts found in this pay period.</p>
               )}
               <div className="space-y-3">
                 {swapByDay.map(([day, rows]) => (
                   <div key={day}>
-                    <p className="text-[10px] font-bold uppercase tracking-wide text-neutral-400 mb-1">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-neutral-500 mb-1">
                       {hospitalWeekday(rows[0].startsAt)}, {day}
                     </p>
                     <div className="space-y-1.5">
@@ -248,15 +269,16 @@ export function ShiftSwapPanel({ kind, onClose }: { kind: ShiftSwapKind; onClose
           {step === 2 && kind === "GIVEAWAY" && (
             <>
               <p className="text-sm text-neutral-500">{giveShift?.departmentName} colleagues only.</p>
-              <div className="flex items-center gap-2 border border-neutral-300 rounded-lg px-3 py-2">
+              <div className="flex items-center gap-2 border border-neutral-300 rounded-lg px-3 py-2 focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500">
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search by name…"
-                  className="flex-1 min-w-0 text-sm outline-none"
+                  aria-label="Search colleagues by name"
+                  className="flex-1 min-w-0 text-base sm:text-sm outline-none"
                 />
               </div>
-              {loading && <p className="text-sm text-neutral-400 py-4">Loading your unit&apos;s roster…</p>}
+              {loading && <p className="text-sm text-neutral-500 py-4">Loading your unit&apos;s roster…</p>}
               {!loading && giveawayCandidates?.length === 0 && (
                 <p className="text-sm text-neutral-500 py-4">No colleagues found.</p>
               )}

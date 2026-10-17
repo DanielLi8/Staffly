@@ -70,6 +70,6 @@
   }
 
   .pill-muted {
-    @apply inline-flex items-center rounded-full bg-neutral-100 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-neutral-500;
+    @apply inline-flex items-center rounded-full bg-neutral-100 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-neutral-600;
   }
 }

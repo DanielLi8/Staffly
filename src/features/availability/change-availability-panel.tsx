@@ -90,7 +90,7 @@ export function ChangeAvailabilityPanel({
                 type="button"
                 onClick={() => removeBlock(block.key)}
                 aria-label="Remove block"
-                className="absolute top-2 right-2 text-neutral-400 hover:text-neutral-600"
+                className="absolute top-0.5 right-0.5 rounded-md p-1.5 text-neutral-500 hover:text-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
               >
                 <X className="h-3.5 w-3.5" aria-hidden />
               </button>
@@ -128,11 +128,11 @@ export function ChangeAvailabilityPanel({
                   aria-invalid={fromError}
                   aria-describedby={fromError ? fromErrorId : undefined}
                   className={cn(
-                    "min-w-0 flex-1 h-8 rounded-md border px-2 text-xs",
+                    "min-w-0 flex-1 h-10 rounded-md border px-2 text-base sm:h-8 sm:text-xs",
                     fromError ? "border-2 border-accent-400 bg-accent-50/40" : "border-neutral-300"
                   )}
                 />
-                <span className="text-neutral-400 text-xs">&ndash;</span>
+                <span className="text-neutral-500 text-xs">&ndash;</span>
                 <input
                   type="text"
                   value={block.to}
@@ -142,7 +142,7 @@ export function ChangeAvailabilityPanel({
                   aria-invalid={toError}
                   aria-describedby={toError ? toErrorId : undefined}
                   className={cn(
-                    "min-w-0 flex-1 h-8 rounded-md border px-2 text-xs",
+                    "min-w-0 flex-1 h-10 rounded-md border px-2 text-base sm:h-8 sm:text-xs",
                     toError ? "border-2 border-accent-400 bg-accent-50/40" : "border-neutral-300"
                   )}
                 />

@@ -73,7 +73,7 @@ export function LoginForm() {
             onClick={() => setPortalRole(value)}
             className={cn(
               "flex-1 py-2.5 text-sm font-semibold rounded-lg transition-colors whitespace-nowrap",
-              portalRole === value ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-500"
+              portalRole === value ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-600"
             )}
           >
             {label}
@@ -95,7 +95,7 @@ export function LoginForm() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="staff.id@clinicserenity.com"
-            className="w-full h-11 pl-10 pr-3 rounded-xl border border-neutral-200 bg-neutral-50 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/25"
+            className="w-full h-11 pl-10 pr-3 rounded-xl border border-neutral-200 bg-neutral-50 text-base sm:text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/30"
           />
         </div>
       </div>
@@ -116,12 +116,12 @@ export function LoginForm() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="••••••••"
-            className="w-full h-11 pl-10 pr-11 rounded-xl border border-neutral-200 bg-neutral-50 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/25"
+            className="w-full h-11 pl-10 pr-11 rounded-xl border border-neutral-200 bg-neutral-50 text-base sm:text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/30"
           />
           <button
             type="button"
             onClick={() => setShowPw((v) => !v)}
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-neutral-400 hover:text-neutral-600"
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-neutral-500 hover:text-neutral-600"
             aria-label={showPw ? "Hide password" : "Show password"}
           >
             {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}

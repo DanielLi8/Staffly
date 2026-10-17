@@ -102,7 +102,7 @@ export function PersonalScheduleCalendar({
                         active && "bg-primary-50"
                       )}
                     >
-                      <p className="font-bold text-neutral-400 uppercase">{format(d, "EEE")}</p>
+                      <p className="font-bold text-neutral-500 uppercase">{format(d, "EEE")}</p>
                       <p className={cn("text-lg font-semibold mt-1 tabular-nums", active ? "text-primary-800" : "text-neutral-900")}>
                         {format(d, "d")}
                       </p>
@@ -129,7 +129,7 @@ export function PersonalScheduleCalendar({
             <div className="card-base overflow-x-auto">
               <div className="min-w-[320px] sm:min-w-full grid grid-cols-7 border-b border-neutral-200 bg-neutral-50/80">
                 {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((label) => (
-                  <div key={label} className="px-1 py-2 text-center text-[10px] sm:text-xs font-bold text-neutral-400 uppercase">
+                  <div key={label} className="px-1 py-2 text-center text-[10px] sm:text-xs font-bold text-neutral-500 uppercase">
                     {label}
                   </div>
                 ))}
@@ -144,7 +144,7 @@ export function PersonalScheduleCalendar({
                       key={d.toISOString()}
                       className={cn(
                         "min-h-[88px] sm:min-h-[112px] p-1 sm:p-2 flex flex-col gap-1",
-                        !inMonth && "bg-neutral-50/60 text-neutral-400",
+                        !inMonth && "bg-neutral-50/60 text-neutral-500",
                         inMonth && "bg-white",
                         isToday && "ring-1 ring-inset ring-primary-300 bg-primary-50/40"
                       )}
@@ -152,7 +152,7 @@ export function PersonalScheduleCalendar({
                       <p
                         className={cn(
                           "text-[11px] sm:text-sm font-semibold tabular-nums shrink-0",
-                          isToday ? "text-primary-800" : inMonth ? "text-neutral-900" : "text-neutral-400"
+                          isToday ? "text-primary-800" : inMonth ? "text-neutral-900" : "text-neutral-500"
                         )}
                       >
                         {format(d, "d")}
