@@ -147,7 +147,7 @@ export function ShiftForm({ departments }: ShiftFormProps) {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
         <div>
-          <Label htmlFor="departmentId" className="text-[11px] font-bold uppercase tracking-wide text-neutral-500">
+          <Label htmlFor="departmentId" className="text-2xs font-bold uppercase tracking-wide text-neutral-500">
             Unit / Department
           </Label>
           <Select id="departmentId" name="departmentId" required className="mt-1.5" error={errors.departmentId}>
@@ -160,7 +160,7 @@ export function ShiftForm({ departments }: ShiftFormProps) {
           </Select>
         </div>
         <div>
-          <Label htmlFor="roleNeeded" className="text-[11px] font-bold uppercase tracking-wide text-neutral-500">
+          <Label htmlFor="roleNeeded" className="text-2xs font-bold uppercase tracking-wide text-neutral-500">
             Role needed
           </Label>
           <Select id="roleNeeded" name="roleNeeded" required className="mt-1.5" error={errors.roleNeeded}>
@@ -175,7 +175,7 @@ export function ShiftForm({ departments }: ShiftFormProps) {
       </div>
 
       <div>
-        <Label htmlFor="unit" className="text-[11px] font-bold uppercase tracking-wide text-neutral-500">
+        <Label htmlFor="unit" className="text-2xs font-bold uppercase tracking-wide text-neutral-500">
           Unit / floor
         </Label>
         <Input
@@ -189,7 +189,7 @@ export function ShiftForm({ departments }: ShiftFormProps) {
       </div>
 
       <div>
-        <Label htmlFor="location" className="text-[11px] font-bold uppercase tracking-wide text-neutral-500">
+        <Label htmlFor="location" className="text-2xs font-bold uppercase tracking-wide text-neutral-500">
           Specific location
         </Label>
         <div className="relative mt-1.5">
@@ -206,7 +206,7 @@ export function ShiftForm({ departments }: ShiftFormProps) {
       </div>
 
       <div>
-        <p className="text-[11px] font-bold uppercase tracking-wide text-neutral-500 mb-3">Time &amp; deadlines</p>
+        <p className="text-2xs font-bold uppercase tracking-wide text-neutral-500 mb-3">Time &amp; deadlines</p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <DateTimeField
@@ -249,7 +249,7 @@ export function ShiftForm({ departments }: ShiftFormProps) {
       </div>
 
       <div>
-        <Label htmlFor="notes" className="text-[11px] font-bold uppercase tracking-wide text-neutral-500">
+        <Label htmlFor="notes" className="text-2xs font-bold uppercase tracking-wide text-neutral-500">
           Administrative notes
         </Label>
         <Textarea

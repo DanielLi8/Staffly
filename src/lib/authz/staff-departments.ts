@@ -20,3 +20,21 @@ export async function resolveStaffDepartmentIds(actor: Actor): Promise<string[]>
   });
   return memberships.map((m) => m.departmentId);
 }
+
+/**
+ * The departments an actor can open in the worker-portal Location Schedule
+ * (`/worker/location` and its home-screen card). STAFF get their own
+ * memberships, exactly as before. An ADMIN previewing the worker portal
+ * ("view as" WORKER) usually has no memberships at all, but
+ * `canViewLocationSchedule` already lets them read every department - so
+ * they get every department, rather than a dead end. The admin roster at
+ * `/admin/schedule` is not an option here: middleware deliberately fences
+ * `/admin/*` off while the view mode is WORKER.
+ */
+export async function resolveLocationScheduleDepartmentIds(actor: Actor): Promise<string[]> {
+  if (actor.role === "ADMIN") {
+    const departments = await db.department.findMany({ select: { id: true } });
+    return departments.map((d) => d.id);
+  }
+  return resolveStaffDepartmentIds(actor);
+}

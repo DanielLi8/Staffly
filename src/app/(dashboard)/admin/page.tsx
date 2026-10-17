@@ -10,7 +10,7 @@ import { getDepartmentIcon } from "@/lib/department-icons";
 import { shiftCardInclude } from "@/lib/shift-include";
 import type { ShiftWithRelations } from "@/types";
 
-export const metadata = { title: "Clinical Operations – Staffly" };
+export const metadata = { title: "Staffing Overview – Staffly" };
 
 export default async function AdminDashboardPage() {
   const session = await getSession();
@@ -33,13 +33,8 @@ export default async function AdminDashboardPage() {
 
   return (
     <div className="space-y-10">
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-        <div>
-          <h1 className="page-title text-3xl md:text-4xl">Clinical Operations</h1>
-          <p className="text-sm text-neutral-500 mt-2 max-w-xl">
-            Monitoring departmental efficiency and active shift fulfillment.
-          </p>
-        </div>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <h1 className="page-title text-3xl md:text-4xl">Staffing Overview</h1>
         <Link
           href="/admin/shifts/new"
           className="inline-flex items-center justify-center gap-2 h-11 px-5 text-sm font-semibold rounded-xl bg-primary-700 text-white hover:bg-primary-800 shadow-sm transition-colors shrink-0"
@@ -100,7 +95,7 @@ function AssignedRow({ shift }: { shift: ShiftWithRelations }) {
         </div>
         <div className="min-w-0">
           <p className="font-semibold text-neutral-900">{shift.department.name}</p>
-          <span className="inline-flex mt-1 rounded-full bg-sky-50 text-sky-800 border border-sky-100 px-2 py-0.5 text-[11px] font-medium">
+          <span className="inline-flex mt-1 rounded-full bg-sky-50 text-sky-800 border border-sky-100 px-2 py-0.5 text-2xs font-medium">
             {shift.roleNeeded}
           </span>
           <p className="text-sm text-neutral-600 mt-2">
@@ -109,11 +104,11 @@ function AssignedRow({ shift }: { shift: ShiftWithRelations }) {
         </div>
       </div>
       <div className="flex items-center justify-between sm:justify-end gap-6 sm:gap-8">
-        <span className="inline-flex rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-0.5 text-[10px] font-bold">
+        <span className="inline-flex rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-0.5 text-2xs font-bold">
           ASSIGNED
         </span>
         <div className="text-right">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-600">Staff assigned</p>
+          <p className="text-2xs font-semibold uppercase tracking-wider text-neutral-600">Staff assigned</p>
           <div className="flex items-center justify-end gap-2 mt-1">
             <Avatar name={shift.assignedWorker?.name ?? "?"} size="sm" src={shift.assignedWorker?.image ?? undefined} />
             <span className="text-sm font-medium text-neutral-900">{shift.assignedWorker?.name}</span>

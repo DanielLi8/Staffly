@@ -59,14 +59,12 @@ const adminTopLinks: DrawerLink[] = [
   { href: "/admin/workers", label: "Workers" },
 ];
 
-const adminMoreLinks: DrawerLink[] = [{ href: "/admin/departments", label: "Departments" }];
-
 export function StafflyHeader({ userName, variant, role, viewMode }: StafflyHeaderProps) {
   const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const homeHref = variant === "admin" ? "/admin" : "/worker";
   const topLinks = variant === "admin" ? adminTopLinks : [];
-  const moreLinks = variant === "admin" ? adminMoreLinks : workerMoreLinks;
+  const moreLinks = variant === "admin" ? [] : workerMoreLinks;
   const title = pathname === homeHref ? null : pageTitleFor(pathname);
 
   return (
@@ -91,9 +89,9 @@ export function StafflyHeader({ userName, variant, role, viewMode }: StafflyHead
           </Link>
 
           {title ? (
-            <span className="ml-1 truncate text-[17px] font-semibold tracking-tight text-white">{title}</span>
+            <span className="ml-1 truncate text-lg font-semibold tracking-tight text-white">{title}</span>
           ) : (
-            <span className="ml-1 font-display truncate text-xl font-bold leading-none tracking-tight text-white">
+            <span className="ml-1 font-display truncate text-xl font-normal leading-none tracking-tight text-white">
               Staffly
             </span>
           )}

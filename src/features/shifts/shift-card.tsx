@@ -52,7 +52,7 @@ export function ShiftCard({ shift, href, showBidCount = false, tone = "default" 
                   <h3 className="font-semibold text-neutral-900 group-hover:text-primary-700 transition-colors leading-tight">
                     {shift.department.name}
                   </h3>
-                  <span className="inline-flex mt-1 rounded-full bg-sky-50 text-sky-800 border border-sky-100 px-2 py-0.5 text-[11px] font-medium">
+                  <span className="inline-flex mt-1 rounded-full bg-sky-50 text-sky-800 border border-sky-100 px-2 py-0.5 text-2xs font-medium">
                     {shift.roleNeeded}
                   </span>
                 </div>
@@ -70,10 +70,10 @@ export function ShiftCard({ shift, href, showBidCount = false, tone = "default" 
                   <dt className="sr-only">Shift time</dt>
                   <dd>{formatShiftRange(shift.startsAt, shift.endsAt)}</dd>
                 </div>
-                <div className="flex items-center gap-2">
-                  <MapPin className="w-3.5 h-3.5 text-neutral-400 flex-shrink-0" aria-hidden="true" />
+                <div className="flex items-start gap-2">
+                  <MapPin className="w-3.5 h-3.5 mt-1 text-neutral-400 flex-shrink-0" aria-hidden="true" />
                   <dt className="sr-only">Location</dt>
-                  <dd className="truncate">{shift.location}</dd>
+                  <dd className="min-w-0 break-words">{shift.location}</dd>
                 </div>
                 {showBidCount && (
                   <div className="flex items-center gap-2">

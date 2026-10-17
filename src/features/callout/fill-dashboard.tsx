@@ -84,7 +84,7 @@ export function FillDashboardPanel({ data }: { data: FillDashboard }) {
       <CardHeader className="flex flex-wrap items-center justify-between gap-3">
         <CardTitle className="flex items-center gap-2">
           Callout cascade
-          <Badge className={cn("text-[10px] font-bold uppercase tracking-wide", CAMPAIGN_STATUS_STYLE[campaign.status])}>
+          <Badge className={cn("text-2xs font-bold uppercase tracking-wide", CAMPAIGN_STATUS_STYLE[campaign.status])}>
             {campaign.status}
           </Badge>
         </CardTitle>
@@ -226,7 +226,7 @@ export function FillDashboardPanel({ data }: { data: FillDashboard }) {
 function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2">
-      <dt className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
+      <dt className="text-2xs font-semibold uppercase tracking-wider text-neutral-500">
         {label}
       </dt>
       <dd className="mt-0.5 text-base font-semibold text-neutral-900">{value}</dd>
@@ -240,7 +240,7 @@ function ChannelChip({ attempt }: { attempt: ChannelAttempt }) {
     <span
       title={`${attempt.channel} · ${attempt.status}`}
       className={cn(
-        "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium",
+        "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-2xs font-medium",
         DELIVERY_STYLE[attempt.status]
       )}
     >

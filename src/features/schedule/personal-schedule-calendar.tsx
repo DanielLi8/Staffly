@@ -129,7 +129,7 @@ export function PersonalScheduleCalendar({
             <div className="card-base overflow-x-auto">
               <div className="min-w-[320px] sm:min-w-full grid grid-cols-7 border-b border-neutral-200 bg-neutral-50/80">
                 {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((label) => (
-                  <div key={label} className="px-1 py-2 text-center text-[10px] sm:text-xs font-bold text-neutral-500 uppercase">
+                  <div key={label} className="px-1 py-2 text-center text-2xs sm:text-xs font-bold text-neutral-500 uppercase">
                     {label}
                   </div>
                 ))}
@@ -151,7 +151,7 @@ export function PersonalScheduleCalendar({
                     >
                       <p
                         className={cn(
-                          "text-[11px] sm:text-sm font-semibold tabular-nums shrink-0",
+                          "text-2xs sm:text-sm font-semibold tabular-nums shrink-0",
                           isToday ? "text-primary-800" : inMonth ? "text-neutral-900" : "text-neutral-500"
                         )}
                       >

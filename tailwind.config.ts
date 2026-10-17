@@ -60,9 +60,24 @@ const config: Config = {
           900: "#0F172A",
         },
       },
+      // The next/font variables carry their own fallback inside `var()`: a
+      // bare `var(--font-inter)` that fails to resolve (e.g. a stale dev CSS
+      // chunk whose font class hash no longer matches the HTML) invalidates
+      // the WHOLE font-family declaration, dropping every element to the
+      // browser default serif instead of to the next family in the list.
       fontFamily: {
-        sans: ["var(--font-inter)", "Inter", "system-ui", "sans-serif"],
-        display: ["var(--font-dm-serif)", "Georgia", "serif"],
+        sans: ["var(--font-inter, Inter)", "ui-sans-serif", "system-ui", "-apple-system", "Segoe UI", "Roboto", "Arial", "sans-serif"],
+        display: ["var(--font-dm-serif, Georgia)", "Georgia", "serif"],
+      },
+      // Raised one step from Tailwind's defaults so routine UI text never
+      // drops below 14px (DESIGN.md "Typography"). `2xs` replaces the old
+      // ad-hoc 9-11px arbitrary sizes and is reserved for short uppercase,
+      // letter-spaced eyebrow labels and status pills.
+      fontSize: {
+        "2xs": ["0.8125rem", { lineHeight: "1.125rem" }],
+        xs: ["0.875rem", { lineHeight: "1.25rem" }],
+        sm: ["0.9375rem", { lineHeight: "1.375rem" }],
+        base: ["1rem", { lineHeight: "1.5rem" }],
       },
       borderRadius: {
         DEFAULT: "0.5rem",

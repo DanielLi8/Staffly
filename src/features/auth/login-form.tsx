@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Mail, Lock, Eye, EyeOff, Headphones } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { Role } from "@/types";
@@ -60,29 +60,10 @@ export function LoginForm() {
         </div>
       )}
 
-      <div className="flex rounded-xl border border-neutral-200 p-1 bg-neutral-100/80 gap-1">
-        {(
-          [
-            ["STAFF", "Staff"],
-            ["ADMIN", "Admin"],
-          ] as const
-        ).map(([value, label]) => (
-          <button
-            key={value}
-            type="button"
-            onClick={() => setPortalRole(value)}
-            className={cn(
-              "flex-1 py-2.5 text-sm font-semibold rounded-lg transition-colors whitespace-nowrap",
-              portalRole === value ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-600"
-            )}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      <PortalToggle value={portalRole} onChange={setPortalRole} />
 
       <div>
-        <label htmlFor="email" className="text-[11px] font-bold uppercase tracking-wide text-neutral-500">
+        <label htmlFor="email" className="text-2xs font-bold uppercase tracking-wide text-neutral-500">
           Email address
         </label>
         <div className="relative mt-1.5">
@@ -102,7 +83,7 @@ export function LoginForm() {
 
       <div>
         <div className="flex items-center justify-between">
-          <label htmlFor="password" className="text-[11px] font-bold uppercase tracking-wide text-neutral-500">
+          <label htmlFor="password" className="text-2xs font-bold uppercase tracking-wide text-neutral-500">
             Password
           </label>
         </div>
@@ -142,11 +123,69 @@ export function LoginForm() {
       <Button type="submit" className="w-full h-12 rounded-xl text-base font-semibold" size="lg" loading={loading}>
         Sign In to Portal
       </Button>
-
-      <p className="flex items-center justify-center gap-2 text-xs text-neutral-500 pt-2">
-        <Headphones className="w-4 h-4" aria-hidden />
-        Need technical assistance? <span className="text-blue-600 font-medium">IT Support</span>
-      </p>
     </form>
+  );
+}
+
+const PORTALS = [
+  ["STAFF", "Staff"],
+  ["ADMIN", "Admin"],
+] as const;
+
+/**
+ * Staff | Admin portal picker. A single white pill slides under the active
+ * label (transform only, so it stays on the compositor) while the labels
+ * crossfade color; both drop to an instant switch under
+ * `prefers-reduced-motion`. Exposed as a radio group: one tab stop, arrow
+ * keys move (and select), matching the native radio pattern.
+ */
+function PortalToggle({ value, onChange }: { value: Role; onChange: (role: Role) => void }) {
+  const refs = useRef<(HTMLButtonElement | null)[]>([]);
+  const activeIndex = PORTALS.findIndex(([v]) => v === value);
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    const step = e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 0;
+    if (!step) return;
+    e.preventDefault();
+    const next = (activeIndex + step + PORTALS.length) % PORTALS.length;
+    onChange(PORTALS[next][0]);
+    refs.current[next]?.focus();
+  }
+
+  return (
+    <div
+      role="radiogroup"
+      aria-label="Sign-in portal"
+      onKeyDown={handleKeyDown}
+      className="relative grid grid-cols-2 rounded-xl border border-neutral-200 bg-neutral-100/80 p-1"
+    >
+      <span
+        aria-hidden
+        className="absolute inset-y-1 left-1 w-[calc(50%-0.25rem)] rounded-lg bg-white shadow-sm transition-transform duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none"
+        style={{ transform: `translateX(${activeIndex * 100}%)` }}
+      />
+      {PORTALS.map(([role, label], i) => {
+        const checked = role === value;
+        return (
+          <button
+            key={role}
+            ref={(el) => {
+              refs.current[i] = el;
+            }}
+            type="button"
+            role="radio"
+            aria-checked={checked}
+            tabIndex={checked ? 0 : -1}
+            onClick={() => onChange(role)}
+            className={cn(
+              "relative z-10 whitespace-nowrap rounded-lg py-2.5 text-sm font-semibold transition-colors duration-200 ease-out motion-reduce:transition-none focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500",
+              checked ? "text-neutral-900" : "text-neutral-600 hover:text-neutral-900"
+            )}
+          >
+            {label}
+          </button>
+        );
+      })}
+    </div>
   );
 }

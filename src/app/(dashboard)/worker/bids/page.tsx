@@ -93,7 +93,7 @@ export default async function WorkerBidsPage({
       <div className="card-base overflow-hidden">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-neutral-200 bg-neutral-50/80 text-left text-[10px] font-bold uppercase tracking-wider text-neutral-500">
+            <tr className="border-b border-neutral-200 bg-neutral-50/80 text-left text-2xs font-bold uppercase tracking-wider text-neutral-500">
               <th className="px-4 py-3">Unit &amp; Role</th>
               <th className="px-4 py-3 hidden sm:table-cell">Shift date</th>
               <th className="px-4 py-3">Status</th>

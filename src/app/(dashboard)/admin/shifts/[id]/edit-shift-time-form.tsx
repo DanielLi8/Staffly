@@ -100,7 +100,7 @@ export function EditShiftTimeForm({ shiftId, startsAt, endsAt }: EditShiftTimeFo
       )}
       <div className="flex items-start gap-2">
         <div className="flex-1 min-w-0">
-          <Label htmlFor="edit-startsAt-date" className="text-[11px]">Starts</Label>
+          <Label htmlFor="edit-startsAt-date" className="text-2xs">Starts</Label>
           <div className="flex gap-1.5">
             <Input
               id="edit-startsAt-date"
@@ -126,7 +126,7 @@ export function EditShiftTimeForm({ shiftId, startsAt, endsAt }: EditShiftTimeFo
       </div>
       <div className="flex items-start gap-2">
         <div className="flex-1 min-w-0">
-          <Label htmlFor="edit-endsAt-date" className="text-[11px]">Ends</Label>
+          <Label htmlFor="edit-endsAt-date" className="text-2xs">Ends</Label>
           <div className="flex gap-1.5">
             <Input
               id="edit-endsAt-date"

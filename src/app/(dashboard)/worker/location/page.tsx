@@ -4,7 +4,7 @@ import { format, eachDayOfInterval } from "date-fns";
 import { ShieldCheck } from "lucide-react";
 import { getSession, actorFromSession } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { resolveStaffDepartmentIds } from "@/lib/authz/staff-departments";
+import { resolveLocationScheduleDepartmentIds } from "@/lib/authz/staff-departments";
 import { getDepartmentIcon } from "@/lib/department-icons";
 import { cn } from "@/lib/utils";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -24,7 +24,9 @@ function scheduleHref(departmentId: string, date: Date, view: ScheduleView) {
  * unit they work in." The department picker (only rendered when a member
  * belongs to more than one) is built exclusively from `staffDepartmentIds`,
  * never the full department list, matching the same restriction the loader
- * itself enforces via `canViewLocationSchedule`.
+ * itself enforces via `canViewLocationSchedule`. An ADMIN previewing the
+ * worker portal sees every department (see
+ * `resolveLocationScheduleDepartmentIds`).
  */
 export default async function WorkerLocationSchedulePage({
   searchParams,
@@ -33,10 +35,9 @@ export default async function WorkerLocationSchedulePage({
 }) {
   const session = await getSession();
   if (!session) redirect("/login");
-  if (session.user.role !== "STAFF") redirect("/");
 
   const actor = actorFromSession(session);
-  const staffDepartmentIds = await resolveStaffDepartmentIds(actor);
+  const staffDepartmentIds = await resolveLocationScheduleDepartmentIds(actor);
 
   if (staffDepartmentIds.length === 0) {
     return (
@@ -87,7 +88,7 @@ export default async function WorkerLocationSchedulePage({
             </p>
           </div>
         </div>
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-neutral-100 text-neutral-600 border border-neutral-200 px-3 py-1 text-xs font-medium shrink-0">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-neutral-100 text-neutral-600 border border-neutral-200 px-3 py-1 text-xs font-medium shrink-0 self-start">
           <ShieldCheck className="w-3.5 h-3.5" aria-hidden />
           Read-only
         </span>
