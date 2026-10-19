@@ -22,8 +22,6 @@ function setup() {
     startTime: screen.getByLabelText("Shift starts time") as HTMLInputElement,
     endDate: screen.getByLabelText("Shift ends") as HTMLInputElement,
     endTime: screen.getByLabelText("Shift ends time") as HTMLInputElement,
-    deadlineDate: screen.getByLabelText("Bid deadline") as HTMLInputElement,
-    deadlineTime: screen.getByLabelText("Bid deadline time") as HTMLInputElement,
     submit: screen.getByRole("button", { name: /submit shift/i }),
   };
 }
@@ -63,33 +61,24 @@ describe("ShiftForm", () => {
     expect(f.startTime.value).toBe("9:15 pm");
   });
 
-  // Regression for #7: this submission used to throw on the server and reach
-  // the scheduler as the sanitized "digest" message.
-  it("blocks a bid deadline less than 4 hours before the start", async () => {
+  // Regression for #7: an invalid submission used to throw on the server and
+  // reach the scheduler as the sanitized "digest" message.
+  it("blocks a shift start that is already in the past", async () => {
     const f = setup();
     fillRequiredDetails();
-    fireEvent.change(f.deadlineDate, { target: { value: f.startDate.value } });
-    fireEvent.change(f.deadlineTime, { target: { value: "5:00 AM" } });
+    fireEvent.change(f.startDate, { target: { value: "2020-01-01" } });
     fireEvent.click(f.submit);
 
     expect(
-      await screen.findByText(SHIFT_TIME_MESSAGES.deadlineTooClose)
+      await screen.findByText(SHIFT_TIME_MESSAGES.startInPast)
     ).toBeInTheDocument();
     expect(createShift).not.toHaveBeenCalled();
     expect(screen.queryByText(/digest/i)).not.toBeInTheDocument();
   });
 
-  it("blocks a bid deadline at or after the shift start", async () => {
-    const f = setup();
-    fillRequiredDetails();
-    fireEvent.change(f.deadlineDate, { target: { value: f.startDate.value } });
-    fireEvent.change(f.deadlineTime, { target: { value: "10:00 AM" } });
-    fireEvent.click(f.submit);
-
-    expect(
-      await screen.findByText(SHIFT_TIME_MESSAGES.deadlineAfterStart)
-    ).toBeInTheDocument();
-    expect(createShift).not.toHaveBeenCalled();
+  it("has no bid deadline field - bidding stays open until the shift is filled", () => {
+    setup();
+    expect(screen.queryByLabelText(/bid deadline/i)).not.toBeInTheDocument();
   });
 
   it("blocks an end time that is not after the start", async () => {
@@ -124,14 +113,14 @@ describe("ShiftForm", () => {
     expect(payload.startsAt).toBeInstanceOf(Date);
     expect(payload.startsAt.getHours()).toBe(7);
     expect(payload.endsAt.getHours()).toBe(19);
-    expect(payload.bidDeadlineAt.getTime()).toBeLessThan(payload.startsAt.getTime());
+    expect(payload).not.toHaveProperty("bidDeadlineAt");
     expect(payload.unit).toBe("4B");
   });
 
   it("renders field errors returned by the server action", async () => {
     createShift.mockResolvedValue({
       ok: false,
-      fieldErrors: { bidDeadlineAt: SHIFT_TIME_MESSAGES.deadlineTooClose },
+      fieldErrors: { startsAt: SHIFT_TIME_MESSAGES.startInPast },
       formError: "Please correct the highlighted fields.",
     });
     const f = setup();
@@ -139,7 +128,7 @@ describe("ShiftForm", () => {
     fireEvent.click(f.submit);
 
     expect(
-      await screen.findByText(SHIFT_TIME_MESSAGES.deadlineTooClose)
+      await screen.findByText(SHIFT_TIME_MESSAGES.startInPast)
     ).toBeInTheDocument();
     expect(
       screen.getByText("Please correct the highlighted fields.")

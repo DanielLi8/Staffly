@@ -91,7 +91,7 @@ export function ShiftCard({ shift, href, showBidCount = false, tone = "default" 
           </div>
 
           <div className="mt-3 pt-3 border-t border-neutral-100 flex items-center justify-between text-xs text-neutral-500">
-            <span>Bid deadline {formatRelative(shift.bidDeadlineAt)}</span>
+            <span>Posted {formatRelative(shift.createdAt)}</span>
             <span className="font-medium text-primary-600 group-hover:underline">
               View Details →
             </span>

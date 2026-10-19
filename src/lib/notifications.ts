@@ -38,22 +38,36 @@ export async function notifyWorkersOfNewShift(
   );
 }
 
-export async function notifyAdminOfNewBid(opts: {
-  adminId: string;
+/**
+ * A new or updated bid, sent in-app to EVERY admin rather than only the one who
+ * posted the shift: any admin may be the one covering the callout, and once
+ * outreach has ended (stopped, or every tier contacted) a late bid is the only
+ * signal anyone gets that the shift can now be filled.
+ */
+export async function notifyAdminsOfNewBid(opts: {
   workerName: string;
   shift: Pick<Shift, "id" | "title">;
   /** Optional channel hint, e.g. "by text" / "by phone", for outreach replies. */
   via?: string | null;
+  /** The callout had stopped or run out of tiers when this bid arrived. */
+  outreachEnded?: boolean;
 }): Promise<void> {
-  const suffix = opts.via ? ` ${opts.via}` : "";
-  await db.notification.create({
-    data: {
-      userId: opts.adminId,
-      type: "BID_SUBMITTED",
+  const admins = await db.user.findMany({
+    where: { role: "ADMIN" },
+    select: { id: true },
+  });
+  if (admins.length === 0) return;
+
+  const via = opts.via ? ` ${opts.via}` : "";
+  const late = opts.outreachEnded ? " (outreach had ended)" : "";
+  await db.notification.createMany({
+    data: admins.map((admin) => ({
+      userId: admin.id,
+      type: "BID_SUBMITTED" as const,
       title: "New Bid Received",
-      message: `${opts.workerName} bid on ${opts.shift.title}${suffix}.`,
+      message: `${opts.workerName} bid on ${opts.shift.title}${via}${late}.`,
       shiftId: opts.shift.id,
-    },
+    })),
   });
 }
 

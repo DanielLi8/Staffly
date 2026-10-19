@@ -66,12 +66,25 @@ export interface FakeAttempt {
   respondedAt: Date | null;
 }
 
+export interface FakeBid {
+  shiftId: string;
+  workerId: string;
+  note: string | null;
+  durationScope: string;
+  partialStartsAt: Date | null;
+  partialEndsAt: Date | null;
+  status: string;
+}
+
 export interface FakeState {
   shift: FakeShift;
   department: { id: string; name: string; code: string };
   campaign: FakeCampaign | null;
   staff: FakeStaff[];
+  /** ADMIN user ids - the audience for "new bid" notifications. */
+  admins: string[];
   attempts: FakeAttempt[];
+  bids: FakeBid[];
   activities: { shiftId: string; actorId: string; action: string; details: string }[];
   notifications: { userId: string; type: string; title: string; message: string; shiftId: string }[];
 }
@@ -102,10 +115,26 @@ export function createFakeState(
     },
     campaign: overrides.campaign ?? null,
     staff: overrides.staff ?? [],
+    admins: overrides.admins ?? [shift.createdById],
     attempts: overrides.attempts ?? [],
+    bids: overrides.bids ?? [],
     activities: overrides.activities ?? [],
     notifications: overrides.notifications ?? [],
   };
+}
+
+/** The subset of a Prisma `where` on CalloutCampaign that the service uses. */
+function campaignMatches(
+  campaign: FakeCampaign,
+  where: { shiftId?: string; status?: CampaignStatus | { in: CampaignStatus[] }; endedAt?: null }
+): boolean {
+  if (where.shiftId !== undefined && campaign.shiftId !== where.shiftId) return false;
+  if (where.status !== undefined) {
+    const allowed = typeof where.status === "string" ? [where.status] : where.status.in;
+    if (!allowed.includes(campaign.status)) return false;
+  }
+  if (where.endedAt === null && campaign.endedAt !== null) return false;
+  return true;
 }
 
 function overlaps(
@@ -127,10 +156,14 @@ export function createFakeDb(state: FakeState) {
     },
 
     shift: {
-      async findUnique({ where }: { where: { id: string } }) {
-        if (where.id !== state.shift.id) return null;
+      async findUnique({ where }: { where: { id?: string; smsCode?: string } }) {
         const s = state.shift;
-        return { ...s, department: { name: s.departmentName } };
+        if (where.id !== undefined ? where.id !== s.id : where.smsCode !== s.smsCode) return null;
+        return {
+          ...s,
+          department: { name: s.departmentName },
+          campaign: state.campaign ? { status: state.campaign.status } : null,
+        };
       },
       async findMany() {
         // Only used by the dashboard's overtime lookup, which these tests do not
@@ -202,20 +235,37 @@ export function createFakeDb(state: FakeState) {
         state.campaign = { ...state.campaign, ...data };
         return state.campaign;
       },
-      async updateMany({ data }: { where: unknown; data: Partial<FakeCampaign> }) {
-        if (!state.campaign) return { count: 0 };
+      async updateMany({
+        where,
+        data,
+      }: {
+        where: Parameters<typeof campaignMatches>[1];
+        data: Partial<FakeCampaign>;
+      }) {
+        if (!state.campaign || !campaignMatches(state.campaign, where)) return { count: 0 };
         state.campaign = { ...state.campaign, ...data };
         return { count: 1 };
       },
     },
 
     user: {
+      async findUnique({ where }: { where: { id: string } }) {
+        const s = state.staff.find((u) => u.id === where.id);
+        return s ? { name: s.name, position: s.position } : null;
+      },
+      async findFirst({ where }: { where: { phone: string } }) {
+        const s = state.staff.find((u) => u.phone === where.phone && u.phoneVerifiedAt !== null);
+        return s ? { id: s.id } : null;
+      },
       async findMany({
+        where,
         select,
       }: {
-        where: unknown;
-        select: { availabilities: { where: { startsAt: { lt: Date }; endsAt: { gt: Date } } } };
+        where: { role?: string };
+        select: { availabilities?: { where: { startsAt: { lt: Date }; endsAt: { gt: Date } } } };
       }) {
+        if (where.role === "ADMIN") return state.admins.map((id) => ({ id }));
+        if (!select.availabilities) throw new Error("fake-db: unsupported user.findMany");
         const window = {
           startsAt: select.availabilities.where.endsAt.gt,
           endsAt: select.availabilities.where.startsAt.lt,
@@ -280,8 +330,41 @@ export function createFakeDb(state: FakeState) {
         state.attempts.push(row);
         return row;
       },
-      async updateMany() {
-        return { count: 0 };
+      async updateMany({
+        where,
+        data,
+      }: {
+        where: { shiftId: string; userId: string; channel: string };
+        data: { response: string; respondedAt: Date };
+      }) {
+        const rows = state.attempts.filter(
+          (a) => a.shiftId === where.shiftId && a.userId === where.userId && a.channel === where.channel
+        );
+        rows.forEach((a) => Object.assign(a, data));
+        return { count: rows.length };
+      },
+    },
+
+    shiftBid: {
+      async upsert({
+        where,
+        create,
+        update,
+      }: {
+        where: { shiftId_workerId: { shiftId: string; workerId: string } };
+        create: FakeBid;
+        update: Omit<FakeBid, "shiftId" | "workerId">;
+      }) {
+        const key = where.shiftId_workerId;
+        const existing = state.bids.find(
+          (b) => b.shiftId === key.shiftId && b.workerId === key.workerId
+        );
+        if (existing) {
+          Object.assign(existing, update);
+          return { id: `bid-${key.workerId}`, ...existing };
+        }
+        state.bids.push({ ...create });
+        return { id: `bid-${key.workerId}`, ...create };
       },
     },
 
@@ -310,6 +393,10 @@ export function createFakeDb(state: FakeState) {
       }) {
         state.notifications.push(data);
         return data;
+      },
+      async createMany({ data }: { data: FakeState["notifications"] }) {
+        state.notifications.push(...data);
+        return { count: data.length };
       },
     },
   };

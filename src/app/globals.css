@@ -61,11 +61,12 @@
   }
 
   .bid-selected {
-    @apply bg-blue-50 text-blue-800 border-blue-200;
+    @apply bg-emerald-50 text-emerald-800 border-emerald-200;
   }
 
+  /* Not an alarm, so never red (DESIGN.md "The One Alarm Rule"). */
   .bid-not-selected {
-    @apply bg-rose-50 text-rose-800 border-rose-200;
+    @apply bg-neutral-100 text-neutral-600 border-neutral-200;
   }
 
   /* Schedule color language (DESIGN.md "Schedule colors"): "not available"

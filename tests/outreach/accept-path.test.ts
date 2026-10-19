@@ -9,23 +9,26 @@ const dbMock = vi.hoisted(() => ({
   shift: { findUnique: vi.fn() },
   shiftBid: { upsert: vi.fn() },
   outreachAttempt: { updateMany: vi.fn() },
-  user: { findUnique: vi.fn() },
-  notification: { create: vi.fn() },
+  user: { findUnique: vi.fn(), findMany: vi.fn() },
+  notification: { createMany: vi.fn() },
 }));
 
 vi.mock("@/lib/db", () => ({ db: dbMock }));
 
 import { submitBid } from "@/lib/outreach/accept";
 
+const HOUR_MS = 60 * 60 * 1000;
+// Relative to now, never a fixed date: the bid window closes when the shift ends.
+const SHIFT_START = new Date(Date.now() + 24 * HOUR_MS);
+
 const OPEN_SHIFT = {
   id: "shift-1",
   title: "Emergency (ER) – Registered Nurse",
   status: "OPEN" as const,
-  bidDeadlineAt: new Date(Date.now() + 60 * 60 * 1000),
-  createdById: "scheduler-1",
-  startsAt: new Date("2026-08-10T07:00:00Z"),
-  endsAt: new Date("2026-08-10T15:00:00Z"),
+  startsAt: SHIFT_START,
+  endsAt: new Date(SHIFT_START.getTime() + 8 * HOUR_MS),
   roleNeeded: "Registered Nurse (RN)",
+  campaign: { status: "RUNNING" as const },
 };
 
 beforeEach(() => {
@@ -34,11 +37,12 @@ beforeEach(() => {
   dbMock.shiftBid.upsert.mockImplementation(async ({ create }: any) => ({ id: "bid-1", ...create }));
   dbMock.outreachAttempt.updateMany.mockResolvedValue({ count: 1 });
   dbMock.user.findUnique.mockResolvedValue({ name: "Maria Santos", position: "Registered Nurse" });
-  dbMock.notification.create.mockResolvedValue({});
+  dbMock.user.findMany.mockResolvedValue([{ id: "admin-1" }, { id: "admin-2" }]);
+  dbMock.notification.createMany.mockResolvedValue({ count: 2 });
 });
 
 describe("submitBid - the single accept path", () => {
-  it("creates a FULL PENDING bid and notifies the scheduler", async () => {
+  it("creates a FULL PENDING bid and notifies every admin", async () => {
     const result = await submitBid({
       shiftId: "shift-1",
       workerId: "worker-1",
@@ -57,14 +61,28 @@ describe("submitBid - the single accept path", () => {
       status: "PENDING",
     });
 
-    // Scheduler (shift.createdById) is notified, with the SMS channel hint.
-    expect(dbMock.notification.create).toHaveBeenCalledTimes(1);
-    const notif = dbMock.notification.create.mock.calls[0][0].data;
-    expect(notif.userId).toBe("scheduler-1");
-    expect(notif.type).toBe("BID_SUBMITTED");
-    expect(notif.shiftId).toBe("shift-1");
-    expect(notif.message).toContain("Maria Santos");
-    expect(notif.message).toContain("by text");
+    // Every ADMIN is notified (not just the poster), with the SMS channel hint.
+    expect(dbMock.user.findMany).toHaveBeenCalledWith({
+      where: { role: "ADMIN" },
+      select: { id: true },
+    });
+    expect(dbMock.notification.createMany).toHaveBeenCalledTimes(1);
+    const notifs = dbMock.notification.createMany.mock.calls[0][0].data;
+    expect(notifs.map((n: { userId: string }) => n.userId)).toEqual(["admin-1", "admin-2"]);
+    for (const notif of notifs) {
+      expect(notif.type).toBe("BID_SUBMITTED");
+      expect(notif.shiftId).toBe("shift-1");
+      expect(notif.message).toBe("Maria Santos bid on Emergency (ER) – Registered Nurse by text.");
+    }
+  });
+
+  it("marks a bid that arrives after outreach ended", async () => {
+    dbMock.shift.findUnique.mockResolvedValue({ ...OPEN_SHIFT, campaign: { status: "CANCELLED" } });
+    await submitBid({ shiftId: "shift-1", workerId: "worker-1", scope: "FULL", source: "IN_APP" });
+    const [notif] = dbMock.notification.createMany.mock.calls[0][0].data;
+    expect(notif.message).toBe(
+      "Maria Santos bid on Emergency (ER) – Registered Nurse (outreach had ended)."
+    );
   });
 
   it("marks the matching SMS OutreachAttempt as ACCEPTED", async () => {
@@ -90,16 +108,28 @@ describe("submitBid - the single accept path", () => {
     const result = await submitBid({ shiftId: "shift-1", workerId: "w", scope: "FULL", source: "SMS" });
     expect(result).toEqual({ ok: false, reason: "SHIFT_CLOSED" });
     expect(dbMock.shiftBid.upsert).not.toHaveBeenCalled();
-    expect(dbMock.notification.create).not.toHaveBeenCalled();
+    expect(dbMock.notification.createMany).not.toHaveBeenCalled();
   });
 
-  it("rejects when the bid deadline has passed", async () => {
+  it("accepts after the shift has started, while it is still unfilled", async () => {
     dbMock.shift.findUnique.mockResolvedValue({
       ...OPEN_SHIFT,
-      bidDeadlineAt: new Date(Date.now() - 1000),
+      startsAt: new Date(Date.now() - HOUR_MS),
+      endsAt: new Date(Date.now() + 7 * HOUR_MS),
     });
     const result = await submitBid({ shiftId: "shift-1", workerId: "w", scope: "FULL", source: "VOICE" });
-    expect(result).toEqual({ ok: false, reason: "DEADLINE_PASSED" });
+    expect(result.ok).toBe(true);
+  });
+
+  it("rejects (no bid) once the shift has ended", async () => {
+    dbMock.shift.findUnique.mockResolvedValue({
+      ...OPEN_SHIFT,
+      startsAt: new Date(Date.now() - 9 * HOUR_MS),
+      endsAt: new Date(Date.now() - HOUR_MS),
+    });
+    const result = await submitBid({ shiftId: "shift-1", workerId: "w", scope: "FULL", source: "VOICE" });
+    expect(result).toEqual({ ok: false, reason: "SHIFT_ENDED" });
+    expect(dbMock.shiftBid.upsert).not.toHaveBeenCalled();
   });
 
   it("rejects a partial window outside the shift hours", async () => {
@@ -108,8 +138,8 @@ describe("submitBid - the single accept path", () => {
       workerId: "w",
       scope: "PARTIAL",
       source: "IN_APP",
-      partialStartsAt: new Date("2026-08-10T06:00:00Z"), // before shift start
-      partialEndsAt: new Date("2026-08-10T10:00:00Z"),
+      partialStartsAt: new Date(SHIFT_START.getTime() - HOUR_MS), // before shift start
+      partialEndsAt: new Date(SHIFT_START.getTime() + 3 * HOUR_MS),
     });
     expect(result).toEqual({ ok: false, reason: "INVALID_WINDOW" });
   });
@@ -125,7 +155,7 @@ describe("submitBid - the single accept path", () => {
     const result = await submitBid({ shiftId: "shift-1", workerId: "w", scope: "FULL", source: "IN_APP" });
     expect(result).toEqual({ ok: false, reason: "POSITION_MISMATCH" });
     expect(dbMock.shiftBid.upsert).not.toHaveBeenCalled();
-    expect(dbMock.notification.create).not.toHaveBeenCalled();
+    expect(dbMock.notification.createMany).not.toHaveBeenCalled();
   });
 
   it("still accepts a Lead RN-tagged RN - the tag never factors into position matching", async () => {

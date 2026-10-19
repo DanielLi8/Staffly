@@ -20,11 +20,13 @@ import type { OutreachRecipient } from "@/lib/outreach/types";
 import { notifySchedulerOfCallout } from "@/lib/notifications";
 import { isInngestConfigured, sendCalloutEvent } from "@/lib/inngest/client";
 import { buildTierRoster, nextTier, MAX_TIER, type Tier, type TierCandidate } from "./tiers";
-import { decideNextStep, type CampaignDecision, type CampaignState } from "./decide";
+import {
+  decideNextStep,
+  isCampaignTerminal,
+  type CampaignDecision,
+  type CampaignState,
+} from "./decide";
 import { positionMatchesRole } from "@/lib/shifts/role-match";
-
-/** Statuses from which no further escalation may happen. */
-const TERMINAL: CampaignStatus[] = ["CANCELLED", "FILLED", "EXHAUSTED"];
 
 /**
  * How long a freshly posted shift sits before ANY outreach leaves the building.
@@ -268,7 +270,7 @@ export async function dispatchOpeningTier(
 ): Promise<CampaignControlResult> {
   const campaign = await loadCampaignSnapshot(shiftId);
   if (!campaign) return { ok: false, reason: "NO_CAMPAIGN" };
-  if (TERMINAL.includes(campaign.status)) return { ok: false, reason: "TERMINAL" };
+  if (isCampaignTerminal(campaign.status)) return { ok: false, reason: "TERMINAL" };
   if (campaign.shift.status !== "OPEN") return { ok: false, reason: "SHIFT_CLOSED" };
   // Already sent, or held by a scheduler. Not an error - the engine retries.
   if (!campaign.tier1DispatchAt || campaign.status !== "RUNNING") {
@@ -312,7 +314,7 @@ export async function advanceCampaignTier(
 ): Promise<CampaignControlResult> {
   const campaign = await loadCampaignSnapshot(shiftId);
   if (!campaign) return { ok: false, reason: "NO_CAMPAIGN" };
-  if (TERMINAL.includes(campaign.status)) return { ok: false, reason: "TERMINAL" };
+  if (isCampaignTerminal(campaign.status)) return { ok: false, reason: "TERMINAL" };
   if (campaign.shift.status !== "OPEN") return { ok: false, reason: "SHIFT_CLOSED" };
 
   const target = nextTier(campaign.currentTier);
@@ -390,7 +392,7 @@ export async function resumeCampaign(
 ): Promise<CampaignControlResult> {
   const campaign = await loadCampaignSnapshot(shiftId);
   if (!campaign) return { ok: false, reason: "NO_CAMPAIGN" };
-  if (TERMINAL.includes(campaign.status)) return { ok: false, reason: "TERMINAL" };
+  if (isCampaignTerminal(campaign.status)) return { ok: false, reason: "TERMINAL" };
   if (campaign.shift.status !== "OPEN") return { ok: false, reason: "SHIFT_CLOSED" };
 
   const now = new Date();
@@ -419,29 +421,76 @@ export async function resumeCampaign(
   return { ok: true, status: updated.status, currentTier: updated.currentTier };
 }
 
-/** Stop the cascade for good. This is the authoritative kill switch. */
+/**
+ * Stop outreach for good: no more texts, calls, or tiers. This is the
+ * authoritative kill switch for OUTREACH only - the shift stays OPEN and keeps
+ * taking bids (in the app, and by reply to earlier texts and calls) until it
+ * is awarded or cancelled. See `bidAcceptance`.
+ */
 export async function stopCampaign(
   shiftId: string,
   actor: CampaignActor
 ): Promise<CampaignControlResult> {
   return setCampaignStatus(shiftId, "CANCELLED", actor, {
     action: "CALLOUT_STOPPED",
-    details: "Cascade stopped by scheduler; no further outreach will be sent.",
+    details: "Outreach stopped by scheduler; no further texts or calls will be sent. Bidding stays open.",
     endsCampaign: true,
   });
 }
 
-/** Close the campaign because the shift was filled. Called from assignWorker. */
+/** Campaign statuses an award can close out. Everything except FILLED itself. */
+const FILLABLE: CampaignStatus[] = ["RUNNING", "PAUSED", "CANCELLED", "EXHAUSTED"];
+
+/**
+ * Close the campaign because the shift was filled. Called from assignWorker.
+ *
+ * Unlike every other transition this one is allowed FROM a terminal state:
+ * bidding outlives outreach, so awarding a bid that arrived after "Stop
+ * outreach" or after the tiers ran out is the normal way such a shift gets
+ * filled, and the dashboard should then say FILLED with a time to fill.
+ * `endedAt` keeps recording when outreach ended; a running campaign gets it
+ * stamped now.
+ *
+ * Both writes are conditional on the status still being fillable, so a
+ * concurrent Stop or exhaust can never be overwritten with a stale `endedAt`,
+ * and a second award (or a racing engine FILL) is a no-op rather than a
+ * double close.
+ */
 export async function markCampaignFilled(
   shiftId: string,
   actor: CampaignActor
 ): Promise<CampaignControlResult> {
-  return setCampaignStatus(shiftId, "FILLED", actor, {
-    action: "CALLOUT_FILLED",
-    details: "Shift filled; cascade closed.",
-    endsCampaign: true,
-    allowWhenShiftClosed: true,
+  const campaign = await loadCampaignSnapshot(shiftId);
+  if (!campaign) return { ok: false, reason: "NO_CAMPAIGN" };
+  if (!FILLABLE.includes(campaign.status)) return { ok: false, reason: "TERMINAL" };
+
+  const now = new Date();
+  // Still running: outreach ends with the fill.
+  let { count } = await db.calloutCampaign.updateMany({
+    where: { shiftId, status: { in: FILLABLE }, endedAt: null },
+    data: { status: "FILLED", filledAt: now, endedAt: now },
   });
+  if (count === 0) {
+    // Outreach had already ended (Stop / exhaustion): keep its endedAt.
+    ({ count } = await db.calloutCampaign.updateMany({
+      where: { shiftId, status: { in: FILLABLE } },
+      data: { status: "FILLED", filledAt: now },
+    }));
+  }
+  if (count === 0) return { ok: false, reason: "TERMINAL" };
+
+  const outreachHadEnded = isCampaignTerminal(campaign.status);
+  await logCalloutActivity(
+    shiftId,
+    actor.actorId,
+    "CALLOUT_FILLED",
+    outreachHadEnded
+      ? "Shift filled from a bid received after outreach had ended; callout closed."
+      : "Shift filled; cascade closed."
+  );
+  await sendCalloutEvent("callout/control", { shiftId, reason: "FILLED" });
+
+  return { ok: true, status: "FILLED", currentTier: campaign.currentTier };
 }
 
 /** All tiers have been through their window with no fill. */
@@ -506,15 +555,12 @@ async function setCampaignStatus(
     action: string;
     details: string;
     endsCampaign?: boolean;
-    allowWhenShiftClosed?: boolean;
   }
 ): Promise<CampaignControlResult> {
   const campaign = await loadCampaignSnapshot(shiftId);
   if (!campaign) return { ok: false, reason: "NO_CAMPAIGN" };
-  if (TERMINAL.includes(campaign.status)) return { ok: false, reason: "TERMINAL" };
-  if (!opts.allowWhenShiftClosed && campaign.shift.status !== "OPEN") {
-    return { ok: false, reason: "SHIFT_CLOSED" };
-  }
+  if (isCampaignTerminal(campaign.status)) return { ok: false, reason: "TERMINAL" };
+  if (campaign.shift.status !== "OPEN") return { ok: false, reason: "SHIFT_CLOSED" };
 
   const now = new Date();
   const updated = await db.calloutCampaign.update({
@@ -522,7 +568,6 @@ async function setCampaignStatus(
     data: {
       status,
       ...(opts.endsCampaign ? { endedAt: now } : {}),
-      ...(status === "FILLED" ? { filledAt: now } : {}),
     },
   });
   await logCalloutActivity(shiftId, actor.actorId, opts.action, opts.details);

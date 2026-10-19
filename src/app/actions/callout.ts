@@ -65,7 +65,7 @@ export async function resumeCallout(rawShiftId: unknown): Promise<void> {
   settle(shiftId, await resumeCampaign(shiftId, { actorId: actor.id }));
 }
 
-/** Stop the callout for good. The shift itself stays open. */
+/** Stop outreach for good. The shift stays open and keeps taking bids. */
 export async function stopCallout(rawShiftId: unknown): Promise<void> {
   const actor = await requireScheduler();
   const shiftId = shiftIdSchema.parse(rawShiftId);

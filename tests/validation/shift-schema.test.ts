@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { z } from "zod";
-import { addHours, subHours } from "date-fns";
+import { addHours } from "date-fns";
 
 const createShiftSchema = z.object({
   unit: z.string().min(1, "Unit is required"),
@@ -9,7 +9,6 @@ const createShiftSchema = z.object({
   location: z.string().min(1, "Location is required"),
   startsAt: z.coerce.date(),
   endsAt: z.coerce.date(),
-  bidDeadlineAt: z.coerce.date(),
   notes: z.string().optional(),
 });
 
@@ -21,7 +20,6 @@ const validShift = {
   location: "St. Michael's Hospital",
   startsAt: start,
   endsAt: addHours(start, 8),
-  bidDeadlineAt: subHours(start, 5),
 };
 
 describe("createShiftSchema", () => {

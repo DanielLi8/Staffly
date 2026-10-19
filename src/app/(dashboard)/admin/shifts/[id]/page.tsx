@@ -47,7 +47,6 @@ export default async function AdminShiftDetailPage({ params }: { params: { id: s
   if (!dashboard) notFound();
 
   const shiftOpen = shift.status === "OPEN";
-  const deadlinePassed = new Date() > shift.bidDeadlineAt;
 
   return (
     <div className="max-w-4xl space-y-6">
@@ -60,8 +59,8 @@ export default async function AdminShiftDetailPage({ params }: { params: { id: s
       </Link>
 
       {/* Shift header */}
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="page-title">{shift.title}</h1>
             <ShiftStatusBadge status={shift.status} />
@@ -70,7 +69,11 @@ export default async function AdminShiftDetailPage({ params }: { params: { id: s
             Unit {shift.unit} · {shift.department.name} · Posted by {shift.createdBy.name}
           </p>
         </div>
-        {canCancelShift(shift.status) && <CancelShiftButton shiftId={shift.id} />}
+        {canCancelShift(shift.status) && (
+          <div className="shrink-0">
+            <CancelShiftButton shiftId={shift.id} />
+          </div>
+        )}
       </div>
 
       {/* Live fill dashboard - full width: it is the scheduler's primary surface
@@ -99,14 +102,7 @@ export default async function AdminShiftDetailPage({ params }: { params: { id: s
           {/* Bidder list */}
           <Card>
             <CardHeader>
-              <CardTitle>
-                Bidders ({dashboard.bidders.length})
-                {shiftOpen && deadlinePassed && (
-                  <span className="ml-2 text-xs font-normal text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5">
-                    Deadline passed
-                  </span>
-                )}
-              </CardTitle>
+              <CardTitle>Bidders ({dashboard.bidders.length})</CardTitle>
             </CardHeader>
             <CardContent>
               <BidderList
@@ -175,9 +171,6 @@ export default async function AdminShiftDetailPage({ params }: { params: { id: s
                   {shift.notes}
                 </InfoRow>
               )}
-              <div className="pt-2 border-t border-neutral-100 text-xs text-neutral-500">
-                Bid deadline: {formatShiftDate(shift.bidDeadlineAt)}
-              </div>
             </CardContent>
           </Card>
         </div>
@@ -213,6 +206,15 @@ function formatActivityAction(action: string): string {
     SHIFT_CANCELLED: "Shift cancelled",
     SHIFT_CLOSED: "Shift closed",
     SHIFT_TIME_EDITED: "Shift time edited",
+    CALLOUT_STARTED: "Callout opened",
+    CALLOUT_TIER1_SENT: "Tier 1 outreach sent",
+    CALLOUT_ESCALATED: "Callout escalated",
+    CALLOUT_HELD: "Callout put on hold",
+    CALLOUT_RESUMED: "Callout resumed",
+    CALLOUT_STOPPED: "Outreach stopped",
+    CALLOUT_EXHAUSTED: "All tiers contacted",
+    CALLOUT_FILLED: "Callout closed - shift filled",
+    CALLOUT_PAST_START: "Shift start passed unfilled",
     ...SWAP_REASSIGNED_ACTION_LABEL,
   };
   return map[action] ?? action;

@@ -38,11 +38,11 @@ describe("security and QA fixes", () => {
     expect(canCancelShift("CLOSED")).toBe(false);
   });
 
-  it("scopes worker availability to open, deadline-passing shifts", () => {
+  it("scopes worker availability to open shifts that have not ended", () => {
     expect(workerAvailableShiftWhere({ id: "worker", role: "STAFF" }, now)).toEqual({
       AND: [
         { OR: [{ status: "OPEN" }, { assignedWorkerId: "worker" }, { bids: { some: { workerId: "worker" } } }] },
-        { status: "OPEN", bidDeadlineAt: { gt: now } },
+        { status: "OPEN", endsAt: { gt: now } },
       ],
     });
   });

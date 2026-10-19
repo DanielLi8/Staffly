@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { createShift } from "@/app/actions/shifts";
-import { addDays, startOfDay, subHours } from "date-fns";
+import { addDays, startOfDay } from "date-fns";
 import {
   combineDateAndTime,
   formatDateInput,
@@ -32,25 +32,18 @@ const TIME_SUGGESTIONS = ["7:00 AM", "11:00 AM", "3:00 PM", "7:00 PM", "11:00 PM
 const UNREADABLE_TIME = "Enter a time like 7:00 AM";
 
 /**
- * Defaults are a standard 07:00–19:00 day shift on the next day, with the bid
- * deadline 6 hours ahead of the start so the form opens in a valid state.
- * `start` is always "tomorrow 07:00", so it is at least ~7 hours out no
- * matter what time of day the form is opened - a 12-hour deadline buffer
- * (the original value here) could put the default deadline in the past for
- * anyone opening the form after ~7pm local time; 6 hours leaves it always
- * both in the future and >= MIN_BID_LEAD_HOURS before the start.
+ * Defaults are a standard 07:00–19:00 day shift on the next day. `start` is
+ * always "tomorrow 07:00", so it is in the future no matter what time of day
+ * the form is opened, and the form opens in a valid state.
  */
 function defaultTimes() {
   const start = new Date(startOfDay(addDays(new Date(), 1)).getTime() + 7 * 60 * 60 * 1000);
   const end = new Date(start.getTime() + 12 * 60 * 60 * 1000);
-  const deadline = subHours(start, 6);
   return {
     startDate: formatDateInput(start),
     startTime: formatTimeInput(start),
     endDate: formatDateInput(end),
     endTime: formatTimeInput(end),
-    deadlineDate: formatDateInput(deadline),
-    deadlineTime: formatTimeInput(deadline),
   };
 }
 
@@ -81,17 +74,15 @@ export function ShiftForm({ departments }: ShiftFormProps) {
 
     const startsAt = combineDateAndTime(times.startDate, times.startTime);
     const endsAt = combineDateAndTime(times.endDate, times.endTime);
-    const bidDeadlineAt = combineDateAndTime(times.deadlineDate, times.deadlineTime);
 
     // Client-side guard: an invalid submit never reaches the server, so it can
     // never come back as the sanitized "digest" error.
     const nextErrors: ShiftFieldErrors = {};
     if (!startsAt) nextErrors.startsAt = UNREADABLE_TIME;
     if (!endsAt) nextErrors.endsAt = UNREADABLE_TIME;
-    if (!bidDeadlineAt) nextErrors.bidDeadlineAt = UNREADABLE_TIME;
 
-    if (startsAt && endsAt && bidDeadlineAt) {
-      Object.assign(nextErrors, validateShiftTimes({ startsAt, endsAt, bidDeadlineAt }));
+    if (startsAt && endsAt) {
+      Object.assign(nextErrors, validateShiftTimes({ startsAt, endsAt }));
     }
 
     if (Object.keys(nextErrors).length > 0) {
@@ -113,7 +104,6 @@ export function ShiftForm({ departments }: ShiftFormProps) {
         location: data.get("location"),
         startsAt,
         endsAt,
-        bidDeadlineAt,
         notes: data.get("notes") || undefined,
       });
 
@@ -206,7 +196,7 @@ export function ShiftForm({ departments }: ShiftFormProps) {
       </div>
 
       <div>
-        <p className="text-2xs font-bold uppercase tracking-wide text-neutral-500 mb-3">Time &amp; deadlines</p>
+        <p className="text-2xs font-bold uppercase tracking-wide text-neutral-500 mb-3">Time</p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <DateTimeField
@@ -229,23 +219,10 @@ export function ShiftForm({ departments }: ShiftFormProps) {
           />
         </div>
 
-        <div className="mt-4">
-          <div className="sm:max-w-[calc(50%-0.5rem)]">
-            <DateTimeField
-              label="Bid deadline"
-              idPrefix="bidDeadlineAt"
-              dateValue={times.deadlineDate}
-              timeValue={times.deadlineTime}
-              onDateChange={(v) => updateTime({ deadlineDate: v })}
-              onTimeChange={(v) => updateTime({ deadlineTime: v })}
-              error={errors.bidDeadlineAt}
-            />
-          </div>
-          <p className="mt-1.5 text-xs italic text-neutral-500">
-            Bids must be submitted at least 4 hours before the shift starts. Times can be
-            typed directly, e.g. 7:00 AM.
-          </p>
-        </div>
+        <p className="mt-1.5 text-xs italic text-neutral-500">
+          Bidding stays open until the shift is filled or cancelled, even after it starts.
+          Times can be typed directly, e.g. 7:00 AM.
+        </p>
       </div>
 
       <div>

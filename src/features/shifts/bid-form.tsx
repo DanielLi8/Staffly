@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { placeBid, withdrawBid } from "@/app/actions/bids";
 import type { BidStatus } from "@/types";
+import type { BidAcceptance } from "@/lib/shifts/bid-window";
 import { cn } from "@/lib/utils";
 
 function toDatetimeLocalValue(d: Date) {
@@ -31,8 +32,8 @@ interface BidFormProps {
     partialStartsAt?: Date | string | null;
     partialEndsAt?: Date | string | null;
   } | null;
-  shiftOpen: boolean;
-  deadlinePassed: boolean;
+  /** From `bidAcceptance` - the same rule `submitBid` enforces. */
+  acceptance: BidAcceptance;
   positionMismatch: boolean;
 }
 
@@ -41,8 +42,7 @@ export function BidForm({
   shiftStartsAtIso,
   shiftEndsAtIso,
   existingBid,
-  shiftOpen,
-  deadlinePassed,
+  acceptance,
   positionMismatch,
 }: BidFormProps) {
   const shiftStart = useMemo(() => new Date(shiftStartsAtIso), [shiftStartsAtIso]);
@@ -73,18 +73,12 @@ export function BidForm({
   const minLocal = toDatetimeLocalValue(shiftStart);
   const maxLocal = toDatetimeLocalValue(shiftEnd);
 
-  if (!shiftOpen) {
+  if (!acceptance.open) {
     return (
       <div className="px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-md text-sm text-neutral-500">
-        This shift is no longer accepting bids.
-      </div>
-    );
-  }
-
-  if (deadlinePassed) {
-    return (
-      <div className="px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-md text-sm text-neutral-500">
-        The bid deadline has passed.
+        {acceptance.reason === "SHIFT_ENDED"
+          ? "This shift has ended and is no longer accepting bids."
+          : "This shift is no longer accepting bids."}
       </div>
     );
   }

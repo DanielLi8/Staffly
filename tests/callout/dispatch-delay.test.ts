@@ -112,7 +112,6 @@ describe("posting a shift holds the opening outreach", () => {
       location: "St. Michael's Hospital",
       startsAt: SHIFT_START,
       endsAt: SHIFT_END,
-      bidDeadlineAt: new Date(SHIFT_START.getTime() - 6 * 60 * 60 * 1000),
     });
 
     expect(state.campaign?.status).toBe("RUNNING");

@@ -14,7 +14,6 @@ const start = addHours(new Date(), 24);
 const valid = {
   startsAt: start,
   endsAt: addHours(start, 12),
-  bidDeadlineAt: subHours(start, 12),
 };
 
 describe("validateShiftTimes", () => {
@@ -31,48 +30,25 @@ describe("validateShiftTimes", () => {
     ).toBe(SHIFT_TIME_MESSAGES.endBeforeStart);
   });
 
-  it("rejects a bid deadline at or after the shift start", () => {
-    expect(
-      validateShiftTimes({ ...valid, bidDeadlineAt: addHours(start, 1) })
-        .bidDeadlineAt
-    ).toBe(SHIFT_TIME_MESSAGES.deadlineAfterStart);
-    expect(
-      validateShiftTimes({ ...valid, bidDeadlineAt: start }).bidDeadlineAt
-    ).toBe(SHIFT_TIME_MESSAGES.deadlineAfterStart);
+  // Captain decision (2026-10-15): any future shift can be posted. A sick call
+  // minutes before the start is exactly when a callout is needed.
+  it("accepts a shift starting in a few minutes - there is no minimum lead time", () => {
+    const now = new Date();
+    const soon = addMinutes(now, 5);
+    expect(validateShiftTimes({ startsAt: soon, endsAt: addHours(soon, 8) }, now)).toEqual({});
   });
 
-  // Regression for #7: this is the reproduction that used to throw, and the
-  // thrown error reached production as an opaque "digest" message.
-  it("rejects a bid deadline less than 4 hours before the start", () => {
+  it("rejects a shift that has already started", () => {
+    const now = new Date();
     expect(
-      validateShiftTimes({ ...valid, bidDeadlineAt: subHours(start, 1) })
-        .bidDeadlineAt
-    ).toBe(SHIFT_TIME_MESSAGES.deadlineTooClose);
-    expect(
-      validateShiftTimes({
-        ...valid,
-        bidDeadlineAt: addMinutes(subHours(start, 4), 1),
-      }).bidDeadlineAt
-    ).toBe(SHIFT_TIME_MESSAGES.deadlineTooClose);
-  });
-
-  it("accepts a bid deadline exactly 4 hours before the start", () => {
-    expect(
-      validateShiftTimes({ ...valid, bidDeadlineAt: subHours(start, 4) })
-    ).toEqual({});
-  });
-
-  it("rejects a deadline that has passed even when the shift is in the future", () => {
+      validateShiftTimes({ startsAt: now, endsAt: addHours(now, 8) }, now).startsAt
+    ).toBe(SHIFT_TIME_MESSAGES.startInPast);
     expect(
       validateShiftTimes(
-        {
-          startsAt: new Date("2026-08-12T18:00:00Z"),
-          endsAt: new Date("2026-08-13T02:00:00Z"),
-          bidDeadlineAt: new Date("2026-08-10T11:59:00Z"),
-        },
-        new Date("2026-08-10T12:00:00Z")
-      ).bidDeadlineAt
-    ).toBe(SHIFT_TIME_MESSAGES.deadlineInPast);
+        { startsAt: subHours(now, 1), endsAt: addHours(now, 7) },
+        now
+      ).startsAt
+    ).toBe(SHIFT_TIME_MESSAGES.startInPast);
   });
 });
 

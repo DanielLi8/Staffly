@@ -1,49 +1,42 @@
-import { differenceInHours } from "date-fns";
-
 /**
  * Shift-time rules, kept pure so the client form can block an invalid submit
  * and the server action can return the exact same messages as form state.
  * Never throw for these: Next.js masks thrown server-action errors in
  * production as an opaque "digest" message, which reads as a crash.
+ *
+ * There is no minimum lead time and no bid deadline: any shift that has not
+ * started yet can be posted, and it takes bids until it is filled (see
+ * `bidAcceptance` in ./bid-window). Sick calls are usually hours, not days,
+ * before the shift.
  */
-
-export const MIN_BID_LEAD_HOURS = 4;
 
 export const SHIFT_TIME_MESSAGES = {
   endBeforeStart: "End time must be after start time",
-  deadlineAfterStart: "Bid deadline must be before the shift start",
-  deadlineTooClose: `Bid deadline must be at least ${MIN_BID_LEAD_HOURS} hours before the shift starts`,
-  deadlineInPast: "Bid deadline must be in the future",
+  startInPast: "Shift start must be in the future",
 } as const;
 
-export type ShiftTimeField = "startsAt" | "endsAt" | "bidDeadlineAt";
+export type ShiftTimeField = "startsAt" | "endsAt";
 
 export type ShiftFieldErrors = Partial<Record<string, string>>;
 
 export interface ShiftTimes {
   startsAt: Date;
   endsAt: Date;
-  bidDeadlineAt: Date;
 }
 
 /** Returns a field → message map; an empty object means the times are valid. */
-export function validateShiftTimes({
-  startsAt,
-  endsAt,
-  bidDeadlineAt,
-}: ShiftTimes, now = new Date()): ShiftFieldErrors {
+export function validateShiftTimes(
+  { startsAt, endsAt }: ShiftTimes,
+  now = new Date()
+): ShiftFieldErrors {
   const errors: ShiftFieldErrors = {};
+
+  if (startsAt <= now) {
+    errors.startsAt = SHIFT_TIME_MESSAGES.startInPast;
+  }
 
   if (endsAt <= startsAt) {
     errors.endsAt = SHIFT_TIME_MESSAGES.endBeforeStart;
-  }
-
-  if (bidDeadlineAt <= now) {
-    errors.bidDeadlineAt = SHIFT_TIME_MESSAGES.deadlineInPast;
-  } else if (bidDeadlineAt >= startsAt) {
-    errors.bidDeadlineAt = SHIFT_TIME_MESSAGES.deadlineAfterStart;
-  } else if (differenceInHours(startsAt, bidDeadlineAt) < MIN_BID_LEAD_HOURS) {
-    errors.bidDeadlineAt = SHIFT_TIME_MESSAGES.deadlineTooClose;
   }
 
   return errors;
