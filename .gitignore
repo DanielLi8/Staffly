@@ -18,3 +18,7 @@ build/
 # use by .claude/skills/impeccable/scripts/impeccable; per-developer overrides
 .claude/skills/impeccable/scripts/bin/
 .impeccable/config.local.json
+
+# Playwright output
+test-results/
+playwright-report/
