@@ -1,13 +1,15 @@
 /**
  * The SINGLE accept path. In-app bidding, SMS reply codes, and IVR key-presses
  * all funnel through {@link submitBid}. The rule "an acceptance becomes a
- * ShiftBid (never an instant assignment) and the scheduler is notified" lives
+ * ShiftBid (never an instant assignment) and every admin is notified" lives
  * here, in exactly one place, so every channel behaves identically.
  */
 import { BidDurationScope, Channel } from "@prisma/client";
 import type { ShiftBid } from "@prisma/client";
 import { db } from "@/lib/db";
-import { notifyAdminOfNewBid } from "@/lib/notifications";
+import { notifyAdminsOfNewBid } from "@/lib/notifications";
+import { isCampaignTerminal } from "@/lib/callout/decide";
+import { bidAcceptance } from "@/lib/shifts/bid-window";
 import { positionMatchesRole } from "@/lib/shifts/role-match";
 
 /** Where an acceptance originated. Drives the scheduler-notification wording. */
@@ -31,7 +33,7 @@ export type SubmitBidResult =
       reason:
         | "SHIFT_NOT_FOUND"
         | "SHIFT_CLOSED"
-        | "DEADLINE_PASSED"
+        | "SHIFT_ENDED"
         | "INVALID_WINDOW"
         | "POSITION_MISMATCH";
     };
@@ -43,10 +45,10 @@ const SOURCE_LABEL: Record<BidSource, string | null> = {
 };
 
 /**
- * Create or update the worker's bid on a shift and notify the scheduler.
+ * Create or update the worker's bid on a shift and notify every admin.
  *
- * Guards (shift open, deadline not passed, partial window within shift hours)
- * are enforced here so a webhook cannot bypass the checks the UI applies. On a
+ * Guards (the bid window - see `bidAcceptance` - position match, partial window
+ * within shift hours) are enforced here so a webhook cannot bypass the checks the UI applies. On a
  * guard failure this returns a typed reason instead of throwing, so webhook
  * callers can respond gracefully; the in-app action maps reasons to errors.
  */
@@ -57,17 +59,18 @@ export async function submitBid(input: SubmitBidInput): Promise<SubmitBidResult>
       id: true,
       title: true,
       status: true,
-      bidDeadlineAt: true,
-      createdById: true,
       startsAt: true,
       endsAt: true,
       roleNeeded: true,
+      campaign: { select: { status: true } },
     },
   });
 
   if (!shift) return { ok: false, reason: "SHIFT_NOT_FOUND" };
-  if (shift.status !== "OPEN") return { ok: false, reason: "SHIFT_CLOSED" };
-  if (new Date() > shift.bidDeadlineAt) return { ok: false, reason: "DEADLINE_PASSED" };
+  // Gated on the shift alone, never the campaign: a stopped or exhausted
+  // callout keeps taking bids until the shift is awarded or cancelled.
+  const acceptance = bidAcceptance(shift);
+  if (!acceptance.open) return { ok: false, reason: acceptance.reason };
 
   const worker = await db.user.findUnique({
     where: { id: input.workerId },
@@ -126,11 +129,11 @@ export async function submitBid(input: SubmitBidInput): Promise<SubmitBidResult>
     });
   }
 
-  await notifyAdminOfNewBid({
-    adminId: shift.createdById,
+  await notifyAdminsOfNewBid({
     workerName: worker?.name ?? "A worker",
     shift: { id: shift.id, title: shift.title },
     via: SOURCE_LABEL[input.source],
+    outreachEnded: shift.campaign ? isCampaignTerminal(shift.campaign.status) : false,
   });
 
   return { ok: true, bid };

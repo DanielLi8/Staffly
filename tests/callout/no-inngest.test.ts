@@ -114,7 +114,6 @@ describe("posting a shift with no Inngest account", () => {
       location: "St. Michael's Hospital",
       startsAt: SHIFT_START,
       endsAt: SHIFT_END,
-      bidDeadlineAt: new Date(SHIFT_START.getTime() - 6 * 60 * 60 * 1000),
     });
 
     expect(state.shift.roleNeeded).toBe("Registered Nurse");

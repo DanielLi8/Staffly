@@ -1,4 +1,5 @@
 import type { Prisma, Role } from "@prisma/client";
+import { biddableShiftWhere } from "@/lib/shifts/bid-window";
 
 /**
  * The authorization layer. Pure and dependency-free (no DB, no session) so it
@@ -74,8 +75,12 @@ export function shiftListWhere(
   return { AND: [shiftReadScope(actor), callerFilter] };
 }
 
+/**
+ * Shifts a worker can bid on right now: their read scope narrowed by the bid
+ * window (see `bidAcceptance` in `src/lib/shifts/bid-window.ts`).
+ */
 export function workerAvailableShiftWhere(actor: Actor, now = new Date()): Prisma.ShiftWhereInput {
-  return shiftListWhere(actor, { status: "OPEN", bidDeadlineAt: { gt: now } });
+  return shiftListWhere(actor, biddableShiftWhere(now));
 }
 
 /**

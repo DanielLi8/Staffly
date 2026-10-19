@@ -32,9 +32,11 @@ const shiftStatusLabel: Record<ShiftStatus, string> = {
   CANCELLED: "CANCELLED",
 };
 
+// The status classes carry their own fill/text/border; "outline" keeps Badge's
+// neutral default utilities from overriding them (utilities beat components).
 export function ShiftStatusBadge({ status }: { status: ShiftStatus }) {
   return (
-    <Badge className={cn("border text-2xs font-bold tracking-wide uppercase", shiftStatusMap[status])}>
+    <Badge variant="outline" className={cn("border text-2xs font-bold tracking-wide uppercase", shiftStatusMap[status])}>
       {shiftStatusLabel[status]}
     </Badge>
   );
@@ -54,7 +56,7 @@ const bidStatusLabel: Record<BidStatus, string> = {
 
 export function BidStatusBadge({ status }: { status: BidStatus }) {
   return (
-    <Badge className={cn("border", bidStatusMap[status])}>
+    <Badge variant="outline" className={cn("border", bidStatusMap[status])}>
       {bidStatusLabel[status]}
     </Badge>
   );

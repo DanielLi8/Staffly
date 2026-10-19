@@ -53,6 +53,21 @@ export interface CampaignState {
   pastStartReminderAt: Date | null;
 }
 
+/**
+ * Statuses in which outreach is over: no further tier opens and the engine
+ * exits. Bidding is NOT over - that is gated by the shift alone (see
+ * `bidAcceptance` in `src/lib/shifts/bid-window.ts`).
+ */
+export const TERMINAL_CAMPAIGN_STATUSES: readonly CampaignState["status"][] = [
+  "CANCELLED",
+  "FILLED",
+  "EXHAUSTED",
+];
+
+export function isCampaignTerminal(status: CampaignState["status"]): boolean {
+  return TERMINAL_CAMPAIGN_STATUSES.includes(status);
+}
+
 export interface DecisionShift {
   status: "OPEN" | "ASSIGNED" | "CLOSED" | "CANCELLED";
   startsAt: Date;

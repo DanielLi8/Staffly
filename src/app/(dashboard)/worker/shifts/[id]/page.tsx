@@ -7,7 +7,8 @@ import { ShiftStatusBadge, BidStatusBadge } from "@/components/ui/badge";
 import { BidForm } from "@/features/shifts/bid-form";
 import { db } from "@/lib/db";
 import { getSession, actorFromSession } from "@/lib/auth";
-import { workerAvailableShiftWhere } from "@/lib/authz";
+import { shiftListWhere } from "@/lib/authz";
+import { bidAcceptance } from "@/lib/shifts/bid-window";
 import { positionMatchesRole } from "@/lib/shifts/role-match";
 import { formatShiftDate, formatShiftRange } from "@/lib/utils";
 
@@ -21,8 +22,11 @@ export default async function WorkerShiftDetailPage({ params }: { params: { id: 
   if (!session) redirect("/login");
 
   const [shift, existingBid, worker] = await Promise.all([
+    // The worker's READ scope, not the narrower "can bid now" filter: a shift
+    // they bid on stays viewable after it is awarded, so they can see the
+    // outcome instead of a 404. Whether they can still bid is BidForm's call.
     db.shift.findFirst({
-      where: { AND: [workerAvailableShiftWhere(actorFromSession(session)), { id: params.id }] },
+      where: shiftListWhere(actorFromSession(session), { id: params.id }),
       include: {
         createdBy: { select: { name: true } },
         department: { select: { id: true, name: true, code: true } },
@@ -49,8 +53,7 @@ export default async function WorkerShiftDetailPage({ params }: { params: { id: 
 
   if (!shift) notFound();
 
-  const shiftOpen = shift.status === "OPEN";
-  const deadlinePassed = new Date() > shift.bidDeadlineAt;
+  const acceptance = bidAcceptance(shift);
   const positionMismatch = !positionMatchesRole(worker?.position, shift.roleNeeded);
 
   return (
@@ -95,9 +98,11 @@ export default async function WorkerShiftDetailPage({ params }: { params: { id: 
               {shift.notes}
             </InfoRow>
           )}
-          <div className="pt-2 border-t border-neutral-100 text-xs text-neutral-500">
-            Bid deadline: {formatShiftDate(shift.bidDeadlineAt)}
-          </div>
+          {acceptance.open && (
+            <div className="pt-2 border-t border-neutral-100 text-xs text-neutral-500">
+              Open for bids until the shift is filled, even after it starts.
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -127,7 +132,9 @@ export default async function WorkerShiftDetailPage({ params }: { params: { id: 
 
       <Card>
         <CardHeader>
-          <CardTitle>{existingBid ? "Update your bid" : "Bid on this shift"}</CardTitle>
+          <CardTitle>
+            {!acceptance.open ? "Bidding closed" : existingBid ? "Update your bid" : "Bid on this shift"}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <BidForm
@@ -135,8 +142,7 @@ export default async function WorkerShiftDetailPage({ params }: { params: { id: 
             shiftStartsAtIso={shift.startsAt.toISOString()}
             shiftEndsAtIso={shift.endsAt.toISOString()}
             existingBid={existingBid}
-            shiftOpen={shiftOpen}
-            deadlinePassed={deadlinePassed}
+            acceptance={acceptance}
             positionMismatch={positionMismatch}
           />
         </CardContent>

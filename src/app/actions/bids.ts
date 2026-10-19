@@ -53,8 +53,8 @@ export async function placeBid(rawInput: unknown) {
         throw new Error("Shift not found");
       case "SHIFT_CLOSED":
         throw new Error("This shift is no longer accepting bids");
-      case "DEADLINE_PASSED":
-        throw new Error("The bid deadline has passed");
+      case "SHIFT_ENDED":
+        throw new Error("This shift has already ended");
       case "INVALID_WINDOW":
         throw new Error("Your times must fall within the posted shift hours.");
       case "POSITION_MISMATCH":

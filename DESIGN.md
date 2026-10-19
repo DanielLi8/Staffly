@@ -226,7 +226,8 @@ Gently rounded and consistent: 6px (`rounded-md`) for buttons and inputs, 12px (
 
 ### Chips and Pills
 - **Status pills:** uppercase 13px (`text-2xs`) bold, full radius, tinted fill + matching border (`.status-open`, `.status-assigned`, `.status-closed`, `.status-cancelled`).
-- **Bid pills:** sentence case (`.bid-pending`, `.bid-selected`, `.bid-not-selected`).
+- **Bid pills:** sentence case (`.bid-pending` slate, `.bid-selected` Assigned Green, `.bid-not-selected` muted neutral - not being picked is not an alarm).
+- Status and bid pills render through `ShiftStatusBadge`/`BidStatusBadge` with `Badge variant="outline"`: the default variant's neutral utilities would otherwise override the pill classes.
 - **Muted pill** (`.pill-muted`): neutral-100 fill, neutral-600 text.
 
 ### Cards / Containers

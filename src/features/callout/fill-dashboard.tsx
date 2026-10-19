@@ -8,18 +8,21 @@ import {
   AlertTriangle,
   CheckCircle2,
   Hourglass,
+  Inbox,
+  Lock,
   Mail,
   MessageSquare,
   Phone,
   Bell,
   XCircle,
 } from "lucide-react";
-import { format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollAreaX } from "@/components/ui/scroll-area-x";
 import { cn } from "@/lib/utils";
 import { MAX_TIER } from "@/lib/callout/tiers";
+import { isCampaignTerminal } from "@/lib/callout/decide";
+import { hospitalDate, hospitalDateTime, hospitalTime, hospitalTimeWithSeconds } from "@/lib/timezone";
 import type { ChannelAttempt, FillDashboard } from "@/lib/callout/dashboard";
 import type { Channel, CampaignStatus, DeliveryStatus } from "@prisma/client";
 import { CascadeControls } from "./cascade-controls";
@@ -30,12 +33,23 @@ const TIER_LABEL: Record<number, string> = {
   3: "Other departments",
 };
 
+// A stopped callout is not an alarm (bidding carries on), so it stays out of
+// clinical red - DESIGN.md "The One Alarm Rule".
 const CAMPAIGN_STATUS_STYLE: Record<CampaignStatus, string> = {
   RUNNING: "bg-primary-50 text-primary-800 border-primary-200",
   PAUSED: "bg-amber-50 text-amber-800 border-amber-200",
-  CANCELLED: "bg-red-50 text-accent border-accent-200",
+  CANCELLED: "bg-neutral-100 text-neutral-700 border-neutral-200",
   FILLED: "bg-emerald-50 text-emerald-800 border-emerald-200",
-  EXHAUSTED: "bg-neutral-100 text-neutral-600 border-neutral-200",
+  EXHAUSTED: "bg-neutral-100 text-neutral-700 border-neutral-200",
+};
+
+/** The campaign status says what happened to OUTREACH, never to bidding. */
+const CAMPAIGN_STATUS_LABEL: Record<CampaignStatus, string> = {
+  RUNNING: "Running",
+  PAUSED: "On hold",
+  CANCELLED: "Outreach stopped",
+  FILLED: "Filled",
+  EXHAUSTED: "Tiers exhausted",
 };
 
 const CHANNEL_ICON: Record<Channel, React.ElementType> = {
@@ -60,7 +74,7 @@ function formatMinutes(total: number): string {
   return minutes === 0 ? `${hours}h` : `${hours}h ${minutes}m`;
 }
 
-export function FillDashboardPanel({ data }: { data: FillDashboard }) {
+export function FillDashboardPanel({ data, now = new Date() }: { data: FillDashboard; now?: Date }) {
   const { campaign } = data;
 
   if (!campaign) {
@@ -85,7 +99,7 @@ export function FillDashboardPanel({ data }: { data: FillDashboard }) {
         <CardTitle className="flex items-center gap-2">
           Callout cascade
           <Badge className={cn("text-2xs font-bold uppercase tracking-wide", CAMPAIGN_STATUS_STYLE[campaign.status])}>
-            {campaign.status}
+            {CAMPAIGN_STATUS_LABEL[campaign.status]}
           </Badge>
         </CardTitle>
         <span className="text-xs text-neutral-500">
@@ -94,6 +108,8 @@ export function FillDashboardPanel({ data }: { data: FillDashboard }) {
       </CardHeader>
 
       <CardContent className="space-y-6">
+        <BiddingStatus data={data} />
+
         {campaign.openingDispatchAt && (
           <div
             role="status"
@@ -101,8 +117,8 @@ export function FillDashboardPanel({ data }: { data: FillDashboard }) {
           >
             <Hourglass className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden="true" />
             <span>
-              Outreach is held until {format(campaign.openingDispatchAt, "h:mm:ss a")} - nobody
-              has been contacted yet. Stop the cascade before then and no message goes out.
+              Outreach is held until {hospitalTimeWithSeconds(campaign.openingDispatchAt)} - nobody
+              has been contacted yet. Stop outreach before then and no message goes out.
             </span>
           </div>
         )}
@@ -165,17 +181,21 @@ export function FillDashboardPanel({ data }: { data: FillDashboard }) {
           </ol>
         </div>
 
-        {/* Controls */}
+        {/* Controls, or how outreach ended */}
         <div className="space-y-2">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-            Controls
+            {isCampaignTerminal(campaign.status) ? "Outreach" : "Controls"}
           </h3>
-          <CascadeControls
-            shiftId={data.shift.id}
-            status={campaign.status}
-            currentTier={campaign.currentTier}
-            maxTier={MAX_TIER}
-          />
+          {isCampaignTerminal(campaign.status) ? (
+            <p className="text-sm text-neutral-600">{describeOutreachEnd(data, now)}</p>
+          ) : (
+            <CascadeControls
+              shiftId={data.shift.id}
+              status={campaign.status}
+              currentTier={campaign.currentTier}
+              maxTier={MAX_TIER}
+            />
+          )}
         </div>
 
         {/* Delivery tracking */}
@@ -221,6 +241,85 @@ export function FillDashboardPanel({ data }: { data: FillDashboard }) {
       </CardContent>
     </Card>
   );
+}
+
+/**
+ * Whether the shift is taking bids, stated on its own line because it does NOT
+ * follow the campaign badge: a stopped or exhausted callout keeps taking bids
+ * until the shift is awarded or cancelled.
+ */
+function BiddingStatus({ data }: { data: FillDashboard }) {
+  const count = data.bidders.length;
+  const bids = `${count} bid${count === 1 ? "" : "s"} so far`;
+
+  if (data.bidding.open) {
+    const outreachEnded = data.campaign !== null && isCampaignTerminal(data.campaign.status);
+    return (
+      <div
+        role="status"
+        className="flex items-start gap-2 rounded-md border border-primary-200 bg-primary-50 px-3 py-2 text-sm text-primary-800"
+      >
+        <Inbox className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden="true" />
+        <span>
+          <span className="font-semibold">Bidding open</span> · {bids}.{" "}
+          {outreachEnded
+            ? "Outreach has ended, but staff can still bid in the app or by replying to an earlier text or call."
+            : "Staff can bid in the app or by replying to a text or call."}
+        </span>
+      </div>
+    );
+  }
+
+  const why =
+    data.bidding.reason === "SHIFT_ENDED"
+      ? "the shift ended unfilled"
+      : data.shift.status === "ASSIGNED"
+        ? "the shift has been awarded"
+        : data.shift.status === "CANCELLED"
+          ? "the shift was cancelled"
+          : "the shift is closed";
+  return (
+    <div
+      role="status"
+      className="flex items-start gap-2 rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm text-neutral-700"
+    >
+      <Lock className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden="true" />
+      <span>
+        <span className="font-semibold">Bidding closed</span> · {why}.
+      </span>
+    </div>
+  );
+}
+
+/** A time today reads as "9:13 PM"; anything older gets its date too. */
+function whenLabel(at: Date, now: Date): string {
+  return hospitalDate(at) === hospitalDate(now) ? hospitalTime(at) : hospitalDateTime(at);
+}
+
+/** What happened to outreach, for a campaign that has ended. */
+export function describeOutreachEnd(data: FillDashboard, now: Date): string {
+  const { campaign, shift, bidding } = data;
+  if (!campaign) return "";
+
+  if (campaign.status === "FILLED") {
+    const late =
+      campaign.filledAt && campaign.endedAt && campaign.endedAt < campaign.filledAt;
+    return late
+      ? "Filled from a bid that arrived after outreach had ended."
+      : "Filled. Outreach ended when the shift was awarded.";
+  }
+  if (shift.status === "CANCELLED") {
+    return "The shift was cancelled. No further outreach will be sent.";
+  }
+
+  const ended =
+    campaign.status === "EXHAUSTED"
+      ? `All ${MAX_TIER} tiers contacted with no fill yet. No more texts or calls will go out.`
+      : campaign.stoppedBy
+        ? `Outreach stopped at tier ${campaign.currentTier} by ${campaign.stoppedBy.name}, ${whenLabel(campaign.stoppedBy.at, now)}. No more texts or calls will go out.`
+        : `Outreach stopped at tier ${campaign.currentTier}. No more texts or calls will go out.`;
+
+  return bidding.open ? `${ended} Bidding is still open.` : ended;
 }
 
 function Metric({ label, value }: { label: string; value: string }) {

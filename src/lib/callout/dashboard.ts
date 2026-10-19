@@ -11,6 +11,7 @@ import type {
   DeliveryStatus,
   OutreachResponse,
   CampaignStatus,
+  ShiftStatus,
 } from "@prisma/client";
 import { startOfWeek, endOfWeek } from "date-fns";
 import { db } from "@/lib/db";
@@ -18,6 +19,7 @@ import { rankBySeniority } from "@/lib/seniority";
 import { EMAIL_CHANNEL_ENABLED } from "@/lib/outreach";
 import { buildTierRoster, TIERS, type Tier } from "./tiers";
 import { loadTierCandidates, tierEnteredAt, windowMinutesForTier } from "./campaign";
+import { bidAcceptance, type BidAcceptance } from "@/lib/shifts/bid-window";
 import {
   projectOvertime,
   DEFAULT_WEEK_STARTS_ON,
@@ -83,8 +85,15 @@ export interface FillDashboard {
     filledAt: Date | null;
     endedAt: Date | null;
     pastStartReminderAt: Date | null;
+    /** Who pressed "Stop outreach" and when; null unless a scheduler stopped it. */
+    stoppedBy: { name: string; at: Date } | null;
   } | null;
-  shift: { id: string; status: string; startsAt: Date; endsAt: Date };
+  shift: { id: string; status: ShiftStatus; startsAt: Date; endsAt: Date };
+  /**
+   * Whether the shift takes bids right now. Independent of the campaign: bidding
+   * outlives a stopped or exhausted callout (see `bidAcceptance`).
+   */
+  bidding: BidAcceptance;
   /** Positions still to fill. This model books one worker per shift. */
   remainingGap: number;
   /** Minutes from campaign start to now (or to fill, once filled). */
@@ -137,6 +146,12 @@ export async function loadFillDashboard(
       outreachAttempts: {
         orderBy: { createdAt: "asc" },
         include: { user: { select: { id: true, name: true } } },
+      },
+      activities: {
+        where: { action: "CALLOUT_STOPPED" },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { createdAt: true, actor: { select: { name: true } } },
       },
     },
   });
@@ -215,6 +230,9 @@ export async function loadFillDashboard(
           filledAt: campaign.filledAt,
           endedAt: campaign.endedAt,
           pastStartReminderAt: campaign.pastStartReminderAt,
+          stoppedBy: shift.activities[0]
+            ? { name: shift.activities[0].actor.name, at: shift.activities[0].createdAt }
+            : null,
         }
       : null,
     shift: {
@@ -223,6 +241,7 @@ export async function loadFillDashboard(
       startsAt: shift.startsAt,
       endsAt: shift.endsAt,
     },
+    bidding: bidAcceptance(shift, now),
     remainingGap: shift.status === "OPEN" ? 1 : 0,
     elapsedMinutes: startedAt ? minutesBetween(startedAt, filledAt ?? now) : 0,
     timeToFillMinutes: startedAt && filledAt ? minutesBetween(startedAt, filledAt) : null,

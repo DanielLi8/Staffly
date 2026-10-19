@@ -14,16 +14,18 @@ interface CascadeControlsProps {
 }
 
 /**
- * Advance / hold / stop. These are plain database writes behind the scenes, so
- * they work identically with and without Inngest - the demo can steer the whole
- * cascade by hand.
+ * Advance / hold / stop outreach, for a callout that is still running or on
+ * hold (the dashboard explains an ended one instead). These are plain database
+ * writes behind the scenes, so they work identically with and without Inngest -
+ * the demo can steer the whole cascade by hand.
+ *
+ * "Stop outreach" ends texts and calls only. Bidding is gated by the shift, not
+ * the campaign, so the shift keeps taking bids until it is awarded or cancelled.
  */
 export function CascadeControls({ shiftId, status, currentTier, maxTier }: CascadeControlsProps) {
   const [error, setError] = useState("");
   const [confirmStop, setConfirmStop] = useState(false);
   const [isPending, startTransition] = useTransition();
-
-  const ended = status === "CANCELLED" || status === "FILLED" || status === "EXHAUSTED";
 
   function run(action: () => Promise<void>) {
     setError("");
@@ -35,14 +37,6 @@ export function CascadeControls({ shiftId, status, currentTier, maxTier }: Casca
         setError(err instanceof Error ? err.message : "Action failed.");
       }
     });
-  }
-
-  if (ended) {
-    return (
-      <p className="text-sm text-neutral-500">
-        This callout has ended. No further outreach will be sent.
-      </p>
-    );
   }
 
   return (
@@ -89,15 +83,17 @@ export function CascadeControls({ shiftId, status, currentTier, maxTier }: Casca
         )}
 
         {confirmStop ? (
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-neutral-500">Stop the cascade?</span>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-neutral-600">
+              Stop texting and calling? Bidding stays open in the app and by reply.
+            </span>
             <Button
               size="sm"
               variant="danger"
               onClick={() => run(() => stopCallout(shiftId))}
               loading={isPending}
             >
-              Confirm stop
+              Stop outreach
             </Button>
             <Button
               size="sm"
@@ -117,14 +113,15 @@ export function CascadeControls({ shiftId, status, currentTier, maxTier }: Casca
             className="text-accent-700 border-accent-200 hover:bg-accent-50"
           >
             <Square className="w-4 h-4" aria-hidden="true" />
-            Stop
+            Stop outreach
           </Button>
         )}
       </div>
 
       <p className="text-xs text-neutral-500">
-        Stopping ends outreach only. The shift stays open and can still be filled from
-        existing bids.
+        Stopping outreach ends texts and calls only. Staff can still bid - in the app or by
+        replying to a text or call they already got - until the shift is awarded, cancelled,
+        or over.
       </p>
     </div>
   );

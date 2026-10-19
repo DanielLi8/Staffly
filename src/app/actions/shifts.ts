@@ -25,10 +25,6 @@ const createShiftSchema = z.object({
     required_error: "End time is required",
     invalid_type_error: "Enter a valid end date and time",
   }),
-  bidDeadlineAt: z.coerce.date({
-    required_error: "Bid deadline is required",
-    invalid_type_error: "Enter a valid bid deadline date and time",
-  }),
   notes: z.string().optional(),
 });
 
@@ -111,7 +107,6 @@ export async function createShift(rawInput: unknown): Promise<CreateShiftFailure
     location: data.location,
     startsAt: data.startsAt,
     endsAt: data.endsAt,
-    bidDeadlineAt: data.bidDeadlineAt,
     notes: data.notes,
     status: "OPEN",
     createdById: session.user.id,
@@ -217,9 +212,10 @@ export interface EditShiftTimeFailure {
 }
 
 /**
- * Only checks endsAt > startsAt, not the full validateShiftTimes bidDeadlineAt
- * rules: this edits an already-assigned shift, whose bidDeadlineAt is routinely
- * already in the past, so the full validator would always fail post-assignment.
+ * Only checks endsAt > startsAt, not the full validateShiftTimes rules: this
+ * routinely edits a shift that is assigned or already under way, whose start
+ * is legitimately in the past, so "start must be in the future" would wrongly
+ * refuse a correction to it.
  */
 export async function editShiftTime(
   rawInput: unknown
