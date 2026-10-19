@@ -104,8 +104,14 @@ describe("admin-shift revision (Postgres)", () => {
   });
 
   it("changes when an outreach attempt gets a delivery callback, then a reply", async () => {
-    await db.outreachAttempt.create({
-      data: { shiftId, userId: mariaId, channel: "SMS", tier: 1, status: "SENT", providerMessageId: `SM-live-${shiftId}` },
+    // Tier 1 may already have recorded Maria's SMS attempt (whether she is in
+    // tier 1 depends on the seed's availability vs. today's date), so upsert on
+    // the idempotency key rather than create.
+    const sent = { status: "SENT" as const, providerMessageId: `SM-live-${shiftId}` };
+    await db.outreachAttempt.upsert({
+      where: { shiftId_tier_userId_channel: { shiftId, tier: 1, userId: mariaId, channel: "SMS" } },
+      create: { shiftId, userId: mariaId, channel: "SMS", tier: 1, ...sent },
+      update: sent,
     });
 
     const beforeCallback = await revision();
@@ -120,7 +126,9 @@ describe("admin-shift revision (Postgres)", () => {
     // An SMS reply after Stop: submitBid records the bid and marks the attempt.
     const result = await submitBid({ shiftId, workerId: mariaId, scope: "FULL", source: "SMS" });
     expect(result.ok).toBe(true);
-    const attempt = await db.outreachAttempt.findFirstOrThrow({ where: { shiftId, userId: mariaId, channel: "SMS" } });
+    const attempt = await db.outreachAttempt.findFirstOrThrow({
+      where: { shiftId, userId: mariaId, channel: "SMS", tier: 1 },
+    });
     expect(attempt.response).toBe("ACCEPTED");
     expect(attempt.updatedAt.getTime()).toBeGreaterThan(attempt.createdAt.getTime());
     expect(await revision()).not.toBe(afterCallback);
