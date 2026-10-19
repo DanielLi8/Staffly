@@ -47,7 +47,6 @@ beforeAll(async () => {
       location: "tests/db/live-revision",
       startsAt,
       endsAt: new Date(startsAt.getTime() + 12 * HOUR),
-      bidDeadlineAt: new Date(startsAt.getTime() - 6 * HOUR),
       createdById: adminId,
     },
   });
