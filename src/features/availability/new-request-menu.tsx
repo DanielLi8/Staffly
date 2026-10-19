@@ -3,17 +3,18 @@
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
-export type NewRequestChoice = "change-availability" | "shift-swap" | "shift-giveaway";
+export type NewRequestChoice = "set-availability" | "shift-swap" | "shift-giveaway";
 
 const MENU_ITEMS = [
-  { choice: "change-availability" as const, label: "Change Availability" },
+  { choice: "set-availability" as const, label: "Set availability" },
   { choice: "shift-swap" as const, label: "Shift Swap" },
   { choice: "shift-giveaway" as const, label: "Shift Giveaway" },
 ];
 
 /**
  * Text-only dropdown per the captain's note (no icons). The single "+ New
- * Request" entry point for `/worker/schedule` - Change Availability, Shift
+ * Request" entry point for `/worker/schedule` - Set availability (which saves
+ * instantly; it opens the same editor as the Day details button), Shift
  * Swap, and Shift Giveaway are all live. Mirrors the click-outside/Escape/aria
  * pattern of `src/components/layout/user-menu.tsx`, the only other
  * hand-rolled menu in the app.

@@ -68,6 +68,19 @@
     @apply bg-rose-50 text-rose-800 border-rose-200;
   }
 
+  /* Schedule color language (DESIGN.md "Schedule colors"): "not available"
+     is slate diagonal stripes, never clinical red. `-strong` is for small
+     swatches and thin bars where the lighter stripes would vanish. */
+  .bg-unavailable {
+    background-color: #f1f5f9;
+    background-image: repeating-linear-gradient(135deg, #cbd5e1 0 2px, transparent 2px 7px);
+  }
+
+  .bg-unavailable-strong {
+    background-color: #e2e8f0;
+    background-image: repeating-linear-gradient(135deg, #94a3b8 0 2px, transparent 2px 5px);
+  }
+
   .pill-muted {
     @apply inline-flex items-center rounded-full bg-neutral-100 px-2.5 py-0.5 text-2xs font-semibold uppercase tracking-wider text-neutral-600;
   }
