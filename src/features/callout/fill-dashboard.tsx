@@ -25,6 +25,7 @@ import { isCampaignTerminal } from "@/lib/callout/decide";
 import { hospitalDate, hospitalDateTime, hospitalTime, hospitalTimeWithSeconds } from "@/lib/timezone";
 import type { ChannelAttempt, FillDashboard } from "@/lib/callout/dashboard";
 import type { Channel, CampaignStatus, DeliveryStatus } from "@prisma/client";
+import { LiveStatus } from "@/features/live/live-refresh";
 import { CascadeControls } from "./cascade-controls";
 
 const TIER_LABEL: Record<number, string> = {
@@ -80,8 +81,9 @@ export function FillDashboardPanel({ data, now = new Date() }: { data: FillDashb
   if (!campaign) {
     return (
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-wrap items-center justify-between gap-3">
           <CardTitle>Callout cascade</CardTitle>
+          <LiveStatus />
         </CardHeader>
         <CardContent>
           <p className="text-sm text-neutral-500">
@@ -102,9 +104,12 @@ export function FillDashboardPanel({ data, now = new Date() }: { data: FillDashb
             {CAMPAIGN_STATUS_LABEL[campaign.status]}
           </Badge>
         </CardTitle>
-        <span className="text-xs text-neutral-500">
-          Tier {campaign.currentTier} of {MAX_TIER} · window {campaign.currentWindowMinutes}m
-        </span>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+          <span className="text-xs text-neutral-500">
+            Tier {campaign.currentTier} of {MAX_TIER} · window {campaign.currentWindowMinutes}m
+          </span>
+          <LiveStatus />
+        </div>
       </CardHeader>
 
       <CardContent className="space-y-6">
