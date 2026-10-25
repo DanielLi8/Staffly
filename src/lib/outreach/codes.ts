@@ -7,8 +7,11 @@
  *
  *   Reply YES 7K2M   -> accept the FULL shift
  *   Reply PART 7K2M  -> offer to cover a PARTIAL window (scheduler confirms hours)
+ *   Reply NO 7K2M    -> decline the shift (N / NO / DECLINE)
  *
- * A bare code ("7K2M") is treated as a full-shift accept. Carrier keywords
+ * A bare code ("7K2M") is treated as a full-shift accept. A bare decline word
+ * ("NO") carries no code; the inbound handler resolves it to the worker's one
+ * outstanding SMS callout, or asks for the code when there is more than one. Carrier keywords
  * (STOP/START/HELP ...) are recognised so the inbound handler can ignore them
  * gracefully rather than mis-parsing them as a code.
  */
@@ -17,6 +20,7 @@ export type ReplyScope = "FULL" | "PARTIAL";
 
 export type ParsedReply =
   | { kind: "bid"; scope: ReplyScope; code: string }
+  | { kind: "decline"; code: string | null }
   | { kind: "control"; keyword: string }
   | { kind: "unknown" };
 
@@ -41,6 +45,7 @@ const CONTROL_KEYWORDS = new Set([
 
 const FULL_PREFIXES = new Set(["YES", "ACCEPT", "Y", "OK", "CONFIRM"]);
 const PARTIAL_PREFIXES = new Set(["PART", "PARTIAL", "P", "SOME"]);
+const DECLINE_PREFIXES = new Set(["N", "NO", "DECLINE"]);
 
 /** A valid shift code is 4-8 chars from the generation alphabet. */
 const CODE_RE = /^[A-Z0-9]{4,8}$/;
@@ -63,7 +68,7 @@ function isCode(token: string): boolean {
 /**
  * Parse an inbound SMS body into an intent. Whitespace-insensitive and
  * case-insensitive. Returns a discriminated union so callers must handle every
- * case (bid / carrier-control / unrecognised).
+ * case (bid / decline / carrier-control / unrecognised).
  */
 export function parseReply(body: string | null | undefined): ParsedReply {
   if (!body) return { kind: "unknown" };
@@ -77,6 +82,8 @@ export function parseReply(body: string | null | undefined): ParsedReply {
   if (tokens.length === 1) {
     const [only] = tokens;
     if (CONTROL_KEYWORDS.has(only)) return { kind: "control", keyword: only };
+    // Checked before the code shape: "DECLINE" is 7 letters and would match it.
+    if (DECLINE_PREFIXES.has(only)) return { kind: "decline", code: null };
     // A lone accept/partial keyword (e.g. "PART") is a keyword with no code, not
     // a code itself - even though it happens to match the code shape.
     if (FULL_PREFIXES.has(only) || PARTIAL_PREFIXES.has(only)) return { kind: "unknown" };
@@ -89,6 +96,7 @@ export function parseReply(body: string | null | undefined): ParsedReply {
     const [prefix, code] = tokens;
     if (CONTROL_KEYWORDS.has(prefix)) return { kind: "control", keyword: prefix };
     if (!isCode(code)) return { kind: "unknown" };
+    if (DECLINE_PREFIXES.has(prefix)) return { kind: "decline", code };
     if (FULL_PREFIXES.has(prefix)) return { kind: "bid", scope: "FULL", code };
     if (PARTIAL_PREFIXES.has(prefix)) return { kind: "bid", scope: "PARTIAL", code };
     return { kind: "unknown" };

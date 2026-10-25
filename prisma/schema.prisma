@@ -138,6 +138,7 @@ model User {
   departmentMemberships DepartmentMembership[]
   availabilities        Availability[]
   outreachAttempts      OutreachAttempt[]
+  shiftDeclines         ShiftDecline[]
   swapRequestsMade      ShiftSwapRequest[]     @relation("SwapRequester")
   swapRequestsReceived  ShiftSwapRequest[]     @relation("SwapTarget")
   swapRequestsApproved  ShiftSwapRequest[]     @relation("SwapApprovedBy")
@@ -214,6 +215,7 @@ model Shift {
   notifications        Notification[]
   activities           ShiftActivity[]
   outreachAttempts     OutreachAttempt[]
+  declines             ShiftDecline[]
   campaign             CalloutCampaign?
   swapRequestsGiven    ShiftSwapRequest[] @relation("SwapGiveShift")
   swapRequestsReceived ShiftSwapRequest[] @relation("SwapReceiveShift")
@@ -356,6 +358,27 @@ model OutreachAttempt {
   @@unique([shiftId, tier, userId, channel])
   @@index([shiftId])
   @@index([providerMessageId])
+}
+
+/// A worker's "no" to a shift callout, from any channel (SMS `NO <code>`, IVR
+/// key 2, the in-app Decline button). One row per (shift, worker): the latest
+/// answer wins, so a later bid deletes it and a decline withdraws a pending bid
+/// (see src/lib/outreach/decline.ts, the single decline path). The cascade
+/// skips anyone with a row here, so a decline stops further outreach to them
+/// for that shift.
+model ShiftDecline {
+  id        String   @id @default(cuid())
+  shiftId   String
+  shift     Shift    @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  /// Channel the decline arrived through.
+  source    Channel
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@unique([shiftId, userId])
+  @@index([shiftId])
 }
 
 /// One tiered callout cascade per shift. Holds the authoritative campaign state

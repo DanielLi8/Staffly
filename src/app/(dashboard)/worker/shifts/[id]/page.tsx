@@ -21,7 +21,7 @@ export default async function WorkerShiftDetailPage({ params }: { params: { id: 
   const session = await getSession();
   if (!session) redirect("/login");
 
-  const [shift, existingBid, worker] = await Promise.all([
+  const [shift, existingBid, worker, decline] = await Promise.all([
     // The worker's READ scope, not the narrower "can bid now" filter: a shift
     // they bid on stays viewable after it is awarded, so they can see the
     // outcome instead of a 404. Whether they can still bid is BidForm's call.
@@ -49,6 +49,10 @@ export default async function WorkerShiftDetailPage({ params }: { params: { id: 
       },
     }),
     db.user.findUnique({ where: { id: session.user.id }, select: { position: true } }),
+    db.shiftDecline.findUnique({
+      where: { shiftId_userId: { shiftId: params.id, userId: session.user.id } },
+      select: { source: true },
+    }),
   ]);
 
   if (!shift) notFound();
@@ -144,6 +148,7 @@ export default async function WorkerShiftDetailPage({ params }: { params: { id: 
             existingBid={existingBid}
             acceptance={acceptance}
             positionMismatch={positionMismatch}
+            decline={decline ? { via: decline.source } : null}
           />
         </CardContent>
       </Card>

@@ -15,14 +15,16 @@ export default async function WorkerShiftsPage() {
   const session = await getSession();
   if (!session) redirect("/login");
 
-  const [matchableShifts, worker] = await Promise.all([
+  const [matchableShifts, worker, declines] = await Promise.all([
     db.shift.findMany({
       where: workerAvailableShiftWhere(actorFromSession(session)),
       orderBy: { startsAt: "asc" },
       include: shiftCardInclude,
     }),
     db.user.findUnique({ where: { id: session.user.id }, select: { position: true } }),
+    db.shiftDecline.findMany({ where: { userId: session.user.id }, select: { shiftId: true } }),
   ]);
+  const declinedIds = new Set(declines.map((d) => d.shiftId));
   const shifts = matchableShifts.filter((s) => positionMatchesRole(worker?.position, s.roleNeeded));
 
   return (
@@ -48,7 +50,12 @@ export default async function WorkerShiftsPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {shifts.map((shift) => (
-            <ShiftCard key={shift.id} shift={shift as ShiftWithRelations} href={`/worker/shifts/${shift.id}`} />
+            <ShiftCard
+              key={shift.id}
+              shift={shift as ShiftWithRelations}
+              href={`/worker/shifts/${shift.id}`}
+              declined={declinedIds.has(shift.id)}
+            />
           ))}
         </div>
       )}

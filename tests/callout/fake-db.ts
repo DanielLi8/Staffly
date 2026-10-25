@@ -76,6 +76,12 @@ export interface FakeBid {
   status: string;
 }
 
+export interface FakeDecline {
+  shiftId: string;
+  userId: string;
+  source: string;
+}
+
 export interface FakeState {
   shift: FakeShift;
   department: { id: string; name: string; code: string };
@@ -85,6 +91,7 @@ export interface FakeState {
   admins: string[];
   attempts: FakeAttempt[];
   bids: FakeBid[];
+  declines: FakeDecline[];
   activities: { shiftId: string; actorId: string; action: string; details: string }[];
   notifications: { userId: string; type: string; title: string; message: string; shiftId: string }[];
 }
@@ -118,6 +125,7 @@ export function createFakeState(
     admins: overrides.admins ?? [shift.createdById],
     attempts: overrides.attempts ?? [],
     bids: overrides.bids ?? [],
+    declines: overrides.declines ?? [],
     activities: overrides.activities ?? [],
     notifications: overrides.notifications ?? [],
   };
@@ -148,7 +156,12 @@ function overlaps(
 export function createFakeDb(state: FakeState) {
   let campaignSeq = 0;
 
-  return {
+  const fakeDb = {
+    // Interactive transactions run straight against the fake (no rollback).
+    async $transaction<T>(fn: (tx: never) => Promise<T>): Promise<T> {
+      return fn(fakeDb as never);
+    },
+
     department: {
       async findUnique({ where }: { where: { id: string } }) {
         return where.id === state.department.id ? state.department : null;
@@ -289,8 +302,28 @@ export function createFakeDb(state: FakeState) {
       async findMany({
         where,
       }: {
-        where: { shiftId: string; tier: number; userId: { in: string[] } };
+        where:
+          | { shiftId: string; tier: number; userId: { in: string[] } }
+          | { userId: string; channel: string; response: null };
       }) {
+        if (!("shiftId" in where)) {
+          // outstandingSmsCallouts: unanswered texts about a still-biddable,
+          // undeclined shift (the fake holds one shift).
+          const s = state.shift;
+          const biddable = s.status === "OPEN" && s.endsAt > new Date();
+          const declined = state.declines.some((d) => d.shiftId === s.id && d.userId === where.userId);
+          return state.attempts
+            .filter(
+              (a) =>
+                a.userId === where.userId &&
+                a.channel === where.channel &&
+                a.response === null &&
+                a.shiftId === s.id &&
+                biddable &&
+                !declined
+            )
+            .map(() => ({ shift: { id: s.id, title: s.title } }));
+        }
         return state.attempts.filter(
           (a) =>
             a.shiftId === where.shiftId &&
@@ -346,6 +379,18 @@ export function createFakeDb(state: FakeState) {
     },
 
     shiftBid: {
+      async findUnique({ where }: { where: { shiftId_workerId: { shiftId: string; workerId: string } } }) {
+        const key = where.shiftId_workerId;
+        const bid = state.bids.find((b) => b.shiftId === key.shiftId && b.workerId === key.workerId);
+        return bid ? { id: `bid-${bid.workerId}`, ...bid } : null;
+      },
+      async deleteMany({ where }: { where: { id: string; status?: string } }) {
+        const before = state.bids.length;
+        state.bids = state.bids.filter(
+          (b) => !(`bid-${b.workerId}` === where.id && (!where.status || b.status === where.status))
+        );
+        return { count: before - state.bids.length };
+      },
       async upsert({
         where,
         create,
@@ -365,6 +410,37 @@ export function createFakeDb(state: FakeState) {
         }
         state.bids.push({ ...create });
         return { id: `bid-${key.workerId}`, ...create };
+      },
+    },
+
+    shiftDecline: {
+      async findMany({ where }: { where: { shiftId: string } }) {
+        return state.declines.filter((d) => d.shiftId === where.shiftId);
+      },
+      async upsert({
+        where,
+        create,
+        update,
+      }: {
+        where: { shiftId_userId: { shiftId: string; userId: string } };
+        create: FakeDecline;
+        update: { source: string };
+      }) {
+        const key = where.shiftId_userId;
+        const existing = state.declines.find((d) => d.shiftId === key.shiftId && d.userId === key.userId);
+        if (existing) {
+          Object.assign(existing, update);
+          return { id: `decline-${key.userId}`, ...existing };
+        }
+        state.declines.push({ ...create });
+        return { id: `decline-${key.userId}`, ...create };
+      },
+      async deleteMany({ where }: { where: { shiftId: string; userId: string } }) {
+        const before = state.declines.length;
+        state.declines = state.declines.filter(
+          (d) => !(d.shiftId === where.shiftId && d.userId === where.userId)
+        );
+        return { count: before - state.declines.length };
       },
     },
 
@@ -400,4 +476,5 @@ export function createFakeDb(state: FakeState) {
       },
     },
   };
+  return fakeDb;
 }

@@ -33,15 +33,27 @@ export interface ChannelAttempt {
   respondedAt: Date | null;
 }
 
+export interface StaffDecline {
+  /** Channel the "no" came in on (SMS, VOICE or IN_APP). */
+  via: Channel;
+  /** Null only for a legacy channel-level decline with no response time. */
+  at: Date | null;
+}
+
 export interface ReachedStaff {
   userId: string;
   name: string;
-  /** The widest tier this person was reached in (they only ever belong to one). */
+  /**
+   * The widest tier this person was reached in (they only ever belong to one);
+   * 0 for someone who declined in the app without being contacted.
+   */
   tier: number;
+  /** Empty for someone who declined in the app without being contacted. */
   channels: ChannelAttempt[];
   /** Their bid on this shift, if any. */
   bidStatus: BidStatus | null;
-  declined: boolean;
+  /** Their decline, from any channel (see recordDecline); null if none. */
+  decline: StaffDecline | null;
 }
 
 export interface DashboardBidder {
@@ -101,7 +113,10 @@ export interface FillDashboard {
   /** Minutes from campaign start to fill; null while unfilled. */
   timeToFillMinutes: number | null;
   tiers: TierSummary[];
+  /** Everyone contacted, plus anyone who declined without being contacted. */
   reached: ReachedStaff[];
+  /** How many people outreach actually contacted (rows with a channel). */
+  reachedCount: number;
   bidders: DashboardBidder[];
 }
 
@@ -147,6 +162,9 @@ export async function loadFillDashboard(
         orderBy: { createdAt: "asc" },
         include: { user: { select: { id: true, name: true } } },
       },
+      declines: {
+        select: { userId: true, source: true, updatedAt: true, user: { select: { name: true } } },
+      },
       activities: {
         where: { action: "CALLOUT_STOPPED" },
         orderBy: { createdAt: "desc" },
@@ -185,6 +203,13 @@ export async function loadFillDashboard(
 
   const bidByWorker = new Map(shift.bids.map((b) => [b.workerId, b]));
   const nameByUser = new Map(outreachAttempts.map((a) => [a.userId, a.user.name]));
+  const declineByUser = new Map(
+    shift.declines.map((d) => [d.userId, { via: d.source, at: d.updatedAt }])
+  );
+  for (const d of shift.declines) {
+    nameByUser.set(d.userId, d.user.name);
+    if (!attemptsByUser.has(d.userId)) attemptsByUser.set(d.userId, []);
+  }
 
   const reached: ReachedStaff[] = Array.from(attemptsByUser.entries())
     .map(([userId, channels]): ReachedStaff => ({
@@ -193,9 +218,10 @@ export async function loadFillDashboard(
       tier: tierByUser.get(userId) ?? 0,
       channels,
       bidStatus: bidByWorker.get(userId)?.status ?? null,
-      declined: channels.some((c: ChannelAttempt) => c.response === "DECLINED"),
+      decline: declineByUser.get(userId) ?? legacyChannelDecline(channels),
     }))
-    .sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name));
+    // Contacted people in tier order first, then app-only declines (tier 0).
+    .sort((a, b) => (a.tier || Infinity) - (b.tier || Infinity) || a.name.localeCompare(b.name));
 
   const reachedIdsByTier = new Map<number, Set<string>>();
   for (const attempt of outreachAttempts) {
@@ -247,8 +273,18 @@ export async function loadFillDashboard(
     timeToFillMinutes: startedAt && filledAt ? minutesBetween(startedAt, filledAt) : null,
     tiers,
     reached,
+    reachedCount: reached.filter((r) => r.channels.length > 0).length,
     bidders,
   };
+}
+
+/**
+ * A decline recorded only on an outreach attempt - an IVR "2" from before the
+ * single decline path wrote `ShiftDecline` rows.
+ */
+function legacyChannelDecline(channels: ChannelAttempt[]): StaffDecline | null {
+  const declined = channels.find((c) => c.response === "DECLINED");
+  return declined ? { via: declined.channel, at: declined.respondedAt } : null;
 }
 
 /**

@@ -3,8 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { requireAuth } from "@/lib/auth";
+import { actorFromSession, requireAuth } from "@/lib/auth";
+import { shiftListWhere } from "@/lib/authz";
 import { submitBid } from "@/lib/outreach/accept";
+import { recordDecline, type RecordDeclineResult } from "@/lib/outreach/decline";
 
 const placeBidSchema = z.object({
   shiftId: z.string().min(1),
@@ -89,4 +91,32 @@ export async function withdrawBid(shiftId: string) {
   revalidatePath(`/worker/shifts/${shiftId}`);
   revalidatePath("/worker/bids");
   revalidatePath("/worker");
+}
+
+export type DeclineShiftResult = { ok: true } | Extract<RecordDeclineResult, { ok: false }>;
+
+/**
+ * The in-app Decline button. Same single decline path as an SMS "NO" or IVR
+ * key 2. A routine race (the shift was awarded or the bid processed since the
+ * page rendered) comes back as a typed failure, never a throw.
+ */
+export async function declineShift(shiftId: string): Promise<DeclineShiftResult> {
+  const session = await requireAuth("STAFF");
+  const id = z.string().min(1).parse(shiftId);
+
+  // Only a shift the worker can see (their read scope, the security boundary).
+  const visible = await db.shift.findFirst({
+    where: shiftListWhere(actorFromSession(session), { id }),
+    select: { id: true },
+  });
+  if (!visible) return { ok: false, reason: "SHIFT_NOT_FOUND" };
+
+  const result = await recordDecline({ shiftId: id, workerId: session.user.id, source: "IN_APP" });
+  if (!result.ok) return result;
+
+  revalidatePath(`/worker/shifts/${id}`);
+  revalidatePath("/worker/shifts");
+  revalidatePath("/worker/bids");
+  revalidatePath("/worker");
+  return { ok: true };
 }

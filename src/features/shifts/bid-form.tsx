@@ -5,7 +5,7 @@ import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { placeBid, withdrawBid } from "@/app/actions/bids";
+import { declineShift, placeBid, withdrawBid } from "@/app/actions/bids";
 import type { BidStatus } from "@/types";
 import type { BidAcceptance } from "@/lib/shifts/bid-window";
 import { cn } from "@/lib/utils";
@@ -35,7 +35,23 @@ interface BidFormProps {
   /** From `bidAcceptance` - the same rule `submitBid` enforces. */
   acceptance: BidAcceptance;
   positionMismatch: boolean;
+  /** The worker's decline of this shift (any channel), if they turned it down. */
+  decline?: { via: "IN_APP" | "SMS" | "VOICE" | "EMAIL" } | null;
 }
+
+const DECLINE_VIA: Record<NonNullable<BidFormProps["decline"]>["via"], string> = {
+  IN_APP: "",
+  SMS: " by text",
+  VOICE: " by phone",
+  EMAIL: " by email",
+};
+
+const DECLINE_FAILURE: Record<string, string> = {
+  SHIFT_NOT_FOUND: "Shift not found.",
+  SHIFT_CLOSED: "This shift is no longer open.",
+  SHIFT_ENDED: "This shift has already ended.",
+  BID_PROCESSED: "Your bid has already been processed.",
+};
 
 export function BidForm({
   shiftId,
@@ -44,6 +60,7 @@ export function BidForm({
   existingBid,
   acceptance,
   positionMismatch,
+  decline,
 }: BidFormProps) {
   const shiftStart = useMemo(() => new Date(shiftStartsAtIso), [shiftStartsAtIso]);
   const shiftEnd = useMemo(() => new Date(shiftEndsAtIso), [shiftEndsAtIso]);
@@ -134,16 +151,57 @@ export function BidForm({
     });
   }
 
+  async function handleDecline() {
+    setError("");
+    setSuccess("");
+    startTransition(async () => {
+      try {
+        const result = await declineShift(shiftId);
+        if (!result.ok) setError(DECLINE_FAILURE[result.reason] ?? "Failed to decline.");
+      } catch {
+        setError("Failed to decline. Please try again.");
+      }
+    });
+  }
+
   if (!existingBid && !started) {
     return (
       <div className="space-y-4">
-        <p className="text-sm text-neutral-600 leading-relaxed">
-          Ready to bid? You&apos;ll choose whether you want the full posted shift or a portion of it, then add an
-          optional note for the staffing coordinator.
-        </p>
-        <Button type="button" className="w-full sm:w-auto" onClick={() => setStarted(true)}>
-          Bid for Shift
-        </Button>
+        {error && (
+          <div role="alert" className="px-4 py-3 bg-accent-50 border border-accent-200 rounded-md text-sm text-accent-700">
+            {error}
+          </div>
+        )}
+        {decline ? (
+          <div role="status" className="px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-md text-sm text-neutral-700">
+            <p className="font-medium text-neutral-800">You declined this shift{DECLINE_VIA[decline.via]}.</p>
+            <p className="mt-0.5 text-neutral-600">
+              You won&apos;t be contacted about it again. Changed your mind? You can still bid.
+            </p>
+          </div>
+        ) : (
+          <p className="text-sm text-neutral-600 leading-relaxed">
+            Ready to bid? You&apos;ll choose whether you want the full posted shift or a portion of it, then add an
+            optional note for the staffing coordinator. Can&apos;t take it? Decline and you won&apos;t be contacted
+            about it again.
+          </p>
+        )}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <Button type="button" className="w-full sm:w-auto" onClick={() => setStarted(true)} disabled={isPending}>
+            Bid for Shift
+          </Button>
+          {!decline && (
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full sm:w-auto"
+              onClick={handleDecline}
+              loading={isPending}
+            >
+              Decline
+            </Button>
+          )}
+        </div>
       </div>
     );
   }
