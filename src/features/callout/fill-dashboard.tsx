@@ -23,7 +23,7 @@ import { cn } from "@/lib/utils";
 import { MAX_TIER } from "@/lib/callout/tiers";
 import { isCampaignTerminal } from "@/lib/callout/decide";
 import { hospitalDate, hospitalDateTime, hospitalTime, hospitalTimeWithSeconds } from "@/lib/timezone";
-import type { ChannelAttempt, FillDashboard } from "@/lib/callout/dashboard";
+import type { ChannelAttempt, FillDashboard, StaffDecline } from "@/lib/callout/dashboard";
 import type { Channel, CampaignStatus, DeliveryStatus } from "@prisma/client";
 import { LiveStatus } from "@/features/live/live-refresh";
 import { CascadeControls } from "./cascade-controls";
@@ -149,7 +149,7 @@ export function FillDashboardPanel({ data, now = new Date() }: { data: FillDashb
             label="Time to fill"
             value={data.timeToFillMinutes === null ? "—" : formatMinutes(data.timeToFillMinutes)}
           />
-          <Metric label="Staff reached" value={String(data.reached.length)} />
+          <Metric label="Staff reached" value={String(data.reachedCount)} />
         </dl>
 
         {/* Tier progress */}
@@ -217,8 +217,8 @@ export function FillDashboardPanel({ data, now = new Date() }: { data: FillDashb
                   <tr className="text-left text-xs uppercase tracking-wide text-neutral-500">
                     <th className="pb-2 pr-3 font-medium">Staff</th>
                     <th className="pb-2 pr-3 font-medium">Tier</th>
-                    <th className="pb-2 pr-3 font-medium">Channels</th>
-                    <th className="pb-2 font-medium">Response</th>
+                    <th className="pb-2 pr-3 font-medium">Response</th>
+                    <th className="pb-2 font-medium">Channels</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-100">
@@ -227,14 +227,18 @@ export function FillDashboardPanel({ data, now = new Date() }: { data: FillDashb
                       <td className="py-2 pr-3 font-medium text-neutral-800">{person.name}</td>
                       <td className="py-2 pr-3 text-neutral-500">{person.tier || "—"}</td>
                       <td className="py-2 pr-3">
-                        <div className="flex flex-wrap gap-1.5">
-                          {person.channels.map((c) => (
-                            <ChannelChip key={c.channel} attempt={c} />
-                          ))}
-                        </div>
+                        <ResponseChip bidStatus={person.bidStatus} decline={person.decline} now={now} />
                       </td>
                       <td className="py-2">
-                        <ResponseChip bidStatus={person.bidStatus} declined={person.declined} />
+                        {person.channels.length === 0 ? (
+                          <span className="text-xs text-neutral-500">Not contacted</span>
+                        ) : (
+                          <div className="flex flex-wrap gap-1.5">
+                            {person.channels.map((c) => (
+                              <ChannelChip key={c.channel} attempt={c} />
+                            ))}
+                          </div>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -355,12 +359,21 @@ function ChannelChip({ attempt }: { attempt: ChannelAttempt }) {
   );
 }
 
+const DECLINE_VIA: Record<Channel, string> = {
+  IN_APP: "in app",
+  SMS: "by text",
+  VOICE: "by phone",
+  EMAIL: "by email",
+};
+
 function ResponseChip({
   bidStatus,
-  declined,
+  decline,
+  now,
 }: {
   bidStatus: string | null;
-  declined: boolean;
+  decline: StaffDecline | null;
+  now: Date;
 }) {
   if (bidStatus) {
     return (
@@ -370,11 +383,17 @@ function ResponseChip({
       </span>
     );
   }
-  if (declined) {
+  if (decline) {
     return (
-      <span className="inline-flex items-center gap-1 text-xs font-medium text-rose-700">
-        <XCircle className="h-3.5 w-3.5" aria-hidden="true" />
-        Declined
+      <span className="inline-flex flex-col gap-0.5">
+        <span className="inline-flex items-center gap-1 text-xs font-medium text-rose-700">
+          <XCircle className="h-3.5 w-3.5" aria-hidden="true" />
+          Declined
+        </span>
+        <span className="whitespace-nowrap text-2xs text-neutral-500">
+          {DECLINE_VIA[decline.via]}
+          {decline.at ? `, ${whenLabel(decline.at, now)}` : ""}
+        </span>
       </span>
     );
   }

@@ -16,7 +16,8 @@ import type { LiveTopic } from "./topics";
 
 /**
  * Everything the admin shift page renders that someone other than the viewing
- * admin can change. Counts catch deletes (a withdrawn bid); max timestamps
+ * admin can change. Counts catch deletes (a withdrawn bid, a decline taken
+ * back by a later bid); max timestamps
  * catch in-place updates (an award, a reply, a delivery callback).
  */
 export interface AdminShiftRevisionInputs {
@@ -26,6 +27,8 @@ export interface AdminShiftRevisionInputs {
   bidsUpdatedAt: Date | null;
   attemptCount: number;
   attemptsUpdatedAt: Date | null;
+  declineCount: number;
+  declinesUpdatedAt: Date | null;
   activityCount: number;
 }
 
@@ -61,6 +64,8 @@ export async function loadAdminShiftRevisionInputs(
       bidsUpdatedAt: Date | null;
       attemptCount: number;
       attemptsUpdatedAt: Date | null;
+      declineCount: number;
+      declinesUpdatedAt: Date | null;
       activityCount: number;
     }[]
   >(Prisma.sql`
@@ -69,6 +74,7 @@ export async function loadAdminShiftRevisionInputs(
       (SELECT c."updatedAt" FROM "CalloutCampaign" c WHERE c."shiftId" = s."id") AS "campaignUpdatedAt",
       b."bidCount", b."bidsUpdatedAt",
       a."attemptCount", a."attemptsUpdatedAt",
+      d."declineCount", d."declinesUpdatedAt",
       (SELECT count(*)::int FROM "ShiftActivity" sa WHERE sa."shiftId" = s."id") AS "activityCount"
     FROM "Shift" s
     CROSS JOIN LATERAL (
@@ -79,6 +85,10 @@ export async function loadAdminShiftRevisionInputs(
       SELECT count(*)::int AS "attemptCount", max(oa."updatedAt") AS "attemptsUpdatedAt"
       FROM "OutreachAttempt" oa WHERE oa."shiftId" = s."id"
     ) a
+    CROSS JOIN LATERAL (
+      SELECT count(*)::int AS "declineCount", max(sd."updatedAt") AS "declinesUpdatedAt"
+      FROM "ShiftDecline" sd WHERE sd."shiftId" = s."id"
+    ) d
     WHERE s."id" = ${shiftId}
   `);
   return rows[0] ?? null;

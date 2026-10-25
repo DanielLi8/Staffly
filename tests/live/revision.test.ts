@@ -21,6 +21,8 @@ const base: AdminShiftRevisionInputs = {
   bidsUpdatedAt: t(2),
   attemptCount: 3,
   attemptsUpdatedAt: t(3),
+  declineCount: 1,
+  declinesUpdatedAt: t(5),
   activityCount: 4,
 };
 
@@ -41,6 +43,8 @@ describe("adminShiftRevision", () => {
     ["a campaign appears", { campaignUpdatedAt: null }],
     ["an outreach attempt gets a reply or delivery callback", { attemptsUpdatedAt: t(10) }],
     ["a tier dispatches new attempts", { attemptCount: 5, attemptsUpdatedAt: t(10) }],
+    ["a worker declines", { declineCount: 2, declinesUpdatedAt: t(10) }],
+    ["a decline is taken back by a later bid (deleted)", { declineCount: 0, declinesUpdatedAt: null }],
     ["an activity row is logged", { activityCount: 5 }],
     ["the shift itself changes (status, times, assignment)", { shiftUpdatedAt: t(10) }],
   ])("changes when %s", (_label, patch) => {

@@ -9,6 +9,7 @@ const dbMock = vi.hoisted(() => ({
   shift: { findUnique: vi.fn() },
   shiftBid: { upsert: vi.fn() },
   outreachAttempt: { updateMany: vi.fn() },
+  shiftDecline: { deleteMany: vi.fn() },
   user: { findUnique: vi.fn(), findMany: vi.fn() },
   notification: { createMany: vi.fn() },
 }));
@@ -36,6 +37,7 @@ beforeEach(() => {
   dbMock.shift.findUnique.mockResolvedValue(OPEN_SHIFT);
   dbMock.shiftBid.upsert.mockImplementation(async ({ create }: any) => ({ id: "bid-1", ...create }));
   dbMock.outreachAttempt.updateMany.mockResolvedValue({ count: 1 });
+  dbMock.shiftDecline.deleteMany.mockResolvedValue({ count: 0 });
   dbMock.user.findUnique.mockResolvedValue({ name: "Maria Santos", position: "Registered Nurse" });
   dbMock.user.findMany.mockResolvedValue([{ id: "admin-1" }, { id: "admin-2" }]);
   dbMock.notification.createMany.mockResolvedValue({ count: 2 });
@@ -90,6 +92,13 @@ describe("submitBid - the single accept path", () => {
     expect(dbMock.outreachAttempt.updateMany).toHaveBeenCalledWith({
       where: { shiftId: "shift-1", userId: "worker-1", channel: "SMS" },
       data: { response: "ACCEPTED", respondedAt: expect.any(Date) },
+    });
+  });
+
+  it("takes back an earlier decline - the latest answer wins", async () => {
+    await submitBid({ shiftId: "shift-1", workerId: "worker-1", scope: "FULL", source: "IN_APP" });
+    expect(dbMock.shiftDecline.deleteMany).toHaveBeenCalledWith({
+      where: { shiftId: "shift-1", userId: "worker-1" },
     });
   });
 

@@ -21,9 +21,17 @@ interface ShiftCardProps {
   href: string;
   showBidCount?: boolean;
   tone?: "default" | "muted";
+  /** The viewing worker turned this shift down (still open to bid on). */
+  declined?: boolean;
 }
 
-export function ShiftCard({ shift, href, showBidCount = false, tone = "default" }: ShiftCardProps) {
+export function ShiftCard({
+  shift,
+  href,
+  showBidCount = false,
+  tone = "default",
+  declined = false,
+}: ShiftCardProps) {
   const DeptIcon = getDepartmentIcon(shift.department.iconKey);
   const tint = iconTints[shift.department.code] ?? "bg-primary-50 text-primary-800 border-primary-100";
 
@@ -90,9 +98,16 @@ export function ShiftCard({ shift, href, showBidCount = false, tone = "default" 
             </div>
           </div>
 
-          <div className="mt-3 pt-3 border-t border-neutral-100 flex items-center justify-between text-xs text-neutral-500">
-            <span>Posted {formatRelative(shift.createdAt)}</span>
-            <span className="font-medium text-primary-600 group-hover:underline">
+          <div className="mt-3 pt-3 border-t border-neutral-100 flex items-center justify-between gap-3 text-xs text-neutral-500">
+            <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+              <span>Posted {formatRelative(shift.createdAt)}</span>
+              {declined && (
+                <span className="rounded-full border border-neutral-200 bg-neutral-100 px-2 py-0.5 text-2xs font-medium text-neutral-700">
+                  You declined
+                </span>
+              )}
+            </span>
+            <span className="shrink-0 whitespace-nowrap font-medium text-primary-600 group-hover:underline">
               View Details →
             </span>
           </div>

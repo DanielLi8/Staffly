@@ -171,7 +171,7 @@ export async function loadTierCandidates(shift: {
  *
  * The dispatcher is idempotent per (shift, tier, user, channel), so calling this
  * twice for the same tier - an engine retry, or a scheduler re-advancing - does
- * not re-contact anyone.
+ * not re-contact anyone. Anyone who declined the shift is left out.
  */
 export async function runTierOutreach(shiftId: string, tier: Tier): Promise<number> {
   const shift = await db.shift.findUnique({
@@ -185,7 +185,14 @@ export async function runTierOutreach(shiftId: string, tier: Tier): Promise<numb
 
   const candidates = await loadTierCandidates(shift);
   const roster = buildTierRoster(shift, candidates);
-  const recipients = roster[tier];
+  // Whoever already said no (any channel - see recordDecline) is never
+  // contacted about this shift again.
+  const declined = new Set(
+    (
+      await db.shiftDecline.findMany({ where: { shiftId }, select: { userId: true } })
+    ).map((d) => d.userId)
+  );
+  const recipients = roster[tier].filter((r) => !declined.has(r.id));
 
   await dispatchOutreach(outreachShift, recipients, { tier });
   return recipients.length;

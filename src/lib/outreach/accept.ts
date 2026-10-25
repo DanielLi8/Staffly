@@ -119,6 +119,10 @@ export async function submitBid(input: SubmitBidInput): Promise<SubmitBidResult>
     },
   });
 
+  // The latest answer wins: bidding after a decline takes the decline back, so
+  // the worker is a normal bidder again (see ./decline).
+  await db.shiftDecline.deleteMany({ where: { shiftId: shift.id, userId: input.workerId } });
+
   // Record the acceptance against any outreach attempt on the channel it arrived
   // through, so delivery tracking reflects the two-way response.
   const channel = input.source === "SMS" ? Channel.SMS : input.source === "VOICE" ? Channel.VOICE : null;

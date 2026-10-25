@@ -4,6 +4,8 @@ import { db } from "@/lib/db";
 import { readVerifiedTwilioForm } from "@/lib/outreach/webhook";
 import { parseReply } from "@/lib/outreach/codes";
 import { submitBid } from "@/lib/outreach/accept";
+import { outstandingSmsCallouts, recordDecline } from "@/lib/outreach/decline";
+import { smsReplies } from "@/lib/outreach/messages";
 
 export const runtime = "nodejs";
 // Public, unauthenticated endpoint - trust anchor is the Twilio signature only.
@@ -20,11 +22,13 @@ function twiml(body: string | null): NextResponse {
 }
 
 /**
- * Inbound SMS: a worker replying with a shift reply code. Validates the
- * signature, resolves the sender's phone → User, parses a full/partial code, and
- * records a ShiftBid via the single accept path. Carrier keywords (STOP/START/…)
+ * Inbound SMS: a worker replying to a callout. Validates the signature,
+ * resolves the sender's phone → User, and parses the reply: a full/partial
+ * accept goes through the single accept path (`submitBid`), a decline through
+ * the single decline path (`recordDecline`). Carrier keywords (STOP/START/…)
  * are acknowledged silently - messaging is a mandatory internal channel, so there
- * is no app-level unsubscribe, but we never crash on them.
+ * is no app-level unsubscribe, but we never crash on them. Every reply text
+ * comes from `smsReplies` (GSM-7, one segment).
  */
 export async function POST(request: Request) {
   const params = await readVerifiedTwilioForm(request);
@@ -42,9 +46,7 @@ export async function POST(request: Request) {
   }
 
   if (parsed.kind === "unknown") {
-    return twiml(
-      "Sorry, we didn't understand that. Reply YES <code> to accept a shift, or open the Staffly app."
-    );
+    return twiml(smsReplies.unknown);
   }
 
   // Resolve the sender to a verified user.
@@ -55,15 +57,36 @@ export async function POST(request: Request) {
       })
     : null;
   if (!user) {
-    return twiml("We couldn't match your number to a Staffly account.");
+    return twiml(smsReplies.unknownSender);
   }
 
-  const shift = await db.shift.findUnique({
-    where: { smsCode: parsed.code },
-    select: { id: true, title: true },
-  });
+  const shift = parsed.code
+    ? await db.shift.findUnique({
+        where: { smsCode: parsed.code },
+        select: { id: true, title: true },
+      })
+    : null;
+
+  if (parsed.kind === "decline") {
+    // A bare "NO" - or "NO THANKS", whose second word merely looks like a code -
+    // means the worker's one outstanding callout. With several, ask for the code.
+    let target = shift;
+    if (!target) {
+      const outstanding = await outstandingSmsCallouts(user.id);
+      if (outstanding.length === 0) {
+        return twiml(parsed.code ? smsReplies.unknownCode(parsed.code) : smsReplies.declineNothingOpen);
+      }
+      if (outstanding.length > 1) return twiml(smsReplies.declineNeedsCode);
+      target = outstanding[0];
+    }
+
+    const result = await recordDecline({ shiftId: target.id, workerId: user.id, source: "SMS" });
+    if (!result.ok) return twiml(smsReplies.closed);
+    return twiml(smsReplies.declined(target.title));
+  }
+
   if (!shift) {
-    return twiml(`Shift code ${parsed.code} wasn't recognized.`);
+    return twiml(smsReplies.unknownCode(parsed.code));
   }
 
   const result = await submitBid({
@@ -75,11 +98,8 @@ export async function POST(request: Request) {
   });
 
   if (!result.ok) {
-    return twiml("That shift is no longer accepting bids. Thanks for responding.");
+    return twiml(smsReplies.closed);
   }
 
-  const scopeWord = parsed.scope === "PARTIAL" ? "partial-shift " : "";
-  return twiml(
-    `Thanks! Your ${scopeWord}bid for ${shift.title} is in. The scheduler will confirm.`
-  );
+  return twiml(smsReplies.bidAccepted(shift.title, parsed.scope === "PARTIAL"));
 }

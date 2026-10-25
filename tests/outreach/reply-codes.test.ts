@@ -84,3 +84,35 @@ describe("generateShiftCode", () => {
     expect(parseReply(code)).toEqual({ kind: "bid", scope: "FULL", code });
   });
 });
+
+describe("parseReply - declines", () => {
+  it("parses N / NO / DECLINE with a code, case-insensitively", () => {
+    for (const kw of ["N", "NO", "DECLINE", "n", "no", "Decline"]) {
+      expect(parseReply(`${kw} 7K2M`)).toEqual({ kind: "decline", code: "7K2M" });
+    }
+    expect(parseReply("  no   7k2m ")).toEqual({ kind: "decline", code: "7K2M" });
+  });
+
+  it("parses a bare decline word with no code", () => {
+    for (const kw of ["N", "NO", "DECLINE", "no", "decline"]) {
+      expect(parseReply(kw)).toEqual({ kind: "decline", code: null });
+    }
+  });
+
+  it("never reads DECLINE itself as a code (it fits the code shape)", () => {
+    expect(parseReply("DECLINE")).not.toEqual(expect.objectContaining({ kind: "bid" }));
+  });
+
+  it("leaves accepts unchanged", () => {
+    expect(parseReply("YES 7K2M")).toEqual({ kind: "bid", scope: "FULL", code: "7K2M" });
+    expect(parseReply("7K2M")).toEqual({ kind: "bid", scope: "FULL", code: "7K2M" });
+    expect(parseReply("PART 7K2M")).toEqual({ kind: "bid", scope: "PARTIAL", code: "7K2M" });
+    expect(parseReply("YES")).toEqual({ kind: "unknown" });
+  });
+
+  it("treats unrelated text as unknown", () => {
+    for (const body of ["maybe later", "NOPE 7K2M", "NO 7K", "NO 7K2M PLEASE", "😀"]) {
+      expect(parseReply(body)).toEqual({ kind: "unknown" });
+    }
+  });
+});

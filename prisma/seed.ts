@@ -19,6 +19,7 @@ async function main() {
   await prisma.notification.deleteMany();
   await prisma.calloutCampaign.deleteMany();
   await prisma.outreachAttempt.deleteMany();
+  await prisma.shiftDecline.deleteMany();
   await prisma.availability.deleteMany();
   await prisma.shiftActivity.deleteMany();
   await prisma.shiftBid.deleteMany();

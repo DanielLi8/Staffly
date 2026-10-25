@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import twilioSdk from "twilio";
-import { db } from "@/lib/db";
 import { readVerifiedTwilioForm } from "@/lib/outreach/webhook";
 import { submitBid } from "@/lib/outreach/accept";
+import { recordDecline } from "@/lib/outreach/decline";
 
 export const runtime = "nodejs";
 // Public, unauthenticated endpoint - trust anchor is the Twilio signature only.
@@ -22,7 +22,7 @@ function say(text: string): NextResponse {
  * IVR key-press handler. The shift and worker are pinned by the signed query
  * params (shiftId + userId), so there is no ambiguity about which shift the
  * digit accepts. Pressing 1 records a ShiftBid via the single accept path and
- * notifies the scheduler; 2 records a decline.
+ * notifies the scheduler; 2 records a decline via the single decline path.
  */
 export async function POST(request: Request) {
   const params = await readVerifiedTwilioForm(request);
@@ -53,10 +53,9 @@ export async function POST(request: Request) {
   }
 
   if (digit === "2") {
-    await db.outreachAttempt.updateMany({
-      where: { shiftId, userId, channel: "VOICE" },
-      data: { response: "DECLINED", respondedAt: new Date() },
-    });
+    // Same single decline path as an SMS "NO" or the in-app button. A shift that
+    // closed meanwhile has nothing left to decline; the goodbye is the same.
+    await recordDecline({ shiftId, workerId: userId, source: "VOICE" });
     return say("You have declined this shift. Thank you. Goodbye.");
   }
 
