@@ -3,7 +3,14 @@
 import { useState, useTransition } from "react";
 import { ChevronsRight, Pause, Play, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { advanceTier, holdCallout, resumeCallout, stopCallout } from "@/app/actions/callout";
+import { useRouter } from "next/navigation";
+import {
+  advanceTier,
+  holdCallout,
+  resumeCallout,
+  stopCallout,
+  type CalloutControlResult,
+} from "@/app/actions/callout";
 import type { CampaignStatus } from "@prisma/client";
 
 interface CascadeControlsProps {
@@ -11,6 +18,8 @@ interface CascadeControlsProps {
   status: CampaignStatus;
   currentTier: number;
   maxTier: number;
+  /** Set once outreach has ended: shown instead of the controls. */
+  endedSummary: string | null;
 }
 
 /**
@@ -22,38 +31,55 @@ interface CascadeControlsProps {
  * "Stop outreach" ends texts and calls only. Bidding is gated by the shift, not
  * the campaign, so the shift keeps taking bids until it is awarded or cancelled.
  */
-export function CascadeControls({ shiftId, status, currentTier, maxTier }: CascadeControlsProps) {
+export function CascadeControls({ shiftId, status, currentTier, maxTier, endedSummary }: CascadeControlsProps) {
   const [error, setError] = useState("");
   const [confirmStop, setConfirmStop] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const router = useRouter();
 
-  function run(action: () => Promise<void>) {
+  function run(action: () => Promise<CalloutControlResult>) {
     setError("");
     startTransition(async () => {
       try {
-        await action();
+        const result = await action();
         setConfirmStop(false);
+        if (!result.ok) {
+          // Lost a race: say who won, and show the state they left it in.
+          setError(result.error);
+          router.refresh();
+        }
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : "Action failed.");
       }
     });
   }
 
+  const errorAlert = error && (
+    <div
+      role="alert"
+      className="px-4 py-3 bg-accent-50 border border-accent-200 rounded-md text-sm text-accent-700"
+    >
+      {error}
+    </div>
+  );
+
+  if (endedSummary !== null) {
+    return (
+      <div className="space-y-3">
+        {errorAlert}
+        <p className="text-sm text-neutral-600">{endedSummary}</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-3">
-      {error && (
-        <div
-          role="alert"
-          className="px-4 py-3 bg-accent-50 border border-accent-200 rounded-md text-sm text-accent-700"
-        >
-          {error}
-        </div>
-      )}
+      {errorAlert}
 
       <div className="flex flex-wrap gap-2">
         <Button
           size="sm"
-          onClick={() => run(() => advanceTier(shiftId))}
+          onClick={() => run(() => advanceTier(shiftId, currentTier))}
           disabled={isPending}
         >
           <ChevronsRight className="w-4 h-4" aria-hidden="true" />

@@ -201,6 +201,11 @@ model Shift {
   endsAt       DateTime
   notes        String?
   status       ShiftStatus @default(OPEN)
+  /// Optimistic-concurrency token. EVERY write to a shift's status, times or
+  /// assignee increments it in the same statement, and an admin edit/cancel
+  /// carries the version its page rendered, so a write based on a stale view
+  /// is refused instead of silently winning. See src/lib/shifts/conflict.ts.
+  version      Int         @default(0)
 
   createdById String
   createdBy   User   @relation("CreatedBy", fields: [createdById], references: [id])
@@ -284,6 +289,10 @@ model ShiftSwapRequest {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // One ACTIVE request per give shift is enforced by the partial unique index
+  // "ShiftSwapRequest_one_active_per_give_shift" (raw SQL in
+  // prisma/migrations/20261026000000_concurrency_guards - Prisma 5 can't
+  // express a partial index). createShiftSwapRequest maps its P2002.
   @@index([requesterId])
   @@index([targetUserId])
   @@index([giveShiftId])

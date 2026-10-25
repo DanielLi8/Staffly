@@ -303,15 +303,29 @@ export async function createShiftSwapRequest(rawInput: unknown): Promise<CreateS
     return { ok: false, error: `${targetUser.name} ${eligibility.message}.` };
   }
 
-  const created = await db.shiftSwapRequest.create({
-    data: {
-      requesterId: actor.id,
-      giveShiftId: giveShift.id,
-      kind,
-      targetUserId,
-      receiveShiftId: receiveShift?.id ?? null,
-      status: "PENDING_ACCEPT",
-    },
+  // The partial unique index "one active request per give shift" settles a
+  // double tap (or two tabs) that both got past the findFirst check above.
+  // skipDuplicates = ON CONFLICT DO NOTHING, so the loser is a count of 0.
+  const { count } = await db.shiftSwapRequest.createMany({
+    data: [
+      {
+        requesterId: actor.id,
+        giveShiftId: giveShift.id,
+        kind,
+        targetUserId,
+        receiveShiftId: receiveShift?.id ?? null,
+        status: "PENDING_ACCEPT",
+      },
+    ],
+    skipDuplicates: true,
+  });
+  if (count !== 1) {
+    return { ok: false, error: "This shift already has a pending swap request." };
+  }
+  const created = await db.shiftSwapRequest.findFirstOrThrow({
+    where: { giveShiftId: giveShift.id, status: "PENDING_ACCEPT", requesterId: actor.id },
+    select: { id: true },
+    orderBy: { requestedAt: "desc" },
   });
 
   const requester = await db.user.findUnique({ where: { id: actor.id }, select: { name: true } });
@@ -368,6 +382,8 @@ export async function listIncomingShiftSwapRequests(): Promise<IncomingShiftSwap
 
 export type RespondToShiftSwapResult = { ok: true } | { ok: false; error: string };
 
+const ALREADY_ANSWERED = "This request is no longer awaiting your response.";
+
 async function loadRespondableRequest(requestId: string, actorId: string) {
   const request = await db.shiftSwapRequest.findUnique({
     where: { id: requestId },
@@ -378,7 +394,7 @@ async function loadRespondableRequest(requestId: string, actorId: string) {
     return { request: null, error: "Request not found." } as const;
   }
   if (request.status !== "PENDING_ACCEPT") {
-    return { request: null, error: "This request is no longer awaiting your response." } as const;
+    return { request: null, error: ALREADY_ANSWERED } as const;
   }
   return { request, error: null } as const;
 }
@@ -404,10 +420,12 @@ export async function acceptShiftSwapRequest(requestId: string): Promise<Respond
     }
   }
 
-  await db.shiftSwapRequest.update({
-    where: { id: requestId },
+  // Conditional, so accept racing reject (two tabs, a double tap) has one winner.
+  const answered = await db.shiftSwapRequest.updateMany({
+    where: { id: requestId, status: "PENDING_ACCEPT" },
     data: { status: "PENDING_APPROVAL", respondedAt: new Date() },
   });
+  if (answered.count !== 1) return { ok: false, error: ALREADY_ANSWERED };
 
   const targetUser = await db.user.findUnique({ where: { id: actor.id }, select: { name: true } });
   const shiftDateLabel = hospitalDateTime(request.giveShift.startsAt);
@@ -435,10 +453,11 @@ export async function rejectShiftSwapRequest(requestId: string): Promise<Respond
   const { request, error } = await loadRespondableRequest(requestId, actor.id);
   if (!request) return { ok: false, error: error! };
 
-  await db.shiftSwapRequest.update({
-    where: { id: requestId },
+  const answered = await db.shiftSwapRequest.updateMany({
+    where: { id: requestId, status: "PENDING_ACCEPT" },
     data: { status: "REJECTED", respondedAt: new Date() },
   });
+  if (answered.count !== 1) return { ok: false, error: ALREADY_ANSWERED };
 
   const targetUser = await db.user.findUnique({ where: { id: actor.id }, select: { name: true } });
   await notifyRequesterOfShiftSwapRejected({
