@@ -14,6 +14,9 @@ import { CancelShiftButton } from "./cancel-shift-button";
 import { EditShiftTimeForm } from "./edit-shift-time-form";
 import { canCancelShift } from "@/lib/shift-status";
 import { SWAP_REASSIGNED_ACTION_LABEL } from "@/lib/shift-swap/audit";
+import { LiveRefresh } from "@/features/live/live-refresh";
+import { formatLiveTopic, LIVE_POLL_INTERVAL_MS, type LiveTopic } from "@/lib/live/topics";
+import { liveRevision } from "@/lib/live/revision";
 
 export async function generateMetadata({ params }: { params: { id: string } }) {
   const shift = await db.shift.findUnique({ where: { id: params.id }, select: { title: true } });
@@ -23,6 +26,12 @@ export async function generateMetadata({ params }: { params: { id: string } }) {
 export default async function AdminShiftDetailPage({ params }: { params: { id: string } }) {
   const session = await getSession();
   if (!session || session.user.role !== "ADMIN") redirect("/worker/shifts");
+
+  // Read the revision BEFORE the data: a change landing mid-render then shows
+  // up as a revision mismatch on the first live check (one extra refresh)
+  // instead of being missed.
+  const liveTopic: LiveTopic = { kind: "admin-shift", shiftId: params.id };
+  const initialRevision = await liveRevision(liveTopic);
 
   const shift = await db.shift.findUnique({
     where: { id: params.id },
@@ -49,133 +58,139 @@ export default async function AdminShiftDetailPage({ params }: { params: { id: s
   const shiftOpen = shift.status === "OPEN";
 
   return (
-    <div className="max-w-4xl space-y-6">
-      <Link
-        href="/admin/shifts"
-        className="inline-flex items-center gap-1 text-sm text-neutral-500 hover:text-primary-700 transition-colors"
-      >
-        <ChevronLeft className="w-4 h-4" aria-hidden="true" />
-        Back to Shifts
-      </Link>
+    <LiveRefresh
+      topic={formatLiveTopic(liveTopic)}
+      initialRevision={initialRevision}
+      intervalMs={LIVE_POLL_INTERVAL_MS["admin-shift"]}
+    >
+      <div className="max-w-4xl space-y-6">
+        <Link
+          href="/admin/shifts"
+          className="inline-flex items-center gap-1 text-sm text-neutral-500 hover:text-primary-700 transition-colors"
+        >
+          <ChevronLeft className="w-4 h-4" aria-hidden="true" />
+          Back to Shifts
+        </Link>
 
-      {/* Shift header */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="page-title">{shift.title}</h1>
-            <ShiftStatusBadge status={shift.status} />
+        {/* Shift header */}
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="page-title">{shift.title}</h1>
+              <ShiftStatusBadge status={shift.status} />
+            </div>
+            <p className="text-sm text-neutral-500 mt-1">
+              Unit {shift.unit} · {shift.department.name} · Posted by {shift.createdBy.name}
+            </p>
           </div>
-          <p className="text-sm text-neutral-500 mt-1">
-            Unit {shift.unit} · {shift.department.name} · Posted by {shift.createdBy.name}
-          </p>
+          {canCancelShift(shift.status) && (
+            <div className="shrink-0">
+              <CancelShiftButton shiftId={shift.id} />
+            </div>
+          )}
         </div>
-        {canCancelShift(shift.status) && (
-          <div className="shrink-0">
-            <CancelShiftButton shiftId={shift.id} />
-          </div>
-        )}
-      </div>
 
-      {/* Live fill dashboard - full width: it is the scheduler's primary surface
-          while a callout is running, and its outreach table needs the room. */}
-      <FillDashboardPanel data={dashboard} />
+        {/* Live fill dashboard - full width: it is the scheduler's primary surface
+            while a callout is running, and its outreach table needs the room. */}
+        <FillDashboardPanel data={dashboard} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left: Shift details */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Assigned worker (if any) */}
-          {shift.assignedWorker && (
-            <Card className="border-green-200 bg-green-50">
-              <CardContent className="pt-4 flex items-center gap-3">
-                <Avatar name={shift.assignedWorker.name} src={shift.assignedWorker.image} />
-                <div>
-                  <p className="text-sm font-semibold text-green-800">Assigned to</p>
-                  <p className="text-base font-bold text-green-900">{shift.assignedWorker.name}</p>
-                  <p className="text-xs text-green-700">
-                    {shift.assignedWorker.position} · {shift.assignedWorker.department}
-                  </p>
-                </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left: Shift details */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Assigned worker (if any) */}
+            {shift.assignedWorker && (
+              <Card className="border-green-200 bg-green-50">
+                <CardContent className="pt-4 flex items-center gap-3">
+                  <Avatar name={shift.assignedWorker.name} src={shift.assignedWorker.image} />
+                  <div>
+                    <p className="text-sm font-semibold text-green-800">Assigned to</p>
+                    <p className="text-base font-bold text-green-900">{shift.assignedWorker.name}</p>
+                    <p className="text-xs text-green-700">
+                      {shift.assignedWorker.position} · {shift.assignedWorker.department}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Bidder list */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Bidders ({dashboard.bidders.length})</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <BidderList
+                  shiftId={shift.id}
+                  bidders={dashboard.bidders}
+                  shiftOpen={shiftOpen}
+                />
               </CardContent>
             </Card>
-          )}
 
-          {/* Bidder list */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Bidders ({dashboard.bidders.length})</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <BidderList
-                shiftId={shift.id}
-                bidders={dashboard.bidders}
-                shiftOpen={shiftOpen}
-              />
-            </CardContent>
-          </Card>
+            {/* Activity log */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Activity Log</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {shift.activities.length === 0 ? (
+                  <p className="text-sm text-neutral-500">No activity recorded.</p>
+                ) : (
+                  <ol className="relative border-l border-neutral-200 space-y-4 pl-5">
+                    {shift.activities.map((activity) => (
+                      <li key={activity.id} className="relative">
+                        <span className="absolute -left-[21px] w-3 h-3 rounded-full bg-primary-200 border-2 border-white" aria-hidden="true" />
+                        <p className="text-sm font-medium text-neutral-800">
+                          {formatActivityAction(activity.action)}
+                        </p>
+                        {activity.details && (
+                          <p className="text-xs text-neutral-500">{activity.details}</p>
+                        )}
+                        <p className="text-xs text-neutral-500 mt-0.5">
+                          {activity.actor.name} · {formatDate(activity.createdAt)}
+                        </p>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </CardContent>
+            </Card>
+          </div>
 
-          {/* Activity log */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Activity Log</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {shift.activities.length === 0 ? (
-                <p className="text-sm text-neutral-500">No activity recorded.</p>
-              ) : (
-                <ol className="relative border-l border-neutral-200 space-y-4 pl-5">
-                  {shift.activities.map((activity) => (
-                    <li key={activity.id} className="relative">
-                      <span className="absolute -left-[21px] w-3 h-3 rounded-full bg-primary-200 border-2 border-white" aria-hidden="true" />
-                      <p className="text-sm font-medium text-neutral-800">
-                        {formatActivityAction(activity.action)}
-                      </p>
-                      {activity.details && (
-                        <p className="text-xs text-neutral-500">{activity.details}</p>
-                      )}
-                      <p className="text-xs text-neutral-500 mt-0.5">
-                        {activity.actor.name} · {formatDate(activity.createdAt)}
-                      </p>
-                    </li>
-                  ))}
-                </ol>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Right: Shift info sidebar */}
-        <div className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Shift Details</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              <InfoRow icon={CalendarClock} label="Date">
-                {formatShiftDate(shift.startsAt)}
-              </InfoRow>
-              <InfoRow icon={Clock} label="Hours">
-                <EditShiftTimeForm
-                  shiftId={shift.id}
-                  startsAt={shift.startsAt}
-                  endsAt={shift.endsAt}
-                />
-              </InfoRow>
-              <InfoRow icon={MapPin} label="Location">
-                {shift.location}
-              </InfoRow>
-              <InfoRow icon={User} label="Role">
-                {shift.roleNeeded}
-              </InfoRow>
-              {shift.notes && (
-                <InfoRow icon={FileText} label="Notes">
-                  {shift.notes}
+          {/* Right: Shift info sidebar */}
+          <div className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Shift Details</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                <InfoRow icon={CalendarClock} label="Date">
+                  {formatShiftDate(shift.startsAt)}
                 </InfoRow>
-              )}
-            </CardContent>
-          </Card>
+                <InfoRow icon={Clock} label="Hours">
+                  <EditShiftTimeForm
+                    shiftId={shift.id}
+                    startsAt={shift.startsAt}
+                    endsAt={shift.endsAt}
+                  />
+                </InfoRow>
+                <InfoRow icon={MapPin} label="Location">
+                  {shift.location}
+                </InfoRow>
+                <InfoRow icon={User} label="Role">
+                  {shift.roleNeeded}
+                </InfoRow>
+                {shift.notes && (
+                  <InfoRow icon={FileText} label="Notes">
+                    {shift.notes}
+                  </InfoRow>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
-    </div>
+    </LiveRefresh>
   );
 }
 

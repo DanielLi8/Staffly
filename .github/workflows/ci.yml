@@ -161,6 +161,10 @@ jobs:
       DATABASE_URL: postgresql://staffly:staffly_ci_password@localhost:5432/staffly_e2e
       NEXTAUTH_SECRET: ci-only-nextauth-secret-for-e2e
       NEXTAUTH_URL: http://localhost:3000
+      # Not a real credential: it only lets e2e/late-bid-live.spec.ts sign a
+      # simulated inbound-SMS webhook that the app then verifies. With no
+      # account SID or number set, nothing is ever sent.
+      TWILIO_AUTH_TOKEN: ci-only-fake-twilio-token
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -179,6 +183,8 @@ jobs:
         run: pnpm prisma migrate deploy
       - name: Seed CI database
         run: pnpm prisma db seed
+      - name: Run database-backed tests
+        run: pnpm test:db
       - name: Install Playwright Chromium
         run: pnpm exec playwright install --with-deps chromium
       - name: Run Playwright E2E suite

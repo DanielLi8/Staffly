@@ -313,6 +313,8 @@ model ShiftActivity {
   action    String
   details   String?
   createdAt DateTime @default(now())
+
+  @@index([shiftId])
 }
 
 model Availability {
@@ -345,6 +347,9 @@ model OutreachAttempt {
   providerMessageId String?
   respondedAt       DateTime?
   createdAt         DateTime          @default(now())
+  /// Ticks on every delivery callback and reply, so the live admin shift page's
+  /// revision (src/lib/live/revision.ts) notices them.
+  updatedAt         DateTime          @default(now()) @updatedAt
 
   /// Idempotency key for the cascade: re-running a tier must never re-contact
   /// someone the tier already reached on that channel.
