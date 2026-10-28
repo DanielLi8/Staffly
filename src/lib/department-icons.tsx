@@ -19,6 +19,9 @@ const iconMap: Record<string, LucideIcon> = {
   stethoscope: Stethoscope,
 };
 
+/** Every icon an admin can pick for a department, in picker order. */
+export const DEPARTMENT_ICON_KEYS = Object.keys(iconMap);
+
 export function getDepartmentIcon(iconKey: string): LucideIcon {
   return iconMap[iconKey] ?? Star;
 }

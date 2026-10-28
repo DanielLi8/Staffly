@@ -34,7 +34,9 @@ const pageTitles: TitleEntry[] = [
   { match: (p) => p === "/admin/shifts", title: "Shifts" },
   { match: (p) => p.startsWith("/admin/schedule"), title: "Location Schedule" },
   { match: (p) => p.startsWith("/admin/shift-swaps"), title: "Shift Swaps" },
-  { match: (p) => p.startsWith("/admin/workers"), title: "Workers" },
+  { match: (p) => p === "/admin/workers/new", title: "Add Staff" },
+  { match: (p) => p.startsWith("/admin/workers/"), title: "Staff Member" },
+  { match: (p) => p === "/admin/workers", title: "Staff" },
   { match: (p) => p === "/worker/shifts", title: "Available Shifts" },
   { match: (p) => p.startsWith("/worker/shifts/"), title: "Shift Details" },
   { match: (p) => p.startsWith("/worker/bids") || p.startsWith("/worker/my-bids"), title: "Shift Bids" },
@@ -56,7 +58,7 @@ const workerMoreLinks: DrawerLink[] = [
 const adminTopLinks: DrawerLink[] = [
   { href: "/admin/schedule", label: "Schedule" },
   { href: "/admin/shift-swaps", label: "Shift Swaps" },
-  { href: "/admin/workers", label: "Workers" },
+  { href: "/admin/workers", label: "Staff" },
 ];
 
 export function StafflyHeader({ userName, variant, role, viewMode }: StafflyHeaderProps) {

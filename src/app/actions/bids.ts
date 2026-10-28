@@ -61,6 +61,8 @@ export async function placeBid(rawInput: unknown) {
         throw new Error("Your times must fall within the posted shift hours.");
       case "POSITION_MISMATCH":
         throw new Error("Your position doesn't match the role this shift needs.");
+      case "ACCOUNT_DEACTIVATED":
+        throw new Error("UNAUTHORIZED");
     }
   }
 

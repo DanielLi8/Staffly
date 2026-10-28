@@ -11,11 +11,17 @@ import { generateShiftCode } from "@/lib/outreach/codes";
 import { markCampaignFilled, startCalloutCampaign } from "@/lib/callout/campaign";
 import { validateShiftTimes, SHIFT_TIME_MESSAGES, type ShiftFieldErrors } from "@/lib/shifts/validation";
 import { formatShiftRange } from "@/lib/utils";
+import { ROLE_NEEDED_OPTIONS } from "@/lib/staff/positions";
 
 const createShiftSchema = z.object({
   unit: z.string().min(1, "Unit is required"),
   departmentId: z.string().min(1, "Department is required"),
-  roleNeeded: z.string().min(1, "Role is required"),
+  // Only the canonical positions (src/lib/staff/positions.ts): anything else
+  // could never match a staff member's position, so nobody would be paged.
+  roleNeeded: z
+    .string()
+    .min(1, "Role is required")
+    .refine((v) => ROLE_NEEDED_OPTIONS.includes(v), "Pick a role from the list"),
   location: z.string().min(1, "Location is required"),
   startsAt: z.coerce.date({
     required_error: "Start time is required",

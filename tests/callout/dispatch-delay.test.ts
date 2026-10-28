@@ -108,7 +108,7 @@ describe("posting a shift holds the opening outreach", () => {
     await createShift({
       unit: "4B",
       departmentId: "dept-er",
-      roleNeeded: "Registered Nurse",
+      roleNeeded: "Registered Nurse (RN)",
       location: "St. Michael's Hospital",
       startsAt: SHIFT_START,
       endsAt: SHIFT_END,

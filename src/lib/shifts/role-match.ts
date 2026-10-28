@@ -4,10 +4,9 @@
  * candidate selection (`src/lib/callout/campaign.ts`) and bid eligibility
  * (`src/lib/outreach/accept.ts`) with one definition of "qualified."
  *
- * `Shift.roleNeeded` and `User.position` are both free-text fields filled in
- * independently (a fixed dropdown for the former - see `ROLES` in
- * `src/features/shifts/shift-form.tsx` - versus whatever was seeded/entered
- * for the latter), so they don't share one vocabulary today: roleNeeded
+ * `Shift.roleNeeded` and `User.position` are both picked from the canonical
+ * position list (`src/lib/staff/positions.ts`), but spelled differently and
+ * older rows may hold legacy free text: roleNeeded
  * spells out an abbreviation in parentheses ("Registered Nurse (RN)") where
  * position doesn't ("Registered Nurse"). Rather than a hardcoded per-value
  * lookup table, normalization strips that trailing parenthetical plus

@@ -20,6 +20,7 @@ export interface FakeStaff {
   hireDate: Date | null;
   departmentIds: string[];
   availabilities: { startsAt: Date; endsAt: Date; status: AvailabilityStatus }[];
+  deactivatedAt?: Date | null;
 }
 
 export interface FakeShift {
@@ -264,17 +265,22 @@ export function createFakeDb(state: FakeState) {
     user: {
       async findUnique({ where }: { where: { id: string } }) {
         const s = state.staff.find((u) => u.id === where.id);
-        return s ? { name: s.name, position: s.position } : null;
+        return s ? { name: s.name, position: s.position, deactivatedAt: s.deactivatedAt ?? null } : null;
       },
-      async findFirst({ where }: { where: { phone: string } }) {
-        const s = state.staff.find((u) => u.phone === where.phone && u.phoneVerifiedAt !== null);
+      async findFirst({ where }: { where: { phone: string; deactivatedAt?: null } }) {
+        const s = state.staff.find(
+          (u) =>
+            u.phone === where.phone &&
+            u.phoneVerifiedAt !== null &&
+            (where.deactivatedAt !== null || !u.deactivatedAt)
+        );
         return s ? { id: s.id } : null;
       },
       async findMany({
         where,
         select,
       }: {
-        where: { role?: string };
+        where: { role?: string; deactivatedAt?: null };
         select: { availabilities?: { where: { startsAt: { lt: Date }; endsAt: { gt: Date } } } };
       }) {
         if (where.role === "ADMIN") return state.admins.map((id) => ({ id }));
@@ -283,7 +289,8 @@ export function createFakeDb(state: FakeState) {
           startsAt: select.availabilities.where.endsAt.gt,
           endsAt: select.availabilities.where.startsAt.lt,
         };
-        return state.staff.map((s) => ({
+        const staff = where.deactivatedAt === null ? state.staff.filter((s) => !s.deactivatedAt) : state.staff;
+        return staff.map((s) => ({
           id: s.id,
           name: s.name,
           email: s.email,

@@ -110,13 +110,13 @@ describe("posting a shift with no Inngest account", () => {
     await createShift({
       unit: "4B",
       departmentId: "dept-er",
-      roleNeeded: "Registered Nurse",
+      roleNeeded: "Registered Nurse (RN)",
       location: "St. Michael's Hospital",
       startsAt: SHIFT_START,
       endsAt: SHIFT_END,
     });
 
-    expect(state.shift.roleNeeded).toBe("Registered Nurse");
+    expect(state.shift.roleNeeded).toBe("Registered Nurse (RN)");
     expect(state.campaign).not.toBeNull();
     expect(state.campaign?.status).toBe("RUNNING");
     expect(state.campaign?.currentTier).toBe(1);
