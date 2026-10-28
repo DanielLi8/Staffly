@@ -3,7 +3,8 @@ import { Plus, CalendarClock } from "lucide-react";
 import { ShiftCard } from "@/features/shifts/shift-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { db } from "@/lib/db";
-import { getSession } from "@/lib/auth";
+import { actorFromSession, getSession } from "@/lib/auth";
+import { can } from "@/lib/authz";
 import { redirect } from "next/navigation";
 import { shiftCardInclude } from "@/lib/shift-include";
 import type { ShiftWithRelations } from "@/types";
@@ -16,7 +17,7 @@ export default async function AdminShiftsPage({
   searchParams: { status?: string };
 }) {
   const session = await getSession();
-  if (!session || session.user.role !== "ADMIN") redirect("/worker/shifts");
+  if (!session || !can(actorFromSession(session), "shift.viewAll")) redirect("/worker/shifts");
 
   const activeStatus = searchParams.status ?? "OPEN";
   const validStatuses = ["OPEN", "ASSIGNED", "CLOSED", "CANCELLED", "all"] as const;

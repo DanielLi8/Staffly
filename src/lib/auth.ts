@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 import { db } from "./db";
 import { getServerSession } from "next-auth";
 import type { Role } from "@prisma/client";
-import type { Actor } from "./authz";
+import { AuthorizationError, can, canUseLoginPortal, type Actor, type Capability } from "./authz";
 import { loginThrottle } from "./login-throttle";
 
 // Fail fast with an actionable message. Left to NextAuth's own handling, a
@@ -50,8 +50,8 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        const portal = credentials.portalRole as Role | undefined;
-        if (portal && user.role !== portal) {
+        const portal = credentials.portalRole;
+        if (portal && !canUseLoginPortal(user.role, portal)) {
           loginThrottle.recordFailure(key);
           return null;
         }
@@ -100,13 +100,18 @@ export async function getSession(): Promise<Session | null> {
   return getServerSession(authOptions);
 }
 
-export async function requireAuth(role?: Role): Promise<Session> {
+/**
+ * Require a signed-in user, and (when given) one who holds `capability` -
+ * the gate every server action opens with, before it reads its input. See the
+ * matrix in `src/lib/authz/capabilities.ts`.
+ */
+export async function requireAuth(capability?: Capability): Promise<Session> {
   const session = await getSession();
   if (!session?.user) {
     throw new Error("UNAUTHORIZED");
   }
-  if (role && session.user.role !== role) {
-    throw new Error("FORBIDDEN");
+  if (capability && !can(actorFromSession(session), capability)) {
+    throw new AuthorizationError("FORBIDDEN");
   }
   return session;
 }
@@ -119,8 +124,8 @@ export function actorFromSession(session: Session): Actor {
   };
 }
 
-/** Require a signed-in user (optionally of `role`) and return them as an {@link Actor}. */
-export async function requireActor(role?: Role): Promise<Actor> {
-  const session = await requireAuth(role);
+/** Require a signed-in user (optionally holding `capability`) and return them as an {@link Actor}. */
+export async function requireActor(capability?: Capability): Promise<Actor> {
+  const session = await requireAuth(capability);
   return actorFromSession(session);
 }

@@ -1,12 +1,17 @@
 import type { Prisma, Role } from "@prisma/client";
 import { biddableShiftWhere } from "@/lib/shifts/bid-window";
+import { can, grantFor } from "./capabilities";
+
+export * from "./capabilities";
 
 /**
  * The authorization layer. Pure and dependency-free (no DB, no session) so it
  * can be unit-tested in isolation and reused anywhere an {@link Actor} is known.
  *
  * The access boundary is enforced here, at the data layer, via
- * {@link shiftReadScope} + {@link shiftListWhere} - not in the UI.
+ * {@link shiftReadScope} + {@link shiftListWhere} - not in the UI. Who may do
+ * what is the capability matrix in `./capabilities` ({@link can}); nothing
+ * here compares a role to a literal.
  */
 
 /** A sentinel department id that matches no real row, used to fail closed. */
@@ -18,48 +23,27 @@ export interface Actor {
   role: Role;
 }
 
-/** Thrown by {@link requireRole} when an actor lacks an allowed role. */
-export class AuthorizationError extends Error {
-  constructor(message = "FORBIDDEN") {
-    super(message);
-    this.name = "AuthorizationError";
-  }
-}
-
-/**
- * Assert that `actor` holds one of `roles`. Throws {@link AuthorizationError}
- * otherwise. Returns the actor so it can be used inline.
- */
-export function requireRole(actor: Actor, ...roles: Role[]): Actor {
-  if (!roles.includes(actor.role)) {
-    throw new AuthorizationError("FORBIDDEN");
-  }
-  return actor;
-}
-
 /**
  * The set of shifts an actor is allowed to READ, expressed as a Prisma filter.
  *
- * - ADMIN: every shift (the merged scheduler + admin role).
- * - STAFF: shifts they can act on - open ones, ones they bid on, or ones
- *   assigned to them.
+ * - `shift.viewAll` hospital-wide (ADMIN today): every shift.
+ * - `shift.bid` (STAFF today): shifts they can act on - open ones, ones they
+ *   bid on, or ones assigned to them.
+ * - Anyone else: nothing.
  */
 export function shiftReadScope(actor: Actor): Prisma.ShiftWhereInput {
-  switch (actor.role) {
-    case "ADMIN":
-      return {};
-    case "STAFF":
-      return {
-        OR: [
-          { status: "OPEN" },
-          { assignedWorkerId: actor.id },
-          { bids: { some: { workerId: actor.id } } },
-        ],
-      };
-    default:
-      // Fail closed for any unexpected role.
-      return { id: NONE };
+  if (grantFor(actor, "shift.viewAll") === "all") return {};
+  if (can(actor, "shift.bid")) {
+    return {
+      OR: [
+        { status: "OPEN" },
+        { assignedWorkerId: actor.id },
+        { bids: { some: { workerId: actor.id } } },
+      ],
+    };
   }
+  // Fail closed for any unexpected role.
+  return { id: NONE };
 }
 
 /**
@@ -97,14 +81,7 @@ export function canViewLocationSchedule(
   departmentId: string,
   staffMemberDepartmentIds: string[] = []
 ): boolean {
-  switch (actor.role) {
-    case "ADMIN":
-      return true;
-    case "STAFF":
-      return staffMemberDepartmentIds.includes(departmentId);
-    default:
-      return false;
-  }
+  return can(actor, "locationSchedule.view", { departmentId, actorDepartmentIds: staffMemberDepartmentIds });
 }
 
 /**

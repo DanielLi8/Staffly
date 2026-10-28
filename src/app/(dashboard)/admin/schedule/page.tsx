@@ -3,7 +3,7 @@ import { format, eachDayOfInterval } from "date-fns";
 import { Search as SearchIcon } from "lucide-react";
 import { getSession, actorFromSession } from "@/lib/auth";
 import { db } from "@/lib/db";
-import type { Actor } from "@/lib/authz";
+import { can, type Actor } from "@/lib/authz";
 import { getDepartmentIcon } from "@/lib/department-icons";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CalendarNav, primaryScheduleHeading } from "@/features/schedule/calendar-nav";
@@ -45,7 +45,7 @@ export default async function AdminSchedulePage({
   searchParams: { type?: string; id?: string; date?: string; view?: string };
 }) {
   const session = await getSession();
-  if (!session || session.user.role !== "ADMIN") redirect("/worker/shifts");
+  if (!session || !can(actorFromSession(session), "schedule.viewAnyone")) redirect("/worker/shifts");
   const actor = actorFromSession(session);
 
   const type = parseType(searchParams.type);
@@ -86,7 +86,7 @@ async function StaffMode({ userId, anchor, view }: { userId: string; anchor: Dat
     where: { id: userId },
     select: { id: true, name: true, role: true },
   });
-  if (!user || user.role !== "STAFF") notFound();
+  if (!user || !can(user, "schedule.beScheduled")) notFound();
 
   const { rangeStart, rangeEnd } = resolveScheduleDays(view, anchor);
   const shifts = await db.shift.findMany({

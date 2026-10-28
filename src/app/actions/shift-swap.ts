@@ -4,6 +4,7 @@ import { addDays } from "date-fns";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireActor } from "@/lib/auth";
+import { can } from "@/lib/authz";
 import { hospitalDateTime } from "@/lib/timezone";
 import { payPeriodFor, isSamePayPeriod, PAY_PERIOD_LENGTH_DAYS } from "@/lib/shift-swap/pay-period";
 import { evaluateReceivingEligibility, type EligibilityShift } from "@/lib/shift-swap/eligibility";
@@ -52,7 +53,7 @@ export interface GiveableShift {
 
 /** Step 1: the requester's own upcoming ASSIGNED shifts in the CURRENT pay period. */
 export async function listMyGiveableShifts(): Promise<GiveableShift[]> {
-  const actor = await requireActor("STAFF");
+  const actor = await requireActor("swap.request");
   const now = new Date();
   const period = payPeriodFor(now);
 
@@ -122,7 +123,7 @@ export interface SwapCandidateEntry {
  * different days never spuriously trips the hour or consecutive-day rule.
  */
 export async function listUnitSwapCandidates(giveShiftId: string): Promise<SwapCandidateEntry[]> {
-  const actor = await requireActor("STAFF");
+  const actor = await requireActor("swap.request");
   const giveShift = await loadOwnGiveShift(actor.id, giveShiftId);
   if (!giveShift) return [];
 
@@ -180,7 +181,7 @@ export async function listUnitGiveawayCandidates(
   giveShiftId: string,
   search?: string
 ): Promise<GiveawayCandidateEntry[]> {
-  const actor = await requireActor("STAFF");
+  const actor = await requireActor("swap.request");
   const giveShift = await loadOwnGiveShift(actor.id, giveShiftId);
   if (!giveShift) return [];
 
@@ -194,7 +195,7 @@ export async function listUnitGiveawayCandidates(
     include: { user: { select: { id: true, name: true, position: true, role: true } } },
   });
 
-  const candidates = memberships.filter((m) => m.user.role === "STAFF");
+  const candidates = memberships.filter((m) => can(m.user, "schedule.beScheduled"));
   const deptShifts = await loadDepartmentShiftsNear(giveShift.departmentId, giveShift.startsAt, actor.id);
 
   const byUser = new Map<string, typeof deptShifts>();
@@ -244,7 +245,7 @@ export type CreateShiftSwapRequestResult = { ok: true; id: string } | { ok: fals
  * `ShiftSwapRequest` in PENDING_ACCEPT only - no `Shift` row is touched.
  */
 export async function createShiftSwapRequest(rawInput: unknown): Promise<CreateShiftSwapRequestResult> {
-  const actor = await requireActor("STAFF");
+  const actor = await requireActor("swap.request");
 
   const parsed = createSwapRequestSchema.safeParse(rawInput);
   if (!parsed.success) {
@@ -265,7 +266,7 @@ export async function createShiftSwapRequest(rawInput: unknown): Promise<CreateS
     where: { departmentId_userId: { departmentId: giveShift.departmentId, userId: targetUserId } },
   });
   const targetUser = await db.user.findUnique({ where: { id: targetUserId } });
-  if (!targetMembership || !targetUser || targetUser.role !== "STAFF") {
+  if (!targetMembership || !targetUser || !can(targetUser, "schedule.beScheduled")) {
     return { ok: false, error: "That person isn't in your unit." };
   }
 
@@ -339,7 +340,7 @@ export interface IncomingShiftSwapRequest {
 
 /** Requests currently awaiting the signed-in colleague's Accept/Reject. */
 export async function listIncomingShiftSwapRequests(): Promise<IncomingShiftSwapRequest[]> {
-  const actor = await requireActor("STAFF");
+  const actor = await requireActor("swap.request");
 
   const requests = await db.shiftSwapRequest.findMany({
     where: { targetUserId: actor.id, status: "PENDING_ACCEPT" },
@@ -391,7 +392,7 @@ async function loadRespondableRequest(requestId: string, actorId: string) {
  * schedule could have changed in the time the request sat unanswered.
  */
 export async function acceptShiftSwapRequest(requestId: string): Promise<RespondToShiftSwapResult> {
-  const actor = await requireActor("STAFF");
+  const actor = await requireActor("swap.request");
   const { request, error } = await loadRespondableRequest(requestId, actor.id);
   if (!request) return { ok: false, error: error! };
 
@@ -431,7 +432,7 @@ export async function acceptShiftSwapRequest(requestId: string): Promise<Respond
 
 /** The colleague rejects: terminal, no admin involvement needed. */
 export async function rejectShiftSwapRequest(requestId: string): Promise<RespondToShiftSwapResult> {
-  const actor = await requireActor("STAFF");
+  const actor = await requireActor("swap.request");
   const { request, error } = await loadRespondableRequest(requestId, actor.id);
   if (!request) return { ok: false, error: error! };
 

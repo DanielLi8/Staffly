@@ -27,7 +27,8 @@ function renderDrawer(onClose = vi.fn()) {
         { href: "/admin/schedule", label: "Schedule" },
         { href: "/admin/workers", label: "Workers" },
       ]}
-      role="ADMIN"
+      roleBadge="Admin"
+      canSwitchView
       viewMode="ADMIN"
       onClose={onClose}
     />
@@ -72,7 +73,8 @@ describe("HamburgerDrawer", () => {
         userName="Maria Santos"
         homeHref="/worker"
         moreLinks={[{ href: "/worker/location", label: "Location Schedule" }]}
-        role="STAFF"
+        roleBadge={null}
+        canSwitchView={false}
         viewMode="WORKER"
         onClose={vi.fn()}
       />
@@ -91,7 +93,8 @@ describe("HamburgerDrawer", () => {
         userName="Maria Santos"
         homeHref="/worker"
         moreLinks={[]}
-        role="STAFF"
+        roleBadge={null}
+        canSwitchView={false}
         viewMode="WORKER"
         onClose={onClose}
       />

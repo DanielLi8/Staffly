@@ -6,14 +6,14 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { Role } from "@/types";
+import { LOGIN_PORTALS, type LoginPortal } from "@/lib/authz/capabilities";
 
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [portalRole, setPortalRole] = useState<Role>("STAFF");
+  const [portalRole, setPortalRole] = useState<LoginPortal>("STAFF");
   const [remember, setRemember] = useState(false);
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState("");
@@ -127,10 +127,9 @@ export function LoginForm() {
   );
 }
 
-const PORTALS = [
-  ["STAFF", "Staff"],
-  ["ADMIN", "Admin"],
-] as const;
+const PORTALS = (Object.keys(LOGIN_PORTALS) as LoginPortal[]).map(
+  (portal) => [portal, LOGIN_PORTALS[portal].label] as const
+);
 
 /**
  * Staff | Admin portal picker. A single white pill slides under the active
@@ -139,7 +138,7 @@ const PORTALS = [
  * `prefers-reduced-motion`. Exposed as a radio group: one tab stop, arrow
  * keys move (and select), matching the native radio pattern.
  */
-function PortalToggle({ value, onChange }: { value: Role; onChange: (role: Role) => void }) {
+function PortalToggle({ value, onChange }: { value: LoginPortal; onChange: (portal: LoginPortal) => void }) {
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
   const activeIndex = PORTALS.findIndex(([v]) => v === value);
 
@@ -164,11 +163,11 @@ function PortalToggle({ value, onChange }: { value: Role; onChange: (role: Role)
         className="absolute inset-y-1 left-1 w-[calc(50%-0.25rem)] rounded-lg bg-white shadow-sm transition-transform duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none"
         style={{ transform: `translateX(${activeIndex * 100}%)` }}
       />
-      {PORTALS.map(([role, label], i) => {
-        const checked = role === value;
+      {PORTALS.map(([portal, label], i) => {
+        const checked = portal === value;
         return (
           <button
-            key={role}
+            key={portal}
             ref={(el) => {
               refs.current[i] = el;
             }}
@@ -176,7 +175,7 @@ function PortalToggle({ value, onChange }: { value: Role; onChange: (role: Role)
             role="radio"
             aria-checked={checked}
             tabIndex={checked ? 0 : -1}
-            onClick={() => onChange(role)}
+            onClick={() => onChange(portal)}
             className={cn(
               "relative z-10 whitespace-nowrap rounded-lg py-2.5 text-sm font-semibold transition-colors duration-200 ease-out motion-reduce:transition-none focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500",
               checked ? "text-neutral-900" : "text-neutral-600 hover:text-neutral-900"

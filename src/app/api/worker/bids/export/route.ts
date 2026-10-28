@@ -1,14 +1,15 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { hospitalDate, hospitalTime } from "@/lib/timezone";
-import { authOptions } from "@/lib/auth";
+import { actorFromSession, authOptions } from "@/lib/auth";
+import { can } from "@/lib/authz";
 import { db } from "@/lib/db";
 import { getBidUiStatus } from "@/lib/bid-display";
 import { csvCell } from "@/lib/csv";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id || session.user.role !== "STAFF") {
+  if (!session?.user?.id || !can(actorFromSession(session), "bid.viewOwn")) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

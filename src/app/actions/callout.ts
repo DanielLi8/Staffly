@@ -3,15 +3,14 @@
 /**
  * Scheduler controls for the escalation cascade.
  *
- * Every action goes through the Phase 2 authorization layer (requireActor +
- * requireRole) and then through the DB-authoritative campaign service, which
+ * Every action goes through the authorization layer (requireActor with the
+ * `callout.control` capability) and then through the DB-authoritative campaign service, which
  * re-reads state before writing. None of these need Inngest: they are the manual
  * steering that must keep working with no Inngest account.
  */
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireActor } from "@/lib/auth";
-import { requireRole } from "@/lib/authz";
 import {
   advanceCampaignTier,
   holdCampaign,
@@ -31,10 +30,8 @@ const FAILURE_MESSAGE: Record<
   SHIFT_CLOSED: "This shift is no longer open.",
 };
 
-async function requireScheduler() {
-  const actor = await requireActor();
-  requireRole(actor, "ADMIN");
-  return actor;
+function requireScheduler() {
+  return requireActor("callout.control");
 }
 
 function settle(shiftId: string, result: CampaignControlResult): void {

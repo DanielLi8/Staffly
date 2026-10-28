@@ -6,13 +6,15 @@ import { usePathname } from "next/navigation";
 import { HelpCircle, Home, Menu } from "lucide-react";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { HamburgerDrawer, type DrawerLink } from "@/components/layout/hamburger-drawer";
-import type { Role } from "@/types";
 import type { ViewMode } from "@/lib/view-mode";
 
 interface StafflyHeaderProps {
   userName: string;
   variant: "admin" | "worker";
-  role: Role;
+  /** Shown next to the name in the drawer, e.g. "Admin"; null for none. */
+  roleBadge: string | null;
+  /** Holds `viewMode.switch`: show the drawer's View as toggle. */
+  canSwitchView: boolean;
   viewMode: ViewMode;
 }
 
@@ -59,7 +61,7 @@ const adminTopLinks: DrawerLink[] = [
   { href: "/admin/workers", label: "Workers" },
 ];
 
-export function StafflyHeader({ userName, variant, role, viewMode }: StafflyHeaderProps) {
+export function StafflyHeader({ userName, variant, roleBadge, canSwitchView, viewMode }: StafflyHeaderProps) {
   const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const homeHref = variant === "admin" ? "/admin" : "/worker";
@@ -115,7 +117,8 @@ export function StafflyHeader({ userName, variant, role, viewMode }: StafflyHead
           homeHref={homeHref}
           topLinks={topLinks}
           moreLinks={moreLinks}
-          role={role}
+          roleBadge={roleBadge}
+          canSwitchView={canSwitchView}
           viewMode={viewMode}
           onClose={() => setDrawerOpen(false)}
         />

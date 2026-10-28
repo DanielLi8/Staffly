@@ -14,7 +14,7 @@ const VIEW_MODE_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
  * gates `/admin/*` on.
  */
 export async function setViewMode(mode: ViewMode): Promise<void> {
-  await requireActor("ADMIN");
+  await requireActor("viewMode.switch");
 
   cookies().set(VIEW_MODE_COOKIE, mode, {
     httpOnly: true,

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
-import { getSession } from "@/lib/auth";
+import { actorFromSession, getSession } from "@/lib/auth";
+import { can } from "@/lib/authz";
 
 export default async function RootPage() {
   const session = await getSession();
@@ -8,7 +9,7 @@ export default async function RootPage() {
     redirect("/login");
   }
 
-  if (session.user.role === "ADMIN") {
+  if (can(actorFromSession(session), "portal.admin")) {
     redirect("/admin");
   }
 

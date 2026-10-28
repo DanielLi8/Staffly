@@ -122,7 +122,7 @@ async function notifyAvailabilityChanged(userId: string, userName: string, dateL
  * this is not a request.
  */
 export async function saveAvailability(rawInput: unknown): Promise<SaveAvailabilityResult> {
-  const session = await requireAuth("STAFF");
+  const session = await requireAuth("availability.editOwn");
 
   const parsed = saveAvailabilitySchema.safeParse(rawInput);
   if (!parsed.success) return { ok: false, error: "Select at least one day and a time range." };
@@ -146,7 +146,7 @@ export async function saveAvailability(rawInput: unknown): Promise<SaveAvailabil
  * member there.
  */
 export async function restoreAvailability(rawInput: unknown): Promise<RestoreAvailabilityResult> {
-  const session = await requireAuth("STAFF");
+  const session = await requireAuth("availability.editOwn");
 
   const parsed = restoreAvailabilitySchema.safeParse(rawInput);
   if (!parsed.success) return { ok: false, error: "Couldn't undo that change." };
@@ -186,7 +186,7 @@ export type AvailabilityContextResult =
  * day before are included so a night block spilling into `from` is known.
  */
 export async function loadAvailabilityContext(rawInput: unknown): Promise<AvailabilityContextResult> {
-  const session = await requireAuth("STAFF");
+  const session = await requireAuth("availability.editOwn");
   const parsed = contextSchema.safeParse(rawInput);
   if (!parsed.success) return { ok: false, error: "Pick a valid date range." };
   const { from, to } = parsed.data;

@@ -27,6 +27,7 @@ import {
   type CampaignState,
 } from "./decide";
 import { positionMatchesRole } from "@/lib/shifts/role-match";
+import { roleWhere } from "@/lib/authz";
 
 /**
  * How long a freshly posted shift sits before ANY outreach leaves the building.
@@ -120,8 +121,9 @@ export function toCampaignState(campaign: {
 /* ------------------------------------------------------- candidate targeting */
 
 /**
- * Load the callout candidate pool for a shift: every STAFF user whose
- * clinical position qualifies them for the shift's required role (see
+ * Load the callout candidate pool for a shift: every scheduled person
+ * (`schedule.beScheduled`, STAFF today) whose clinical position qualifies
+ * them for the shift's required role (see
  * `positionMatchesRole` - a Lead RN/Team Lead tag never affects this, only
  * `position` does), with their department memberships and only the
  * availability windows that could touch the shift. Tier assignment itself is
@@ -133,7 +135,7 @@ export async function loadTierCandidates(shift: {
   roleNeeded: string;
 }): Promise<(TierCandidate & OutreachRecipient)[]> {
   const staff = await db.user.findMany({
-    where: { role: "STAFF" },
+    where: roleWhere("schedule.beScheduled"),
     select: {
       id: true,
       name: true,

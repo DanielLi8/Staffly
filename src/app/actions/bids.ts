@@ -17,7 +17,7 @@ const placeBidSchema = z.object({
 });
 
 export async function placeBid(rawInput: unknown) {
-  const session = await requireAuth("STAFF");
+  const session = await requireAuth("shift.bid");
   const parsed = placeBidSchema.parse(rawInput);
   const { shiftId, note, durationScope } = parsed;
 
@@ -70,7 +70,7 @@ export async function placeBid(rawInput: unknown) {
 }
 
 export async function withdrawBid(shiftId: string) {
-  const session = await requireAuth("STAFF");
+  const session = await requireAuth("bid.withdrawOwn");
 
   const bid = await db.shiftBid.findUnique({
     where: {
@@ -101,7 +101,7 @@ export type DeclineShiftResult = { ok: true } | Extract<RecordDeclineResult, { o
  * page rendered) comes back as a typed failure, never a throw.
  */
 export async function declineShift(shiftId: string): Promise<DeclineShiftResult> {
-  const session = await requireAuth("STAFF");
+  const session = await requireAuth("shift.bid");
   const id = z.string().min(1).parse(shiftId);
 
   // Only a shift the worker can see (their read scope, the security boundary).

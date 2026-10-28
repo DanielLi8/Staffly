@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { ShiftCard } from "@/features/shifts/shift-card";
-import { getSession } from "@/lib/auth";
+import { actorFromSession, getSession } from "@/lib/auth";
+import { can } from "@/lib/authz";
 import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
 import { Avatar } from "@/components/ui/avatar";
@@ -14,7 +15,7 @@ export const metadata = { title: "Staffing Overview – Staffly" };
 
 export default async function AdminDashboardPage() {
   const session = await getSession();
-  if (!session || session.user.role !== "ADMIN") redirect("/worker/shifts");
+  if (!session || !can(actorFromSession(session), "shift.viewAll")) redirect("/worker/shifts");
 
   const [openShifts, assignedShifts] = await Promise.all([
     db.shift.findMany({

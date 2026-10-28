@@ -7,7 +7,8 @@ import { Avatar } from "@/components/ui/avatar";
 import { BidderList } from "@/features/shifts/bidder-list";
 import { FillDashboardPanel } from "@/features/callout/fill-dashboard";
 import { db } from "@/lib/db";
-import { getSession } from "@/lib/auth";
+import { actorFromSession, getSession } from "@/lib/auth";
+import { can } from "@/lib/authz";
 import { loadFillDashboard } from "@/lib/callout/dashboard";
 import { formatShiftDate, formatDate } from "@/lib/utils";
 import { CancelShiftButton } from "./cancel-shift-button";
@@ -25,7 +26,7 @@ export async function generateMetadata({ params }: { params: { id: string } }) {
 
 export default async function AdminShiftDetailPage({ params }: { params: { id: string } }) {
   const session = await getSession();
-  if (!session || session.user.role !== "ADMIN") redirect("/worker/shifts");
+  if (!session || !can(actorFromSession(session), "shift.viewAll")) redirect("/worker/shifts");
 
   // Read the revision BEFORE the data: a change landing mid-render then shows
   // up as a revision mismatch on the first live check (one extra refresh)

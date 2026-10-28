@@ -28,7 +28,7 @@ export interface PendingShiftSwapApproval {
 
 /** Requests the colleague has accepted and that now await a manager's decision. */
 export async function listPendingShiftSwapApprovals(): Promise<PendingShiftSwapApproval[]> {
-  await requireActor("ADMIN");
+  await requireActor("swap.approve");
 
   const requests = await db.shiftSwapRequest.findMany({
     where: { status: "PENDING_APPROVAL" },
@@ -85,7 +85,7 @@ async function loadPendingApproval(requestId: string) {
  * rather than silently reassigning a shift out from under someone.
  */
 export async function approveShiftSwapRequest(requestId: string): Promise<SwapApprovalResult> {
-  const actor = await requireActor("ADMIN");
+  const actor = await requireActor("swap.approve");
   const { request, error } = await loadPendingApproval(requestId);
   if (!request) return { ok: false, error: error! };
 
@@ -175,7 +175,7 @@ export async function approveShiftSwapRequest(requestId: string): Promise<SwapAp
 
 /** Terminal, no `Shift` row is touched. */
 export async function denyShiftSwapRequest(requestId: string): Promise<SwapApprovalResult> {
-  const actor = await requireActor("ADMIN");
+  const actor = await requireActor("swap.approve");
   const { request, error } = await loadPendingApproval(requestId);
   if (!request) return { ok: false, error: error! };
 

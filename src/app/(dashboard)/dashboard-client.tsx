@@ -3,17 +3,17 @@
 import { usePathname } from "next/navigation";
 import { StafflyHeader } from "@/components/layout/staffly-header";
 import { StafflyFooter } from "@/components/layout/staffly-footer";
-import type { Role } from "@/types";
 import type { ViewMode } from "@/lib/view-mode";
 
 interface DashboardClientProps {
   userName: string;
-  role: Role;
+  roleBadge: string | null;
+  canSwitchView: boolean;
   viewMode: ViewMode;
   children: React.ReactNode;
 }
 
-export function DashboardClient({ userName, role, viewMode, children }: DashboardClientProps) {
+export function DashboardClient({ userName, roleBadge, canSwitchView, viewMode, children }: DashboardClientProps) {
   const pathname = usePathname();
 
   // Nav content follows the current view, not raw role, so an ADMIN
@@ -32,7 +32,13 @@ export function DashboardClient({ userName, role, viewMode, children }: Dashboar
 
   return (
     <div className="flex min-h-screen flex-col bg-staffly-bg">
-      <StafflyHeader userName={userName} variant={variant} role={role} viewMode={viewMode} />
+      <StafflyHeader
+        userName={userName}
+        variant={variant}
+        roleBadge={roleBadge}
+        canSwitchView={canSwitchView}
+        viewMode={viewMode}
+      />
       <div className="flex-1 flex flex-col w-full">
         <main className="flex-1 w-full max-w-6xl mx-auto px-4 lg:px-8 py-8">{children}</main>
         <StafflyFooter />
