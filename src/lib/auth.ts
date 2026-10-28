@@ -3,9 +3,28 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { db } from "./db";
 import { getServerSession } from "next-auth";
+import { encode } from "next-auth/jwt";
+import type { JWT } from "next-auth/jwt";
 import type { Role } from "@prisma/client";
 import type { Actor } from "./authz";
 import { loginThrottle } from "./login-throttle";
+import {
+  REMEMBER_ME_MAX_AGE_SECONDS,
+  SessionRevokedError,
+  issueSessionClaims,
+  readSessionClaims,
+  sessionRevocationReason,
+} from "./session-policy";
+
+const nowSeconds = () => Math.floor(Date.now() / 1000);
+
+/**
+ * Name/email for the session callback, keyed by the token object the `jwt`
+ * callback returns (NextAuth hands that same object straight to `session`),
+ * so one DB read per request covers both revocation and display. The token
+ * itself never carries them - see `session-policy.ts`.
+ */
+const sessionProfiles = new WeakMap<object, { name: string; email: string }>();
 
 // Fail fast with an actionable message. Left to NextAuth's own handling, a
 // missing/empty secret doesn't crash - it silently auto-derives a dev secret
@@ -56,13 +75,19 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
+        // Same generic failure as a wrong password: never confirm to a
+        // stranger that an account exists but is deactivated.
+        if (user.deactivatedAt) {
+          loginThrottle.recordFailure(key);
+          return null;
+        }
+
         loginThrottle.reset(key);
 
         return {
           id: user.id,
-          name: user.name,
-          email: user.email,
           role: user.role,
+          sessionVersion: user.sessionVersion,
           remember: credentials.remember === "true",
         };
       },
@@ -70,24 +95,62 @@ export const authOptions: NextAuthOptions = {
   ],
   session: {
     strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60,
+    // The longest a session can live. Each token's real end is its own `exp`
+    // (12 h or 7 d from sign-in), which `encode` below keeps fixed, and the auth
+    // route handler sets the cookie's expiry to match per request.
+    maxAge: REMEMBER_ME_MAX_AGE_SECONDS,
+  },
+  jwt: {
+    // NextAuth's encode re-stamps `exp = now + maxAge` on every refresh, which
+    // would make every session rolling and as long as `maxAge`. Keep the
+    // absolute end chosen at sign-in instead.
+    async encode(params) {
+      const exp = params.token?.exp;
+      if (typeof exp !== "number") return encode(params);
+      return encode({ ...params, maxAge: Math.max(0, exp - nowSeconds()) });
+    },
   },
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.id = user.id;
-        token.role = (user as { role: Role }).role;
-        const remember = (user as { remember?: boolean }).remember === true;
-        token.exp = Math.floor(Date.now() / 1000) + (remember ? 30 : 2) * 24 * 60 * 60;
+        return { ...issueSessionClaims(user, user.remember === true, nowSeconds()) };
       }
-      return token;
+
+      // Every later request re-checks the account, so deactivation, a role
+      // change or a bumped sessionVersion takes effect on the next request.
+      const claims = readSessionClaims(token);
+      if (!claims) throw new SessionRevokedError("MALFORMED");
+      const current = await db.user.findUnique({
+        where: { id: claims.id },
+        select: { role: true, sessionVersion: true, deactivatedAt: true, name: true, email: true },
+      });
+      const reason = sessionRevocationReason(claims, current, nowSeconds());
+      if (reason) throw new SessionRevokedError(reason);
+
+      // A fresh object: drops anything else an older token carried.
+      const next: JWT = { ...claims };
+      sessionProfiles.set(next, { name: current!.name, email: current!.email });
+      return next;
     },
     async session({ session, token }) {
-      if (session.user) {
-        session.user.id = token.id as string;
-        session.user.role = token.role as Role;
-      }
+      const profile =
+        sessionProfiles.get(token) ??
+        (await db.user.findUnique({ where: { id: token.id }, select: { name: true, email: true } }));
+      session.user = {
+        id: token.id,
+        role: token.role,
+        name: profile?.name ?? "",
+        email: profile?.email ?? "",
+      };
       return session;
+    },
+  },
+  logger: {
+    // A revoked session is routine (signed out, demoted, deactivated), not an
+    // error worth a stack trace on every request it is presented.
+    error(code, metadata) {
+      if (metadata instanceof SessionRevokedError) return;
+      console.error(`[next-auth][error][${code}]`, metadata);
     },
   },
   pages: {

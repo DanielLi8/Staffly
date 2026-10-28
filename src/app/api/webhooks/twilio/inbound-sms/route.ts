@@ -49,10 +49,11 @@ export async function POST(request: Request) {
     return twiml(smsReplies.unknown);
   }
 
-  // Resolve the sender to a verified user.
+  // Resolve the sender to a verified, active user. A deactivated account is no
+  // longer anyone Staffly answers to (submitBid refuses it too).
   const user = from
     ? await db.user.findFirst({
-        where: { phone: from, phoneVerifiedAt: { not: null } },
+        where: { phone: from, phoneVerifiedAt: { not: null }, deactivatedAt: null },
         select: { id: true },
       })
     : null;
