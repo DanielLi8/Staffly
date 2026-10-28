@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { signIn } from "next-auth/react";
+import { useEffect, useRef, useState } from "react";
+import { getSession, signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -21,12 +21,23 @@ export function LoginForm() {
 
   const callbackUrl = searchParams.get("callbackUrl") ?? "/";
 
+  // This page only renders without a valid session, so any session cookie the
+  // browser still holds is dead (expired, or revoked: demoted, deactivated).
+  // Asking /api/auth/session once makes NextAuth clear it. Sign-in waits for
+  // that to finish, so the clearing response can never land after - and wipe -
+  // the fresh session cookie.
+  const staleCookieCleared = useRef<Promise<unknown>>();
+  useEffect(() => {
+    staleCookieCleared.current ??= getSession().catch(() => null);
+  }, []);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     setLoading(true);
 
     try {
+      await staleCookieCleared.current;
       const result = await signIn("credentials", {
         email,
         password,
@@ -117,7 +128,7 @@ export function LoginForm() {
           onChange={(e) => setRemember(e.target.checked)}
           className="rounded border-neutral-300 text-primary-700 focus:ring-primary-500"
         />
-        Remember me for 30 days
+        Remember me for 7 days
       </label>
 
       <Button type="submit" className="w-full h-12 rounded-xl text-base font-semibold" size="lg" loading={loading}>

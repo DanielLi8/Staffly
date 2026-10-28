@@ -11,16 +11,20 @@ declare module "next-auth" {
     };
   }
 
+  /** What `authorize` returns; only used to mint the token at sign-in. */
   interface User {
     id: string;
     role: Role;
+    sessionVersion: number;
     remember?: boolean;
   }
 }
 
 declare module "next-auth/jwt" {
+  /** See `src/lib/session-policy.ts`: no name, no email, ever. */
   interface JWT {
     id: string;
     role: Role;
+    sessionVersion: number;
   }
 }

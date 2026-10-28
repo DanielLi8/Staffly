@@ -126,6 +126,13 @@ model User {
   seniorityRank   Int?
   phoneVerifiedAt DateTime?
   hospitalId      String?
+  /// Set = the account is deactivated: sign-in is refused, every live session
+  /// is cut off on its next request (`src/lib/session-policy.ts`), and it can
+  /// no longer bid by any channel (`submitBid`) or be called out.
+  deactivatedAt   DateTime?
+  /// Embedded in every session token at sign-in; bump it to sign the user out
+  /// everywhere (a token carrying an older value is rejected on its next request).
+  sessionVersion  Int       @default(0)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
