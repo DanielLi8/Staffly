@@ -6,19 +6,17 @@ import { parseReply } from "@/lib/outreach/codes";
 import { submitBid } from "@/lib/outreach/accept";
 import { outstandingSmsCallouts, recordDecline } from "@/lib/outreach/decline";
 import { smsReplies } from "@/lib/outreach/messages";
+import { handleWebhookOnce } from "@/lib/outreach/webhook-dedupe";
 
 export const runtime = "nodejs";
 // Public, unauthenticated endpoint - trust anchor is the Twilio signature only.
 
 const MessagingResponse = twilioSdk.twiml.MessagingResponse;
 
-function twiml(body: string | null): NextResponse {
+function twiml(body: string | null): string {
   const response = new MessagingResponse();
   if (body) response.message(body);
-  return new NextResponse(response.toString(), {
-    status: 200,
-    headers: { "Content-Type": "text/xml" },
-  });
+  return response.toString();
 }
 
 /**
@@ -28,7 +26,8 @@ function twiml(body: string | null): NextResponse {
  * the single decline path (`recordDecline`). Carrier keywords (STOP/START/…)
  * are acknowledged silently - messaging is a mandatory internal channel, so there
  * is no app-level unsubscribe, but we never crash on them. Every reply text
- * comes from `smsReplies` (GSM-7, one segment).
+ * comes from `smsReplies` (GSM-7, one segment). A replayed MessageSid gets
+ * the first reply back and changes nothing (`handleWebhookOnce`).
  */
 export async function POST(request: Request) {
   const params = await readVerifiedTwilioForm(request);
@@ -36,6 +35,15 @@ export async function POST(request: Request) {
     return new NextResponse("Invalid signature", { status: 403 });
   }
 
+  const key = params.MessageSid ? `sms:${params.MessageSid}` : null;
+  const body = await handleWebhookOnce(key, () => handleReply(params));
+  return new NextResponse(body, {
+    status: 200,
+    headers: { "Content-Type": "text/xml" },
+  });
+}
+
+async function handleReply(params: Record<string, string>): Promise<string> {
   const from = params.From;
   const parsed = parseReply(params.Body);
 

@@ -15,6 +15,7 @@ import { inAppChannel } from "./inapp";
 import { smsChannel } from "./sms";
 import { voiceChannel } from "./voice";
 import type { OutreachChannel, OutreachContext, OutreachRecipient, OutreachShift } from "./types";
+import { describeError } from "@/lib/log-redact";
 
 export type { OutreachChannel, OutreachContext, OutreachRecipient, OutreachShift } from "./types";
 export { submitBid } from "./accept";
@@ -98,7 +99,7 @@ async function dispatchToRecipient(
       });
     } catch (err) {
       // A send/record failure for one channel must not break the others.
-      console.error(`[outreach] ${channel.channel} attempt failed:`, err);
+      console.error(`[outreach] ${channel.channel} attempt failed:`, describeError(err));
     }
   }
 }

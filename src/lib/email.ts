@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { describeError } from "@/lib/log-redact";
 
 const FROM = process.env.EMAIL_FROM ?? "Staffly <noreply@staffly.com>";
 
@@ -33,7 +34,7 @@ export async function sendEmail(payload: EmailPayload): Promise<void> {
     });
   } catch (err) {
     // Email failure must never break the calling flow
-    console.error("[email] Send failed:", err);
+    console.error("[email] Send failed:", describeError(err));
   }
 }
 

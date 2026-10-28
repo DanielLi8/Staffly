@@ -4,6 +4,7 @@ import { getTwilioClient, twilioConfig } from "./twilio";
 import { voiceWebhookUrl, statusCallbackUrl } from "./urls";
 import { voicePrompt } from "./messages";
 import type { OutreachChannel, OutreachContext } from "./types";
+import { describeError } from "@/lib/log-redact";
 
 const VoiceResponse = twilioSdk.twiml.VoiceResponse;
 
@@ -35,7 +36,7 @@ export const voiceChannel: OutreachChannel = {
       });
       return { status: "QUEUED", providerMessageId: call.sid, skipped: false };
     } catch (err) {
-      console.error("[outreach:voice] Call failed:", err);
+      console.error("[outreach:voice] Call failed:", describeError(err));
       return { status: "FAILED", providerMessageId: null, skipped: false };
     }
   },

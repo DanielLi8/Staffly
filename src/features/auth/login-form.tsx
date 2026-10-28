@@ -6,6 +6,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { safeCallbackPath } from "@/lib/safe-redirect";
+import { LOGIN_THROTTLED } from "@/lib/throttle/policy";
 import type { Role } from "@/types";
 
 export function LoginForm() {
@@ -19,7 +21,7 @@ export function LoginForm() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const callbackUrl = searchParams.get("callbackUrl") ?? "/";
+  const callbackUrl = safeCallbackPath(searchParams.get("callbackUrl"));
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -36,7 +38,9 @@ export function LoginForm() {
         callbackUrl,
       });
 
-      if (result?.error) {
+      if (result?.error === LOGIN_THROTTLED) {
+        setError("Too many sign-in attempts. Wait 15 minutes, then try again.");
+      } else if (result?.error) {
         setError("Invalid credentials, or the selected portal does not match this account.");
       } else {
         router.push(callbackUrl);

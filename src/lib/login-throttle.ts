@@ -1,29 +1,44 @@
-export const LOGIN_MAX_FAILURES = 5;
-export const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+import { LOGIN_LIMITS, normalizeEmail } from "./throttle/policy";
+import { anyOverLimit, clearBuckets, recordEvents, throttleBucket } from "./throttle/store";
 
-type Entry = { failures: number; firstFailureAt: number };
+/**
+ * Failed-sign-in throttle, persisted in Postgres (`ThrottleEvent`) so every
+ * server instance shares it. Three limits (`LOGIN_LIMITS`): one account from
+ * one address, one account from anywhere, and one address across accounts.
+ */
 
-export class LoginThrottle {
-  private readonly entries = new Map<string, Entry>();
-
-  isAllowed(key: string, now = Date.now()): boolean {
-    const entry = this.entries.get(key);
-    if (!entry || now - entry.firstFailureAt >= LOGIN_WINDOW_MS) return true;
-    return entry.failures < LOGIN_MAX_FAILURES;
-  }
-
-  recordFailure(key: string, now = Date.now()): void {
-    const entry = this.entries.get(key);
-    if (!entry || now - entry.firstFailureAt >= LOGIN_WINDOW_MS) {
-      this.entries.set(key, { failures: 1, firstFailureAt: now });
-    } else {
-      entry.failures += 1;
-    }
-  }
-
-  reset(key: string): void {
-    this.entries.delete(key);
-  }
+function loginBuckets(email: string, ip: string | null | undefined) {
+  const account = normalizeEmail(email);
+  const address = ip || "unknown";
+  return {
+    accountAndIp: throttleBucket("login:account-ip", `${address}|${account}`),
+    account: throttleBucket("login:account", account),
+    ip: throttleBucket("login:ip", address),
+  };
 }
 
-export const loginThrottle = new LoginThrottle();
+export async function isLoginThrottled(email: string, ip: string | null | undefined, now = new Date()): Promise<boolean> {
+  const b = loginBuckets(email, ip);
+  return anyOverLimit(
+    [
+      { bucket: b.accountAndIp, limit: LOGIN_LIMITS.accountAndIp },
+      { bucket: b.account, limit: LOGIN_LIMITS.account },
+      { bucket: b.ip, limit: LOGIN_LIMITS.ip },
+    ],
+    now
+  );
+}
+
+export async function recordLoginFailure(email: string, ip: string | null | undefined, now = new Date()): Promise<void> {
+  const b = loginBuckets(email, ip);
+  await recordEvents([b.accountAndIp, b.account, b.ip], now);
+}
+
+/**
+ * A successful sign-in clears that account's failures. The address's spraying
+ * count stays: one right password doesn't vouch for the other accounts tried.
+ */
+export async function clearLoginFailures(email: string, ip: string | null | undefined): Promise<void> {
+  const b = loginBuckets(email, ip);
+  await clearBuckets([b.accountAndIp, b.account]);
+}
