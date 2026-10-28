@@ -116,6 +116,7 @@ This file is the project's committed home for project-intrinsic agent knowledge:
 - `docker-compose up -d` (Postgres), copy `.env.example` → `.env`, `pnpm install`, `pnpm prisma migrate deploy`, `pnpm prisma db seed`. Demo accounts printed by the seed.
 - `pnpm build` runs `prisma migrate deploy` first (keeps Vercel deploys migrated). Validate with `pnpm lint`, `pnpm test`, `pnpm build`.
 - Playwright reuses any server already on its port outside CI, so run it against your own server + DB: `E2E_PORT=<port> TWILIO_AUTH_TOKEN=<any> pnpm test:e2e` with the app's `NEXTAUTH_URL` on that same port (it's also the Twilio signature base URL).
+- CI gates on `pnpm audit --prod --audit-level=high`. Fix order, scoped `pnpm.overrides` convention and the allowlist (`pnpm.auditConfig.ignoreGhsas` + a justification row, enforced by `tests/security/audit-allowlist.test.ts`) are in `docs/dependency-audit.md`. Next is held on 14.2.x; the remaining Next advisories are allowlisted until the 15.5 upgrade.
 - Link to the deployed app **only** via the production alias `https://staffly-gamma.vercel.app` - it always follows the newest production deploy. Never commit a deployment-specific URL (`staffly-<hash>-danielli8s-projects.vercel.app`); those are immutable and go stale on the next merge. No workflow keeps the README link fresh, and none is needed.
 
 ## Maintaining this file
