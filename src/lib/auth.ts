@@ -44,7 +44,9 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        const isValid = await bcrypt.compare(credentials.password, user.password);
+        // An admin-added account has no password until its set-password
+        // invite is used: refused like a wrong password.
+        const isValid = user.password ? await bcrypt.compare(credentials.password, user.password) : false;
         if (!isValid) {
           loginThrottle.recordFailure(key);
           return null;
@@ -52,6 +54,13 @@ export const authOptions: NextAuthOptions = {
 
         const portal = credentials.portalRole as Role | undefined;
         if (portal && user.role !== portal) {
+          loginThrottle.recordFailure(key);
+          return null;
+        }
+
+        // Same generic failure as a wrong password: never confirm to a
+        // stranger that an account exists but is deactivated.
+        if (user.deactivatedAt) {
           loginThrottle.recordFailure(key);
           return null;
         }

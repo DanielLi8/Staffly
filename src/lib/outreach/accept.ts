@@ -35,7 +35,8 @@ export type SubmitBidResult =
         | "SHIFT_CLOSED"
         | "SHIFT_ENDED"
         | "INVALID_WINDOW"
-        | "POSITION_MISMATCH";
+        | "POSITION_MISMATCH"
+        | "ACCOUNT_DEACTIVATED";
     };
 
 const SOURCE_LABEL: Record<BidSource, string | null> = {
@@ -47,7 +48,7 @@ const SOURCE_LABEL: Record<BidSource, string | null> = {
 /**
  * Create or update the worker's bid on a shift and notify every admin.
  *
- * Guards (the bid window - see `bidAcceptance` - position match, partial window
+ * Guards (the bid window - see `bidAcceptance` - an active account, position match, partial window
  * within shift hours) are enforced here so a webhook cannot bypass the checks the UI applies. On a
  * guard failure this returns a typed reason instead of throwing, so webhook
  * callers can respond gracefully; the in-app action maps reasons to errors.
@@ -74,8 +75,11 @@ export async function submitBid(input: SubmitBidInput): Promise<SubmitBidResult>
 
   const worker = await db.user.findUnique({
     where: { id: input.workerId },
-    select: { name: true, position: true },
+    select: { name: true, position: true, deactivatedAt: true },
   });
+  // A deactivated account bids on no channel: a stale session is already cut
+  // off, but SMS and IVR identify the worker by phone / signed link alone.
+  if (worker?.deactivatedAt) return { ok: false, reason: "ACCOUNT_DEACTIVATED" };
   if (!positionMatchesRole(worker?.position, shift.roleNeeded)) {
     return { ok: false, reason: "POSITION_MISMATCH" };
   }

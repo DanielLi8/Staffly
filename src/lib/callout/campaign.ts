@@ -133,7 +133,8 @@ export async function loadTierCandidates(shift: {
   roleNeeded: string;
 }): Promise<(TierCandidate & OutreachRecipient)[]> {
   const staff = await db.user.findMany({
-    where: { role: "STAFF" },
+    // A deactivated account is never called out.
+    where: { role: "STAFF", deactivatedAt: null },
     select: {
       id: true,
       name: true,

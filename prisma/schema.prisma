@@ -108,26 +108,37 @@ enum ShiftSwapStatus {
 }
 
 model User {
-  id              String    @id @default(cuid())
-  name            String
-  email           String    @unique
-  password        String
-  role            Role      @default(STAFF)
-  image           String?
-  department      String?
-  position        String?
+  id                 String    @id @default(cuid())
+  name               String
+  email              String    @unique
+  /// Null until the person sets one: an admin-added staff member has no
+  /// password (never a shared default), so sign-in refuses them until the
+  /// set-password invite flow gives them one.
+  password           String?
+  role               Role      @default(STAFF)
+  /// Hospital payroll / HR number. Optional, unique when set.
+  employeeId         String?   @unique
+  image              String?
+  department         String?
+  position           String?
   /// Lead RN / Team Lead designation - a tag layered on top of `position`,
   /// never a replacement for it. Settable independent of clinical position
   /// from the admin staff UI; must never be used to gate ordinary
   /// position-based callout/bid matching (see `src/lib/shifts/role-match.ts`).
-  isTeamLead      Boolean   @default(false)
-  phone           String?
-  hireDate        DateTime?
-  seniorityRank   Int?
-  phoneVerifiedAt DateTime?
-  hospitalId      String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  isTeamLead         Boolean   @default(false)
+  phone              String?
+  hireDate           DateTime?
+  seniorityRank      Int?
+  phoneVerifiedAt    DateTime?
+  /// Set when the account is deactivated (never a hard delete). A deactivated
+  /// person can't sign in, isn't paged by the callout cascade, can't bid by any
+  /// channel and isn't offered as a swap/giveaway colleague. Cleared on
+  /// reactivation. See `src/app/actions/staff.ts`.
+  deactivatedAt      DateTime?
+  deactivationReason String?
+  hospitalId         String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   hospital              Hospital?              @relation(fields: [hospitalId], references: [id])
   bids                  ShiftBid[]

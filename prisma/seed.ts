@@ -16,6 +16,7 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("Seeding database...");
 
+  await prisma.auditLog.deleteMany();
   await prisma.notification.deleteMany();
   await prisma.calloutCampaign.deleteMany();
   await prisma.outreachAttempt.deleteMany();

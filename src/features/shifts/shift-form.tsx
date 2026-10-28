@@ -16,15 +16,8 @@ import {
   formatTimeInput,
 } from "@/lib/shifts/time";
 import { validateShiftTimes, type ShiftFieldErrors } from "@/lib/shifts/validation";
+import { ROLE_NEEDED_OPTIONS } from "@/lib/staff/positions";
 
-const ROLES = [
-  "Registered Nurse (RN)",
-  "Certified Nursing Assistant (CNA)",
-  "Registered Practical Nurse (RPN)",
-  "Emergency MD",
-  "Trauma Surgeon",
-  "Respiratory Therapist",
-];
 
 /** Typed into the free-text time fields; also drives the `list` suggestions. */
 const TIME_SUGGESTIONS = ["7:00 AM", "11:00 AM", "3:00 PM", "7:00 PM", "11:00 PM"];
@@ -155,7 +148,7 @@ export function ShiftForm({ departments }: ShiftFormProps) {
           </Label>
           <Select id="roleNeeded" name="roleNeeded" required className="mt-1.5" error={errors.roleNeeded}>
             <option value="">Select role</option>
-            {ROLES.map((r) => (
+            {ROLE_NEEDED_OPTIONS.map((r) => (
               <option key={r} value={r}>
                 {r}
               </option>

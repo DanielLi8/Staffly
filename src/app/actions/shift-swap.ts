@@ -191,10 +191,11 @@ export async function listUnitGiveawayCandidates(
       userId: { not: actor.id },
       ...(q ? { user: { name: { contains: q, mode: "insensitive" } } } : {}),
     },
-    include: { user: { select: { id: true, name: true, position: true, role: true } } },
+    include: { user: { select: { id: true, name: true, position: true, role: true, deactivatedAt: true } } },
   });
 
-  const candidates = memberships.filter((m) => m.user.role === "STAFF");
+  // A deactivated colleague can't pick anything up.
+  const candidates = memberships.filter((m) => m.user.role === "STAFF" && !m.user.deactivatedAt);
   const deptShifts = await loadDepartmentShiftsNear(giveShift.departmentId, giveShift.startsAt, actor.id);
 
   const byUser = new Map<string, typeof deptShifts>();
@@ -265,7 +266,7 @@ export async function createShiftSwapRequest(rawInput: unknown): Promise<CreateS
     where: { departmentId_userId: { departmentId: giveShift.departmentId, userId: targetUserId } },
   });
   const targetUser = await db.user.findUnique({ where: { id: targetUserId } });
-  if (!targetMembership || !targetUser || targetUser.role !== "STAFF") {
+  if (!targetMembership || !targetUser || targetUser.role !== "STAFF" || targetUser.deactivatedAt) {
     return { ok: false, error: "That person isn't in your unit." };
   }
 

@@ -31,7 +31,7 @@ function fillRequiredDetails() {
     target: { value: "dept_1" },
   });
   fireEvent.change(screen.getByLabelText(/role needed/i), {
-    target: { value: "Emergency MD" },
+    target: { value: "Physician (MD)" },
   });
   fireEvent.change(screen.getByLabelText(/unit \/ floor/i), {
     target: { value: "4B" },
