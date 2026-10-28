@@ -121,6 +121,9 @@ model User {
   /// from the admin staff UI; must never be used to gate ordinary
   /// position-based callout/bid matching (see `src/lib/shifts/role-match.ts`).
   isTeamLead      Boolean   @default(false)
+  /// E.164. Unique among VERIFIED numbers via the partial index
+  /// "User_verified_phone_key" (raw SQL in the 20261028120000_security_hardening
+  /// migration - Prisma can't model it); see `src/lib/phone-ownership.ts`.
   phone           String?
   hireDate        DateTime?
   seniorityRank   Int?
@@ -433,6 +436,28 @@ model AuditLog {
 
   @@index([hospitalId, createdAt])
   @@index([targetType, targetId])
+}
+
+/// One rate-limited event (a failed login, a verification-code send). Counted
+/// over sliding windows and pruned by `src/lib/throttle/store.ts`. `bucket` is
+/// "<scope>:<sha256 of the subject>", so no email, IP or phone is stored.
+model ThrottleEvent {
+  id        String   @id @default(cuid())
+  bucket    String
+  createdAt DateTime @default(now())
+
+  @@index([bucket, createdAt])
+  @@index([createdAt])
+}
+
+/// An inbound Twilio webhook already handled, keyed by its provider id (SMS
+/// MessageSid, IVR CallSid). Twilio signatures carry no nonce, so a captured
+/// signed request could be replayed; a repeat gets the first `response` back
+/// and changes nothing. See `src/lib/outreach/webhook-dedupe.ts`.
+model ProcessedWebhook {
+  key       String   @id
+  response  String?
+  createdAt DateTime @default(now())
 }
 
 // NextAuth.js required models

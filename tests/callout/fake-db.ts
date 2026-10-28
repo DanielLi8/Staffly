@@ -6,7 +6,7 @@
  * Deliberately narrow: it implements the query SHAPES this code path uses, not
  * Prisma in general. If a new query shape appears, extend it here.
  */
-import type { AvailabilityStatus, CampaignStatus, ShiftStatus } from "@prisma/client";
+import { Prisma, type AvailabilityStatus, type CampaignStatus, type ShiftStatus } from "@prisma/client";
 
 export interface FakeStaff {
   id: string;
@@ -155,6 +155,8 @@ function overlaps(
 /** Build the fake `db` object. Mutating `state` between calls is the point. */
 export function createFakeDb(state: FakeState) {
   let campaignSeq = 0;
+  // Inbound-webhook de-duplication (`handleWebhookOnce`): key -> stored TwiML.
+  const processedWebhooks = new Map<string, string | null>();
 
   const fakeDb = {
     // Interactive transactions run straight against the fake (no rollback).
@@ -441,6 +443,31 @@ export function createFakeDb(state: FakeState) {
           (d) => !(d.shiftId === where.shiftId && d.userId === where.userId)
         );
         return { count: before - state.declines.length };
+      },
+    },
+
+    processedWebhook: {
+      async create({ data }: { data: { key: string } }) {
+        if (processedWebhooks.has(data.key)) {
+          throw new Prisma.PrismaClientKnownRequestError("Unique constraint failed", {
+            code: "P2002",
+            clientVersion: "fake",
+            meta: { target: ["key"] },
+          });
+        }
+        processedWebhooks.set(data.key, null);
+        return { key: data.key };
+      },
+      async findUnique({ where }: { where: { key: string } }) {
+        return processedWebhooks.has(where.key) ? { response: processedWebhooks.get(where.key) ?? null } : null;
+      },
+      async update({ where, data }: { where: { key: string }; data: { response: string } }) {
+        processedWebhooks.set(where.key, data.response);
+        return { key: where.key };
+      },
+      async delete({ where }: { where: { key: string } }) {
+        processedWebhooks.delete(where.key);
+        return { key: where.key };
       },
     },
 

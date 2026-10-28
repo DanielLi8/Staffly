@@ -90,6 +90,8 @@ Anything prefixed `NEXT_PUBLIC_` is inlined into the browser bundle at build tim
 | `TWILIO_VERIFY_SERVICE_SID` | Secret | Optional | Yes |
 | `TWILIO_WEBHOOK_BASE_URL` | Public (a URL) | Optional | Yes - public callback host, e.g. an ngrok tunnel in dev |
 
+In the Twilio console for a live Verify service, also restrict **Verify → Geo permissions** to Canada and the US and turn on **Fraud Guard**. Staffly throttles verification-code sends per account and per number, but these stop SMS pumping to premium ranges at the provider.
+
 The escalation-cascade phase adds `INNGEST_EVENT_KEY` and `INNGEST_SIGNING_KEY` (both secret, both optional - see `.env.example`).
 
 ### Syncing values locally

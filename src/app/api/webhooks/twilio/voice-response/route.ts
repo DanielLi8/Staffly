@@ -3,19 +3,17 @@ import twilioSdk from "twilio";
 import { readVerifiedTwilioForm } from "@/lib/outreach/webhook";
 import { submitBid } from "@/lib/outreach/accept";
 import { recordDecline } from "@/lib/outreach/decline";
+import { handleWebhookOnce } from "@/lib/outreach/webhook-dedupe";
 
 export const runtime = "nodejs";
 // Public, unauthenticated endpoint - trust anchor is the Twilio signature only.
 
 const VoiceResponse = twilioSdk.twiml.VoiceResponse;
 
-function say(text: string): NextResponse {
+function say(text: string): string {
   const response = new VoiceResponse();
   response.say(text);
-  return new NextResponse(response.toString(), {
-    status: 200,
-    headers: { "Content-Type": "text/xml" },
-  });
+  return response.toString();
 }
 
 /**
@@ -23,6 +21,8 @@ function say(text: string): NextResponse {
  * params (shiftId + userId), so there is no ambiguity about which shift the
  * digit accepts. Pressing 1 records a ShiftBid via the single accept path and
  * notifies the scheduler; 2 records a decline via the single decline path.
+ * One answer per call: a replayed CallSid gets the first response back and
+ * changes nothing (`handleWebhookOnce`).
  */
 export async function POST(request: Request) {
   const params = await readVerifiedTwilioForm(request);
@@ -30,6 +30,15 @@ export async function POST(request: Request) {
     return new NextResponse("Invalid signature", { status: 403 });
   }
 
+  const key = params.CallSid ? `voice-response:${params.CallSid}` : null;
+  const body = await handleWebhookOnce(key, () => handleKeyPress(request, params));
+  return new NextResponse(body, {
+    status: 200,
+    headers: { "Content-Type": "text/xml" },
+  });
+}
+
+async function handleKeyPress(request: Request, params: Record<string, string>): Promise<string> {
   const url = new URL(request.url);
   const shiftId = url.searchParams.get("shiftId") ?? "";
   const userId = url.searchParams.get("userId") ?? "";

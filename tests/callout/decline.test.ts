@@ -200,9 +200,12 @@ function signedRequest(path: string, params: Record<string, string>): Request {
   });
 }
 
+// Every real inbound text has its own MessageSid; a repeated one is a replay.
+let messageSeq = 0;
+
 async function textIn(from: string, body: string): Promise<string> {
   const res = await inboundSmsPost(
-    signedRequest("/api/webhooks/twilio/inbound-sms", { From: from, Body: body, MessageSid: "SM-in" })
+    signedRequest("/api/webhooks/twilio/inbound-sms", { From: from, Body: body, MessageSid: `SM-in-${++messageSeq}` })
   );
   expect(res.status).toBe(200);
   const xml = await res.text();

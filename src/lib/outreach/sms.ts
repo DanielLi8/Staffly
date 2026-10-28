@@ -3,6 +3,7 @@ import { getTwilioClient, twilioConfig } from "./twilio";
 import { statusCallbackUrl } from "./urls";
 import { smsBody } from "./messages";
 import type { OutreachChannel, OutreachContext } from "./types";
+import { describeError } from "@/lib/log-redact";
 
 /**
  * SMS channel via Twilio Programmable Messaging. Applicable only to a recipient
@@ -31,7 +32,7 @@ export const smsChannel: OutreachChannel = {
       });
       return { status: "SENT", providerMessageId: message.sid, skipped: false };
     } catch (err) {
-      console.error("[outreach:sms] Send failed:", err);
+      console.error("[outreach:sms] Send failed:", describeError(err));
       return { status: "FAILED", providerMessageId: null, skipped: false };
     }
   },

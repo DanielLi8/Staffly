@@ -5,7 +5,8 @@ import { db } from "./db";
 import { getServerSession } from "next-auth";
 import type { Role } from "@prisma/client";
 import type { Actor } from "./authz";
-import { loginThrottle } from "./login-throttle";
+import { clearLoginFailures, isLoginThrottled, recordLoginFailure } from "./login-throttle";
+import { LOGIN_THROTTLED } from "./throttle/policy";
 
 // Fail fast with an actionable message. Left to NextAuth's own handling, a
 // missing/empty secret doesn't crash - it silently auto-derives a dev secret
@@ -17,6 +18,13 @@ if (!process.env.NEXTAUTH_SECRET) {
   throw new Error(
     "NEXTAUTH_SECRET is not set. Generate one with `openssl rand -base64 32` and set it in .env - see .env.example."
   );
+}
+
+/** The client address as the platform proxy reports it (Vercel sets x-forwarded-for). */
+function clientIp(headers: Record<string, string | string[] | undefined> | undefined): string | null {
+  const forwarded = headers?.["x-forwarded-for"];
+  const first = (Array.isArray(forwarded) ? forwarded[0] : forwarded)?.split(",")[0]?.trim();
+  return first || null;
 }
 
 export const authOptions: NextAuthOptions = {
@@ -32,31 +40,33 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials, request) {
         if (!credentials?.email || !credentials?.password) return null;
 
-        const forwardedFor = request.headers?.["x-forwarded-for"]?.split(",")[0]?.trim();
-        const key = `${forwardedFor || "unknown"}:${credentials.email.toLowerCase()}`;
-        if (!loginThrottle.isAllowed(key)) return null;
+        const email = credentials.email;
+        const ip = clientIp(request.headers);
+        // Thrown (not `return null`) so the form can say why: NextAuth hands the
+        // message back as `error`.
+        if (await isLoginThrottled(email, ip)) throw new Error(LOGIN_THROTTLED);
 
         const user = await db.user.findUnique({
-          where: { email: credentials.email },
+          where: { email },
         });
         if (!user) {
-          loginThrottle.recordFailure(key);
+          await recordLoginFailure(email, ip);
           return null;
         }
 
         const isValid = await bcrypt.compare(credentials.password, user.password);
         if (!isValid) {
-          loginThrottle.recordFailure(key);
+          await recordLoginFailure(email, ip);
           return null;
         }
 
         const portal = credentials.portalRole as Role | undefined;
         if (portal && user.role !== portal) {
-          loginThrottle.recordFailure(key);
+          await recordLoginFailure(email, ip);
           return null;
         }
 
-        loginThrottle.reset(key);
+        await clearLoginFailures(email, ip);
 
         return {
           id: user.id,

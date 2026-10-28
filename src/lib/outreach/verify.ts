@@ -4,6 +4,7 @@
  * so profile setup degrades gracefully instead of crashing.
  */
 import { getTwilioClient, twilioConfig, isVerifyConfigured } from "./twilio";
+import { describeError } from "@/lib/log-redact";
 
 export type VerifyResult =
   | { ok: true }
@@ -27,7 +28,7 @@ export async function sendVerificationCode(phone: string): Promise<VerifyResult>
       .verifications.create({ to: phone, channel: "sms" });
     return { ok: true };
   } catch (err) {
-    console.error("[verify] Failed to send code:", err);
+    console.error("[verify] Failed to send code:", describeError(err));
     return { ok: false, reason: "ERROR" };
   }
 }
@@ -46,7 +47,7 @@ export async function checkVerificationCode(phone: string, code: string): Promis
       .verificationChecks.create({ to: phone, code });
     return { ok: true, approved: check.status === "approved" };
   } catch (err) {
-    console.error("[verify] Failed to check code:", err);
+    console.error("[verify] Failed to check code:", describeError(err));
     return { ok: false, reason: "ERROR" };
   }
 }
