@@ -27,6 +27,10 @@ const nextConfig = {
       ],
     }];
   },
+  // Nothing uses next/image. Turning the optimizer off makes /_next/image a
+  // 404, which takes the Image Optimization advisories on Next 14 off the
+  // table (docs/dependency-audit.md).
+  images: { unoptimized: true },
   env: {
     // NextAuth middleware calls parseUrl(NEXTAUTH_URL) on every matched request.
     // Missing/empty values can crash Edge middleware (MIDDLEWARE_INVOCATION_FAILED).

@@ -17,3 +17,9 @@ describe("security response headers", () => {
     ]);
   });
 });
+
+describe("image optimizer", () => {
+  it("stays disabled, since nothing uses next/image", () => {
+    expect(config.images?.unoptimized).toBe(true);
+  });
+});
