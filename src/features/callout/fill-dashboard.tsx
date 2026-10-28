@@ -191,16 +191,16 @@ export function FillDashboardPanel({ data, now = new Date() }: { data: FillDashb
           <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
             {isCampaignTerminal(campaign.status) ? "Outreach" : "Controls"}
           </h3>
-          {isCampaignTerminal(campaign.status) ? (
-            <p className="text-sm text-neutral-600">{describeOutreachEnd(data, now)}</p>
-          ) : (
-            <CascadeControls
-              shiftId={data.shift.id}
-              status={campaign.status}
-              currentTier={campaign.currentTier}
-              maxTier={MAX_TIER}
-            />
-          )}
+          {/* Mounted in both states so a control that lost a race (e.g. Advance
+              just after another admin's Stop) keeps showing why after the
+              refresh that ends the campaign on screen. */}
+          <CascadeControls
+            shiftId={data.shift.id}
+            status={campaign.status}
+            currentTier={campaign.currentTier}
+            maxTier={MAX_TIER}
+            endedSummary={isCampaignTerminal(campaign.status) ? describeOutreachEnd(data, now) : null}
+          />
         </div>
 
         {/* Delivery tracking */}

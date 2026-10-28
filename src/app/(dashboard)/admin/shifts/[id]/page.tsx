@@ -83,11 +83,13 @@ export default async function AdminShiftDetailPage({ params }: { params: { id: s
               Unit {shift.unit} · {shift.department.name} · Posted by {shift.createdBy.name}
             </p>
           </div>
-          {canCancelShift(shift.status) && (
-            <div className="shrink-0">
-              <CancelShiftButton shiftId={shift.id} />
-            </div>
-          )}
+          <div className="shrink-0">
+            <CancelShiftButton
+              shiftId={shift.id}
+              version={shift.version}
+              cancellable={canCancelShift(shift.status)}
+            />
+          </div>
         </div>
 
         {/* Live fill dashboard - full width: it is the scheduler's primary surface
@@ -172,6 +174,7 @@ export default async function AdminShiftDetailPage({ params }: { params: { id: s
                     shiftId={shift.id}
                     startsAt={shift.startsAt}
                     endsAt={shift.endsAt}
+                    version={shift.version}
                   />
                 </InfoRow>
                 <InfoRow icon={MapPin} label="Location">

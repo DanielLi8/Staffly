@@ -6,11 +6,26 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
  */
 const dbMock = vi.hoisted(() => ({
   notification: { create: vi.fn().mockResolvedValue({}) },
+  // Each attempt is claimed (createMany; its id is its channel here) before
+  // sending, the shift re-read to confirm it is still open, then the result
+  // recorded (update).
+  shift: { findUnique: vi.fn().mockResolvedValue({ status: "OPEN", campaign: null }) },
   outreachAttempt: {
-    findMany: vi.fn().mockResolvedValue([]),
-    upsert: vi.fn().mockResolvedValue({}),
+    createMany: vi.fn().mockResolvedValue({ count: 1 }),
+    findUniqueOrThrow: vi.fn(async ({ where }: { where: { shiftId_tier_userId_channel: { channel: string } } }) => ({
+      id: where.shiftId_tier_userId_channel.channel,
+    })),
+    update: vi.fn().mockResolvedValue({}),
+    delete: vi.fn().mockResolvedValue({}),
   },
 }));
+
+/** Recorded outcome per channel: what the claim's follow-up update wrote. */
+function recordedByChannel(): Record<string, { status: string; providerMessageId: string | null }> {
+  return Object.fromEntries(
+    dbMock.outreachAttempt.update.mock.calls.map((c) => [c[0].where.id, c[0].data])
+  );
+}
 vi.mock("@/lib/db", () => ({ db: dbMock }));
 
 import { isTwilioConfigured, isVerifyConfigured, getTwilioClient } from "@/lib/outreach/twilio";
@@ -96,8 +111,7 @@ describe("dispatchOutreach without credentials", () => {
 
     // One OutreachAttempt per applicable channel (verified phone => all three;
     // email is disabled, see EMAIL_CHANNEL_ENABLED).
-    const rows = dbMock.outreachAttempt.upsert.mock.calls.map((c) => c[0].create);
-    const byChannel = Object.fromEntries(rows.map((r) => [r.channel, r]));
+    const byChannel = recordedByChannel();
 
     expect(byChannel.IN_APP.status).toBe("DELIVERED");
     expect(byChannel.EMAIL).toBeUndefined();
@@ -115,9 +129,7 @@ describe("dispatchOutreach without credentials", () => {
       phoneVerifiedAt: null,
     };
     await dispatchOutreach(ctx.shift, [unverified]);
-    const channels = dbMock.outreachAttempt.upsert.mock.calls
-      .map((c) => c[0].create.channel)
-      .sort();
+    const channels = Object.keys(recordedByChannel()).sort();
     expect(channels).toEqual(["IN_APP"]);
   });
 });

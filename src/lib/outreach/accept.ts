@@ -4,9 +4,10 @@
  * ShiftBid (never an instant assignment) and every admin is notified" lives
  * here, in exactly one place, so every channel behaves identically.
  */
-import { BidDurationScope, Channel } from "@prisma/client";
-import type { ShiftBid } from "@prisma/client";
+import { BidDurationScope, Channel, Prisma } from "@prisma/client";
+import type { ShiftBid, ShiftStatus } from "@prisma/client";
 import { db } from "@/lib/db";
+import { guardedTransaction, Rollback } from "@/lib/db-guard";
 import { notifyAdminsOfNewBid } from "@/lib/notifications";
 import { isCampaignTerminal } from "@/lib/callout/decide";
 import { bidAcceptance } from "@/lib/shifts/bid-window";
@@ -99,25 +100,46 @@ export async function submitBid(input: SubmitBidInput): Promise<SubmitBidResult>
   const scopeEnum =
     input.scope === "PARTIAL" ? BidDurationScope.PARTIAL : BidDurationScope.FULL;
 
-  const bid = await db.shiftBid.upsert({
-    where: { shiftId_workerId: { shiftId: shift.id, workerId: input.workerId } },
-    update: {
-      note: input.note ?? null,
-      durationScope: scopeEnum,
-      partialStartsAt,
-      partialEndsAt,
-      status: "PENDING",
-    },
-    create: {
-      shiftId: shift.id,
-      workerId: input.workerId,
-      note: input.note ?? null,
-      durationScope: scopeEnum,
-      partialStartsAt,
-      partialEndsAt,
-      status: "PENDING",
-    },
-  });
+  const data = {
+    note: input.note ?? null,
+    durationScope: scopeEnum,
+    partialStartsAt,
+    partialEndsAt,
+    status: "PENDING" as const,
+  };
+
+  // The bid is written under a SHARE lock on the shift row, re-checking the bid
+  // window on the locked row. An award (whose OPEN -> ASSIGNED update needs that
+  // row exclusively) therefore either commits first - and this sees ASSIGNED and
+  // refuses - or waits for this bid to commit and then marks it NOT_SELECTED.
+  // Without the lock a bid could land PENDING on a just-awarded shift (and tell
+  // every admin about a "new bid" on it). Concurrent bids share the lock freely.
+  const writeBid = () =>
+    guardedTransaction<ShiftBid, "SHIFT_CLOSED" | "SHIFT_ENDED" | "SHIFT_NOT_FOUND">(async (tx) => {
+      const [locked] = await tx.$queryRaw<{ status: ShiftStatus; endsAt: Date }[]>`
+        SELECT "status", "endsAt" FROM "Shift" WHERE "id" = ${shift.id} FOR SHARE`;
+      if (!locked) throw new Rollback("SHIFT_NOT_FOUND");
+      const stillOpen = bidAcceptance(locked);
+      if (!stillOpen.open) throw new Rollback(stillOpen.reason);
+
+      return tx.shiftBid.upsert({
+        where: { shiftId_workerId: { shiftId: shift.id, workerId: input.workerId } },
+        update: data,
+        create: { shiftId: shift.id, workerId: input.workerId, ...data },
+      });
+    });
+
+  let outcome;
+  try {
+    outcome = await writeBid();
+  } catch (err) {
+    // The same worker bidding twice at once (double tap, SMS + app): both saw
+    // no row and one insert lost. Its row exists now, so a retry updates it.
+    if (!(err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002")) throw err;
+    outcome = await writeBid();
+  }
+  if (!outcome.ok) return { ok: false, reason: outcome.result };
+  const bid = outcome.value;
 
   // The latest answer wins: bidding after a decline takes the decline back, so
   // the worker is a normal bidder again (see ./decline).
