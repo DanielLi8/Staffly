@@ -8,7 +8,6 @@ import { Avatar } from "@/components/ui/avatar";
 import { setViewMode } from "@/app/actions/view-mode";
 import { cn } from "@/lib/utils";
 import { useModalPanel } from "@/lib/use-modal-panel";
-import type { Role } from "@/types";
 import type { ViewMode } from "@/lib/view-mode";
 
 export interface DrawerLink {
@@ -22,7 +21,10 @@ interface HamburgerDrawerProps {
   topLinks?: DrawerLink[];
   /** Rendered under a "More" heading; the whole group is omitted when empty. */
   moreLinks?: DrawerLink[];
-  role: Role;
+  /** Shown next to the name, e.g. "Admin"; null for none. */
+  roleBadge: string | null;
+  /** Holds `viewMode.switch`: show the View as toggle. */
+  canSwitchView: boolean;
   viewMode: ViewMode;
   onClose: () => void;
 }
@@ -38,7 +40,7 @@ const setWorkerViewMode = setViewMode.bind(null, "WORKER");
  * handling come from `useModalPanel`. The current page's link is the
  * highlighted one (`aria-current`), not always Home.
  */
-export function HamburgerDrawer({ userName, homeHref, topLinks = [], moreLinks = [], role, viewMode, onClose }: HamburgerDrawerProps) {
+export function HamburgerDrawer({ userName, homeHref, topLinks = [], moreLinks = [], roleBadge, canSwitchView, viewMode, onClose }: HamburgerDrawerProps) {
   const panelRef = useModalPanel<HTMLDivElement>(onClose);
   const pathname = usePathname();
   const isCurrent = (href: string) => pathname === href;
@@ -59,14 +61,14 @@ export function HamburgerDrawer({ userName, homeHref, topLinks = [], moreLinks =
           <div className="min-w-0">
             <p className="truncate font-semibold text-neutral-900">
               {userName}
-              {role === "ADMIN" && (
+              {roleBadge && (
                 <span className="ml-1.5 rounded bg-primary-50 px-1.5 py-0.5 align-middle text-2xs font-bold uppercase tracking-wide text-primary-700">
-                  Admin
+                  {roleBadge}
                 </span>
               )}
             </p>
             <p className="text-xs text-neutral-500">
-              {role === "ADMIN"
+              {canSwitchView
                 ? viewMode === "ADMIN"
                   ? "Viewing as Admin"
                   : "Viewing as Worker (preview)"
@@ -75,7 +77,7 @@ export function HamburgerDrawer({ userName, homeHref, topLinks = [], moreLinks =
           </div>
         </div>
 
-        {role === "ADMIN" && (
+        {canSwitchView && (
           <div className="border-b border-neutral-100 px-4 py-3">
             <p className="pb-1.5 text-2xs font-bold uppercase tracking-wider text-neutral-500">View as</p>
             <div className="flex gap-1 rounded-lg bg-neutral-100 p-1">

@@ -65,7 +65,7 @@ describe("submitBid - the single accept path", () => {
 
     // Every ADMIN is notified (not just the poster), with the SMS channel hint.
     expect(dbMock.user.findMany).toHaveBeenCalledWith({
-      where: { role: "ADMIN" },
+      where: { role: { in: ["ADMIN"] } },
       select: { id: true },
     });
     expect(dbMock.notification.createMany).toHaveBeenCalledTimes(1);

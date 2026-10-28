@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
-import { getSession } from "@/lib/auth";
+import { actorFromSession, getSession } from "@/lib/auth";
+import { can, roleWhere } from "@/lib/authz";
 import { redirect } from "next/navigation";
 import { Avatar } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,10 +12,10 @@ export const metadata = { title: "Workers – Staffly" };
 
 export default async function AdminWorkersPage() {
   const session = await getSession();
-  if (!session || session.user.role !== "ADMIN") redirect("/worker/shifts");
+  if (!session || !can(actorFromSession(session), "staff.viewDirectory")) redirect("/worker/shifts");
 
   const workers = await db.user.findMany({
-    where: { role: "STAFF" },
+    where: roleWhere("schedule.beScheduled"),
     orderBy: { name: "asc" },
     select: {
       id: true,

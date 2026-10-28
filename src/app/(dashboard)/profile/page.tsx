@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { format } from "date-fns";
 import { Mail, User, Briefcase, Building2, Phone, Calendar, ShieldCheck } from "lucide-react";
 import { getSession } from "@/lib/auth";
+import { ROLE_DISPLAY } from "@/lib/authz";
 import { db } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PhoneVerification } from "@/features/profile/phone-verification";
@@ -26,7 +27,7 @@ export default async function ProfilePage() {
 
   if (!user) redirect("/login");
 
-  const roleLabel = user.role === "ADMIN" ? "Admin" : "Staff member";
+  const roleLabel = ROLE_DISPLAY[user.role].label;
 
   return (
     <div className="max-w-xl space-y-6">

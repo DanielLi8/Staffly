@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { ChevronLeft, Info } from "lucide-react";
 import { ShiftForm } from "@/features/shifts/shift-form";
-import { getSession } from "@/lib/auth";
+import { actorFromSession, getSession } from "@/lib/auth";
+import { can } from "@/lib/authz";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 
@@ -9,7 +10,7 @@ export const metadata = { title: "Create New Shift – Staffly" };
 
 export default async function NewShiftPage() {
   const session = await getSession();
-  if (!session || session.user.role !== "ADMIN") redirect("/worker/shifts");
+  if (!session || !can(actorFromSession(session), "shift.create")) redirect("/worker/shifts");
 
   const departments = await db.department.findMany({
     orderBy: { sortOrder: "asc" },

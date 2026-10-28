@@ -22,7 +22,7 @@ export type VerificationActionResult =
 
 /** Persist the worker's phone (resetting any prior verification) and send an OTP. */
 export async function startPhoneVerification(rawPhone: string): Promise<VerificationActionResult> {
-  const session = await requireAuth();
+  const session = await requireAuth("profile.verifyPhone");
 
   const parsed = phoneSchema.safeParse(rawPhone);
   if (!parsed.success) {
@@ -50,7 +50,7 @@ export async function confirmPhoneVerification(
   rawPhone: string,
   code: string
 ): Promise<VerificationActionResult> {
-  const session = await requireAuth();
+  const session = await requireAuth("profile.verifyPhone");
 
   const parsed = phoneSchema.safeParse(rawPhone);
   if (!parsed.success) {

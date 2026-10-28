@@ -274,10 +274,10 @@ export function createFakeDb(state: FakeState) {
         where,
         select,
       }: {
-        where: { role?: string };
+        where: { role?: { in: string[] } };
         select: { availabilities?: { where: { startsAt: { lt: Date }; endsAt: { gt: Date } } } };
       }) {
-        if (where.role === "ADMIN") return state.admins.map((id) => ({ id }));
+        if (where.role?.in.includes("ADMIN")) return state.admins.map((id) => ({ id }));
         if (!select.availabilities) throw new Error("fake-db: unsupported user.findMany");
         const window = {
           startsAt: select.availabilities.where.endsAt.gt,

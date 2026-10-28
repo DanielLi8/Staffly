@@ -74,7 +74,7 @@ async function createShiftWithUniqueCode(
 }
 
 export async function createShift(rawInput: unknown): Promise<CreateShiftFailure> {
-  const session = await requireAuth("ADMIN");
+  const session = await requireAuth("shift.create");
 
   const parsed = createShiftSchema.safeParse(rawInput);
   if (!parsed.success) {
@@ -143,7 +143,7 @@ export type AssignWorkerResult = { ok: true } | { ok: false; error: string };
  * thrown: they aren't reachable through normal UI use of this action.
  */
 export async function assignWorker(shiftId: string, workerId: string): Promise<AssignWorkerResult> {
-  const session = await requireAuth("ADMIN");
+  const session = await requireAuth("shift.award");
 
   const shift = await db.shift.findUnique({
     where: { id: shiftId },
@@ -220,7 +220,7 @@ export interface EditShiftTimeFailure {
 export async function editShiftTime(
   rawInput: unknown
 ): Promise<EditShiftTimeFailure | { ok: true }> {
-  const session = await requireAuth("ADMIN");
+  const session = await requireAuth("shift.editTime");
 
   const parsed = editShiftTimeSchema.safeParse(rawInput);
   if (!parsed.success) {
@@ -272,7 +272,7 @@ export async function editShiftTime(
 }
 
 export async function cancelShift(shiftId: string) {
-  const session = await requireAuth("ADMIN");
+  const session = await requireAuth("shift.cancel");
 
   const shift = await db.shift.findUnique({ where: { id: shiftId } });
   if (!shift) throw new Error("Shift not found");

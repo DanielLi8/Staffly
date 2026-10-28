@@ -19,12 +19,12 @@ describe("setViewMode", () => {
     requireActorMock.mockReset();
   });
 
-  it("requires an ADMIN actor before touching anything", async () => {
+  it("requires the viewMode.switch capability before touching anything", async () => {
     requireActorMock.mockResolvedValue({ id: "u1", role: "ADMIN" });
 
     await setViewMode("WORKER");
 
-    expect(requireActorMock).toHaveBeenCalledWith("ADMIN");
+    expect(requireActorMock).toHaveBeenCalledWith("viewMode.switch");
   });
 
   it("persists the flipped view state to the cookie", async () => {

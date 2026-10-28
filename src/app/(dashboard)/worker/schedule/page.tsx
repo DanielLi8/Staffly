@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { actorFromSession, getSession } from "@/lib/auth";
-import { shiftListWhere } from "@/lib/authz";
+import { can, shiftListWhere } from "@/lib/authz";
 import { redirect } from "next/navigation";
 import { format } from "date-fns";
 import { parseScheduleAnchor, parseScheduleView, resolveScheduleDays, type ScheduleView } from "@/lib/schedule/range";
@@ -51,10 +51,10 @@ export default async function WorkerSchedulePage({
     }),
   ]);
 
-  // `listIncomingShiftSwapRequests` requires a STAFF actor; an ADMIN can also
-  // land on this page (middleware doesn't fence /worker off from ADMIN), so
-  // skip the call entirely rather than let it throw FORBIDDEN.
-  const incomingRequests = session.user.role === "STAFF" ? await listIncomingShiftSwapRequests() : [];
+  // `listIncomingShiftSwapRequests` requires `swap.request` (STAFF today); an
+  // ADMIN can also land on this page (middleware doesn't fence /worker off
+  // from ADMIN), so skip the call entirely rather than let it throw FORBIDDEN.
+  const incomingRequests = can(actor, "swap.request") ? await listIncomingShiftSwapRequests() : [];
 
   return (
     <div className="space-y-4">

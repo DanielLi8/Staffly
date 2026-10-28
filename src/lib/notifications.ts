@@ -2,6 +2,7 @@ import { db } from "./db";
 import { sendEmail, newShiftEmailHtml, assignmentEmailHtml, shiftCancelledEmailHtml } from "./email";
 import { hospitalDateTime } from "@/lib/timezone";
 import type { Shift, User } from "@prisma/client";
+import { roleWhere } from "@/lib/authz";
 
 const APP_URL = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
 
@@ -53,7 +54,7 @@ export async function notifyAdminsOfNewBid(opts: {
   outreachEnded?: boolean;
 }): Promise<void> {
   const admins = await db.user.findMany({
-    where: { role: "ADMIN" },
+    where: roleWhere("shift.award"),
     select: { id: true },
   });
   if (admins.length === 0) return;
@@ -159,7 +160,7 @@ export async function notifyAdminsOfAvailabilityChange(opts: {
   dateLabel: string;
 }): Promise<void> {
   const admins = await db.user.findMany({
-    where: { role: "ADMIN" },
+    where: roleWhere("schedule.viewAnyone"),
     select: { id: true },
   });
 
@@ -273,7 +274,7 @@ export async function notifyAdminsOfShiftSwapPendingApproval(opts: {
 }): Promise<void> {
   const kindLabel = opts.kind === "SWAP" ? "Shift Swap" : "Shift Giveaway";
   const admins = await db.user.findMany({
-    where: { role: "ADMIN" },
+    where: roleWhere("swap.approve"),
     select: { id: true },
   });
 

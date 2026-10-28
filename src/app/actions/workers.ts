@@ -17,7 +17,7 @@ const setTeamLeadSchema = z.object({
  * position-based callout/bid matching.
  */
 export async function setTeamLead(raw: unknown) {
-  await requireAuth("ADMIN");
+  await requireAuth("staff.setTeamLead");
   const data = setTeamLeadSchema.parse(raw);
 
   await db.user.update({

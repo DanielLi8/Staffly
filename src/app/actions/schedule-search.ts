@@ -3,6 +3,7 @@
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
+import { roleWhere } from "@/lib/authz";
 
 export type ScheduleSearchScope = "staff" | "department";
 
@@ -71,13 +72,13 @@ export async function searchScheduleTargets(
   query: string,
   scope: ScheduleSearchScope
 ): Promise<ScheduleSearchResult[]> {
-  await requireAuth("ADMIN");
+  await requireAuth("schedule.viewAnyone");
 
   const q = query.trim();
   if (q.length < 2) return [];
 
   if (scope === "staff") {
-    return fetchStaffResults({ role: "STAFF", name: { contains: q, mode: "insensitive" } }, RESULT_LIMIT);
+    return fetchStaffResults({ ...roleWhere("schedule.beScheduled"), name: { contains: q, mode: "insensitive" } }, RESULT_LIMIT);
   }
 
   return fetchDepartmentResults({
@@ -95,10 +96,10 @@ export async function searchScheduleTargets(
  * starting point, not the only path to them.
  */
 export async function getDefaultScheduleTargets(scope: ScheduleSearchScope): Promise<ScheduleSearchResult[]> {
-  await requireAuth("ADMIN");
+  await requireAuth("schedule.viewAnyone");
 
   if (scope === "staff") {
-    return fetchStaffResults({ role: "STAFF" }, STAFF_DEFAULT_LIMIT);
+    return fetchStaffResults(roleWhere("schedule.beScheduled"), STAFF_DEFAULT_LIMIT);
   }
 
   return fetchDepartmentResults({});

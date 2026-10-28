@@ -1,5 +1,5 @@
 import type { Prisma } from "@prisma/client";
-import { shiftListWhere, type Actor } from "@/lib/authz";
+import { can, shiftListWhere, type Actor, type Capability } from "@/lib/authz";
 
 /**
  * Live-update topics: what a page polls `/api/live/revision?topic=...` for so
@@ -8,15 +8,17 @@ import { shiftListWhere, type Actor } from "@/lib/authz";
  * unit-testable.
  *
  * A topic names a slice of data, and its revision (src/lib/live/revision.ts)
- * is derived from exactly that slice. The access rule is per topic KIND:
+ * is derived from exactly that slice. The access rule is per topic KIND, as
+ * a capability ({@link LIVE_TOPIC_CAPABILITY}):
  *
- * - `admin-*` topics are ADMIN-only. They may reflect every bid on a shift.
- * - `worker-*` topics are STAFF-only, and a shift-scoped one is further
- *   limited by {@link shiftListWhere} - the same read boundary every worker
+ * - `admin-*` topics need `shift.viewAll` (ADMIN today). They may reflect
+ *   every bid on a shift.
+ * - `worker-*` topics need a worker capability (STAFF today), and a
+ *   shift-scoped one is further limited by {@link shiftListWhere} - the same read boundary every worker
  *   shift query goes through. Their revisions must never include other
  *   workers' bids: even an opaque string would leak "someone just bid" as a
  *   timing signal.
- * - Anything else (unknown role, unknown topic) fails closed.
+ * - Anything else (no capability, unknown topic) fails closed.
  */
 
 export type LiveTopic =
@@ -77,16 +79,21 @@ export type LiveTopicAccess =
     }
   | { allowed: false };
 
+/** The capability following each topic kind needs. */
+export const LIVE_TOPIC_CAPABILITY: Record<LiveTopicKind, Capability> = {
+  "admin-shift": "shift.viewAll",
+  "admin-shifts": "shift.viewAll",
+  "worker-shift": "shift.bid",
+  "worker-open-shifts": "shift.bid",
+  "worker-bids": "bid.viewOwn",
+};
+
 /** Whether `actor` may follow `topic`. Fails closed. */
 export function liveTopicAccess(actor: Actor | null, topic: LiveTopic): LiveTopicAccess {
-  if (!actor) return { allowed: false };
-
-  const audience = topic.kind.startsWith("admin-")
-    ? "ADMIN"
-    : topic.kind.startsWith("worker-")
-      ? "STAFF"
-      : null;
-  if (!audience || actor.role !== audience) return { allowed: false };
+  const capability = Object.prototype.hasOwnProperty.call(LIVE_TOPIC_CAPABILITY, topic.kind)
+    ? LIVE_TOPIC_CAPABILITY[topic.kind]
+    : null;
+  if (!actor || !capability || !can(actor, capability)) return { allowed: false };
 
   return {
     allowed: true,
