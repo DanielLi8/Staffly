@@ -33,7 +33,7 @@ export function getTelephonyProvider(): TelephonyProvider {
   const raw = process.env.TELEPHONY_PROVIDER;
   const name = parseTelephonyProvider(raw);
   if (!name) {
-    console.error(`[telephony] Unknown TELEPHONY_PROVIDER "${raw}" — SMS and phone verification are off.`);
+    console.error(`[telephony] Unknown TELEPHONY_PROVIDER "${raw}" - SMS and phone verification are off.`);
     return noopProvider;
   }
   return PROVIDERS[name];

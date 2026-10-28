@@ -19,7 +19,7 @@ export const twilioProvider: TelephonyProvider = {
     const client = getTwilioClient();
     const { fromNumber } = twilioConfig();
     if (!client || !fromNumber) {
-      console.warn("[outreach:sms] Twilio not configured — skipping SMS send.");
+      console.warn("[outreach:sms] Twilio not configured - skipping SMS send.");
       return { status: "SKIPPED" };
     }
 
@@ -64,7 +64,7 @@ export const twilioProvider: TelephonyProvider = {
     const client = getTwilioClient();
     const { verifyServiceSid } = twilioConfig();
     if (!isVerifyConfigured() || !client || !verifyServiceSid) {
-      console.warn("[verify] Twilio Verify not configured — cannot send OTP.");
+      console.warn("[verify] Twilio Verify not configured - cannot send OTP.");
       return { ok: false, reason: "UNAVAILABLE" };
     }
     try {
@@ -82,7 +82,7 @@ export const twilioProvider: TelephonyProvider = {
     const client = getTwilioClient();
     const { verifyServiceSid } = twilioConfig();
     if (!isVerifyConfigured() || !client || !verifyServiceSid) {
-      console.warn("[verify] Twilio Verify not configured — cannot check OTP.");
+      console.warn("[verify] Twilio Verify not configured - cannot check OTP.");
       return { ok: false, reason: "UNAVAILABLE" };
     }
     try {

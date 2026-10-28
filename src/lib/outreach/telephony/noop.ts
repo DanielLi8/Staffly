@@ -10,7 +10,7 @@ export const noopProvider: TelephonyProvider = {
   name: "none",
 
   async sendSms() {
-    console.warn("[outreach:sms] No telephony provider — skipping SMS send.");
+    console.warn("[outreach:sms] No telephony provider - skipping SMS send.");
     return { status: "SKIPPED" };
   },
 
@@ -36,12 +36,12 @@ export const noopProvider: TelephonyProvider = {
   },
 
   async sendOtp() {
-    console.warn("[verify] No telephony provider — cannot send OTP.");
+    console.warn("[verify] No telephony provider - cannot send OTP.");
     return { ok: false, reason: "UNAVAILABLE" };
   },
 
   async checkOtp() {
-    console.warn("[verify] No telephony provider — cannot check OTP.");
+    console.warn("[verify] No telephony provider - cannot check OTP.");
     return { ok: false, reason: "UNAVAILABLE" };
   },
 };
