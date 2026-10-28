@@ -5,7 +5,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireActor } from "@/lib/auth";
 import { hospitalDateTime } from "@/lib/timezone";
-import { payPeriodFor, isSamePayPeriod, PAY_PERIOD_LENGTH_DAYS } from "@/lib/shift-swap/pay-period";
+import { payPeriodFor, isSamePayPeriod, PAY_PERIOD_LENGTH_DAYS } from "@/lib/schedule-rules/pay-period";
 import { evaluateReceivingEligibility, type EligibilityShift } from "@/lib/shift-swap/eligibility";
 import {
   notifyTargetOfShiftSwapRequest,
