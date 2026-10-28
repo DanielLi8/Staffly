@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { format, eachDayOfInterval } from "date-fns";
-import { Search as SearchIcon } from "lucide-react";
+import Link from "next/link";
+import { Search as SearchIcon, Users } from "lucide-react";
 import { getSession, actorFromSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Actor } from "@/lib/authz";
@@ -144,17 +145,24 @@ async function DepartmentMode({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <div className="w-11 h-11 rounded-lg bg-primary-50 border border-primary-100 flex items-center justify-center shrink-0">
           <Icon className="w-5 h-5 text-primary-700" aria-hidden />
         </div>
-        <div>
+        <div className="min-w-[12rem] flex-1">
           <h2 className="text-xl font-bold text-neutral-900">{result.department.name}</h2>
           <p className="text-xs text-neutral-500 uppercase tracking-wide">
             {result.department.code}
             {result.department.wing ? ` · ${result.department.wing}` : ""}
           </p>
         </div>
+        <Link
+          href={`/admin/departments/${departmentId}/targets`}
+          className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-md border border-neutral-300 bg-white px-3 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+        >
+          <Users className="h-4 w-4" aria-hidden />
+          Staffing targets
+        </Link>
       </div>
 
       <CalendarNav

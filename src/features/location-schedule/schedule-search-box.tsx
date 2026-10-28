@@ -28,7 +28,7 @@ export function ScheduleSearchBox() {
       <SingleScopeSearch
         scope="department"
         label="Search departments"
-        placeholder="Search departments by name or code..."
+        placeholder="Department name or code..."
       />
     </div>
   );
