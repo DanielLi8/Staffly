@@ -6,7 +6,7 @@ import { getSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PhoneVerification } from "@/features/profile/phone-verification";
-import { isVerifyConfigured } from "@/lib/outreach/twilio";
+import { isPhoneVerificationConfigured } from "@/lib/outreach/verify";
 
 export const metadata = { title: "Profile – Staffly" };
 
@@ -49,20 +49,20 @@ export default async function ProfilePage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Text &amp; call alerts</CardTitle>
+          <CardTitle className="text-lg">Text alerts</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 text-sm">
           <div className="flex gap-3">
             <Phone className="w-4 h-4 text-neutral-400 mt-0.5 shrink-0" aria-hidden />
             <p className="text-neutral-500">
-              Verify your mobile number to get shift callouts by text and phone. Unverified
+              Verify your mobile number to get shift callouts by text. Unverified
               numbers only receive in-app alerts.
             </p>
           </div>
           <PhoneVerification
             initialPhone={user.phone}
             verified={user.phoneVerifiedAt !== null}
-            available={isVerifyConfigured()}
+            available={isPhoneVerificationConfigured()}
           />
         </CardContent>
       </Card>

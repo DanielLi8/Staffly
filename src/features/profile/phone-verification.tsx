@@ -34,7 +34,7 @@ export function PhoneVerification({ initialPhone, verified, available }: PhoneVe
       <div className="flex items-center gap-2 text-sm text-emerald-700">
         <CheckCircle2 className="w-4 h-4 shrink-0" aria-hidden />
         <span>
-          <span className="font-medium">{phone}</span> is verified for text and call alerts.
+          <span className="font-medium">{phone}</span> is verified for text alerts.
         </span>
       </div>
     );

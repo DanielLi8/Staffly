@@ -324,7 +324,8 @@ describe("Twilio replies after Stop outreach", () => {
       response: "ACCEPTED",
     });
     expect(twilioSends.messages.create).toHaveBeenCalledTimes(2);
-    expect(twilioSends.calls.create).toHaveBeenCalledTimes(2);
+    // Voice is switched off (VOICE_CHANNEL_ENABLED): nobody was ever called.
+    expect(twilioSends.calls.create).not.toHaveBeenCalled();
   });
 
   it("an IVR key-press on an earlier call still becomes a bid", async () => {

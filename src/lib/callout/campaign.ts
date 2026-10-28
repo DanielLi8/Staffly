@@ -431,7 +431,7 @@ export async function resumeCampaign(
 /**
  * Stop outreach for good: no more texts, calls, or tiers. This is the
  * authoritative kill switch for OUTREACH only - the shift stays OPEN and keeps
- * taking bids (in the app, and by reply to earlier texts and calls) until it
+ * taking bids (in the app, and by reply to earlier texts) until it
  * is awarded or cancelled. See `bidAcceptance`.
  */
 export async function stopCampaign(
@@ -440,7 +440,7 @@ export async function stopCampaign(
 ): Promise<CampaignControlResult> {
   return setCampaignStatus(shiftId, "CANCELLED", actor, {
     action: "CALLOUT_STOPPED",
-    details: "Outreach stopped by scheduler; no further texts or calls will be sent. Bidding stays open.",
+    details: "Outreach stopped by scheduler; no further texts will be sent. Bidding stays open.",
     endsCampaign: true,
   });
 }
