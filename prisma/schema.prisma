@@ -148,10 +148,14 @@ model User {
 }
 
 model Hospital {
-  id        String   @id @default(cuid())
-  name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id @default(cuid())
+  name         String
+  /// Minimum rest between two shifts, in hours, for the schedule rule checker
+  /// (`schedulePolicyFor` in `src/lib/schedule-rules/policy.ts`). Null = the
+  /// provisional `DEFAULT_MIN_REST_HOURS` until the union-contract number is set.
+  minRestHours Int?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   users       User[]
   departments Department[]
@@ -226,6 +230,8 @@ model Shift {
   @@index([departmentId])
   @@index([startsAt])
   @@index([status])
+  /// "This person's shifts around time T" - the schedule rule checker's query.
+  @@index([assignedWorkerId, startsAt])
 }
 
 model ShiftBid {

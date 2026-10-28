@@ -1,5 +1,6 @@
 /**
- * Pay-period boundaries for Shift Swap / Giveaway eligibility.
+ * Pay-period boundaries: the 14-day window the 75 h overtime line and Shift
+ * Swap / Giveaway eligibility are measured over.
  *
  * PURE: no DB, no session. A fixed, ongoing 2-week cycle anchored to Sunday,
  * Aug 23, 2026 - "Aug 23 to Sep 5 inclusive" is one full period (the captain's
@@ -14,7 +15,7 @@
  * month schedule GRID range (`resolveScheduleRange`), which deliberately
  * stays in plain local time to match the calendar the viewer is looking at.
  */
-import { addDays, differenceInCalendarDays } from "date-fns";
+import { addDays, differenceInCalendarDays, format } from "date-fns";
 import { hospitalDate } from "@/lib/timezone";
 
 /** Sunday, Aug 23, 2026 - the first day of the anchor pay period. */
@@ -67,4 +68,15 @@ export function payPeriodFor(date: Date): PayPeriod {
 /** Whether `a` and `b` fall in the same pay period. */
 export function isSamePayPeriod(a: Date, b: Date): boolean {
   return payPeriodFor(a).start.getTime() === payPeriodFor(b).start.getTime();
+}
+
+/**
+ * A pay period as people say it: "Oct 18-31" inside one month, "Oct 25 - Nov 7"
+ * across a month boundary.
+ */
+export function payPeriodLabel(period: PayPeriod): string {
+  const sameMonth = period.start.getMonth() === period.end.getMonth();
+  return sameMonth
+    ? `${format(period.start, "MMM d")}-${format(period.end, "d")}`
+    : `${format(period.start, "MMM d")} - ${format(period.end, "MMM d")}`;
 }
