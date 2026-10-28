@@ -178,7 +178,8 @@ describe("a decline stops further outreach", () => {
     await advanceCampaignTier(state.shift.id, SCHEDULER);
     await advanceCampaignTier(state.shift.id, SCHEDULER);
     expect(textsTo("+14165550103")).toBe(1);
-    expect(callsTo("+14165550103")).toBe(1);
+    // Voice is switched off (VOICE_CHANNEL_ENABLED): texted, never called.
+    expect(callsTo("+14165550103")).toBe(0);
   });
 });
 
@@ -279,14 +280,14 @@ describe("SMS and IVR declines", () => {
     expect(state.declines).toEqual([]);
   });
 
+  // Voice is switched off, but a call placed before the switch can still be
+  // answered: the IVR handler stays on the single decline path.
   it("IVR key 2 records the same decline", async () => {
     await startCalloutCampaign(state.shift.id);
     const path = `/api/webhooks/twilio/voice-response?shiftId=${state.shift.id}&userId=tier1-nurse`;
     const res = await voiceResponsePost(signedRequest(path, { Digits: "2", CallSid: "CA-1" }));
     expect(await res.text()).toContain("You have declined this shift.");
     expect(state.declines).toEqual([{ shiftId: state.shift.id, userId: "tier1-nurse", source: "VOICE" }]);
-    expect(state.attempts.find((a) => a.userId === "tier1-nurse" && a.channel === "VOICE")).toMatchObject({
-      response: "DECLINED",
-    });
+    expect(state.attempts.some((a) => a.channel === "VOICE")).toBe(false);
   });
 });

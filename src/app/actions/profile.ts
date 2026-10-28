@@ -4,8 +4,11 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
-import { sendVerificationCode, checkVerificationCode } from "@/lib/outreach/verify";
-import { isVerifyConfigured } from "@/lib/outreach/twilio";
+import {
+  sendVerificationCode,
+  checkVerificationCode,
+  isPhoneVerificationConfigured,
+} from "@/lib/outreach/verify";
 
 // E.164: a leading + and 7-15 digits. Outreach requires this format to dial/text.
 const phoneSchema = z
@@ -80,7 +83,7 @@ export async function confirmPhoneVerification(
   return { status: "verified" };
 }
 
-/** Whether phone verification is available in this deployment (Twilio Verify set). */
+/** Whether phone verification is available in this deployment (telephony provider OTP set up). */
 export async function phoneVerificationAvailable(): Promise<boolean> {
-  return isVerifyConfigured();
+  return isPhoneVerificationConfigured();
 }

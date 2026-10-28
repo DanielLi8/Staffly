@@ -80,7 +80,7 @@ test.describe("Late bids reach an open admin shift page live", () => {
 
     // Labels tolerate the "Stop" -> "Stop outreach" copy change.
     await admin.getByRole("button", { name: /^Stop( outreach)?$/ }).click();
-    await expect(admin.getByText(/Stop the cascade\?|Stop texting and calling\?/)).toBeVisible();
+    await expect(admin.getByText(/Stop the cascade\?|Stop texting\?/)).toBeVisible();
     await admin.getByRole("button", { name: /^(Confirm stop|Stop outreach)$/ }).click();
     await expect(exhaust).toHaveCount(0);
     await expect(admin.getByText(/^(Cancelled|Outreach stopped)$/i).first()).toBeVisible();

@@ -272,8 +272,8 @@ function BiddingStatus({ data }: { data: FillDashboard }) {
         <span>
           <span className="font-semibold">Bidding open</span> · {bids}.{" "}
           {outreachEnded
-            ? "Outreach has ended, but staff can still bid in the app or by replying to an earlier text or call."
-            : "Staff can bid in the app or by replying to a text or call."}
+            ? "Outreach has ended, but staff can still bid in the app or by replying to an earlier text."
+            : "Staff can bid in the app or by replying to a text."}
         </span>
       </div>
     );
@@ -323,10 +323,10 @@ export function describeOutreachEnd(data: FillDashboard, now: Date): string {
 
   const ended =
     campaign.status === "EXHAUSTED"
-      ? `All ${MAX_TIER} tiers contacted with no fill yet. No more texts or calls will go out.`
+      ? `All ${MAX_TIER} tiers contacted with no fill yet. No more texts will go out.`
       : campaign.stoppedBy
-        ? `Outreach stopped at tier ${campaign.currentTier} by ${campaign.stoppedBy.name}, ${whenLabel(campaign.stoppedBy.at, now)}. No more texts or calls will go out.`
-        : `Outreach stopped at tier ${campaign.currentTier}. No more texts or calls will go out.`;
+        ? `Outreach stopped at tier ${campaign.currentTier} by ${campaign.stoppedBy.name}, ${whenLabel(campaign.stoppedBy.at, now)}. No more texts will go out.`
+        : `Outreach stopped at tier ${campaign.currentTier}. No more texts will go out.`;
 
   return bidding.open ? `${ended} Bidding is still open.` : ended;
 }

@@ -42,7 +42,7 @@ cp .env.example .env
 
 Edit `.env`: set `NEXTAUTH_SECRET` (e.g. `openssl rand -base64 32`). Defaults match `docker-compose` for `DATABASE_URL`.
 
-Everything else in `.env.example` is optional. Without Resend the app skips emails, without Twilio it skips SMS/voice, and without Inngest the callout cascade still runs - posting a shift fires tier-1 outreach immediately and a scheduler can advance, hold, or stop the cascade by hand. Inngest only adds the automatic timed escalation between tiers.
+Everything else in `.env.example` is optional. Without Resend the app skips emails, without Twilio it skips SMS (voice calls are switched off in code), and without Inngest the callout cascade still runs - posting a shift fires tier-1 outreach immediately and a scheduler can advance, hold, or stop the cascade by hand. Inngest only adds the automatic timed escalation between tiers.
 
 ### 3. Install, migrate, and seed
 
@@ -69,7 +69,7 @@ Production values are **not** kept in the repo. They live in the Vercel project 
 Scope values per environment:
 
 - **Production** - live keys (real database, live Twilio credentials).
-- **Preview / Development** - **test** keys: Twilio test credentials and a non-production database, so a preview deploy can never send a real SMS or voice call, or touch production data.
+- **Preview / Development** - **test** keys: Twilio test credentials and a non-production database, so a preview deploy can never send a real SMS, or touch production data.
 
 ### The `NEXT_PUBLIC_` rule
 
@@ -84,6 +84,7 @@ Anything prefixed `NEXT_PUBLIC_` is inlined into the browser bundle at build tim
 | `NEXTAUTH_URL` | Public (a URL) | Yes | Yes - deployment URL vs. `http://localhost:3000` |
 | `RESEND_API_KEY` | Secret | Optional | Yes - live vs. test key |
 | `EMAIL_FROM` | Public | Optional | Usually not |
+| `TELEPHONY_PROVIDER` | Public | Optional (`twilio` when unset; `none` turns SMS off) | Usually not |
 | `TWILIO_ACCOUNT_SID` | Secret | Optional | Yes - live vs. test account |
 | `TWILIO_AUTH_TOKEN` | Secret (highly sensitive - also validates inbound webhook signatures) | Optional | Yes |
 | `TWILIO_PHONE_NUMBER` | Secret | Optional | Yes - live number vs. Twilio test number |

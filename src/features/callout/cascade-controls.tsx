@@ -19,7 +19,7 @@ interface CascadeControlsProps {
  * writes behind the scenes, so they work identically with and without Inngest -
  * the demo can steer the whole cascade by hand.
  *
- * "Stop outreach" ends texts and calls only. Bidding is gated by the shift, not
+ * "Stop outreach" ends texts only. Bidding is gated by the shift, not
  * the campaign, so the shift keeps taking bids until it is awarded or cancelled.
  */
 export function CascadeControls({ shiftId, status, currentTier, maxTier }: CascadeControlsProps) {
@@ -85,7 +85,7 @@ export function CascadeControls({ shiftId, status, currentTier, maxTier }: Casca
         {confirmStop ? (
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs text-neutral-600">
-              Stop texting and calling? Bidding stays open in the app and by reply.
+              Stop texting? Bidding stays open in the app and by reply.
             </span>
             <Button
               size="sm"
@@ -119,8 +119,8 @@ export function CascadeControls({ shiftId, status, currentTier, maxTier }: Casca
       </div>
 
       <p className="text-xs text-neutral-500">
-        Stopping outreach ends texts and calls only. Staff can still bid - in the app or by
-        replying to a text or call they already got - until the shift is awarded, cancelled,
+        Stopping outreach ends texts only. Staff can still bid - in the app or by
+        replying to a text they already got - until the shift is awarded, cancelled,
         or over.
       </p>
     </div>

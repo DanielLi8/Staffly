@@ -88,14 +88,14 @@ describe("SMS/voice channels skip without credentials", () => {
 });
 
 describe("dispatchOutreach without credentials", () => {
-  it("still records in-app, and records SMS/voice as skipped QUEUED", async () => {
+  it("still records in-app, and records SMS as skipped QUEUED", async () => {
     await dispatchOutreach(ctx.shift, [ctx.recipient]);
 
     // In-app notification still written.
     expect(dbMock.notification.create).toHaveBeenCalledTimes(1);
 
-    // One OutreachAttempt per applicable channel (verified phone => all three;
-    // email is disabled, see EMAIL_CHANNEL_ENABLED).
+    // One OutreachAttempt per applicable channel (verified phone => in-app and
+    // SMS; email and voice are disabled, see EMAIL_/VOICE_CHANNEL_ENABLED).
     const rows = dbMock.outreachAttempt.upsert.mock.calls.map((c) => c[0].create);
     const byChannel = Object.fromEntries(rows.map((r) => [r.channel, r]));
 
@@ -104,7 +104,7 @@ describe("dispatchOutreach without credentials", () => {
     // Skipped sends are recorded QUEUED with no provider id.
     expect(byChannel.SMS.status).toBe("QUEUED");
     expect(byChannel.SMS.providerMessageId).toBeNull();
-    expect(byChannel.VOICE.status).toBe("QUEUED");
+    expect(byChannel.VOICE).toBeUndefined();
   });
 
   it("only records in-app for a recipient with an unverified phone", async () => {

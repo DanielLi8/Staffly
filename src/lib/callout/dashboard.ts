@@ -16,7 +16,7 @@ import type {
 import { startOfWeek, endOfWeek } from "date-fns";
 import { db } from "@/lib/db";
 import { rankBySeniority } from "@/lib/seniority";
-import { EMAIL_CHANNEL_ENABLED } from "@/lib/outreach";
+import { isChannelShown } from "@/lib/outreach";
 import { buildTierRoster, TIERS, type Tier } from "./tiers";
 import { loadTierCandidates, tierEnteredAt, windowMinutesForTier } from "./campaign";
 import { bidAcceptance, type BidAcceptance } from "@/lib/shifts/bid-window";
@@ -178,10 +178,8 @@ export async function loadFillDashboard(
   const campaign = shift.campaign;
 
   // Disabled channels stay out of the view model entirely, so historical email
-  // attempts do not surface in the UI while the channel is off.
-  const outreachAttempts = shift.outreachAttempts.filter(
-    (a) => EMAIL_CHANNEL_ENABLED || a.channel !== "EMAIL"
-  );
+  // and voice attempts do not surface in the UI while the channel is off.
+  const outreachAttempts = shift.outreachAttempts.filter((a) => isChannelShown(a.channel));
 
   /* --- tier rosters, so the dashboard can show reach vs. remaining pool ---- */
   const candidates = await loadTierCandidates(shift);

@@ -1,14 +1,15 @@
 /**
  * Multi-channel outreach dispatcher. Given a shift, it reaches a set of staff
- * across in-app, SMS, and voice (email is currently disabled, see
- * {@link EMAIL_CHANNEL_ENABLED}), recording an OutreachAttempt row per
- * attempt. Credential-free channels simply skip (see each channel).
+ * across in-app and SMS (email and voice are currently disabled, see
+ * {@link EMAIL_CHANNEL_ENABLED} and {@link VOICE_CHANNEL_ENABLED}), recording
+ * an OutreachAttempt row per attempt. Credential-free channels simply skip (see each channel).
  *
  * Phase 4 added the `tier` dimension: the escalation cascade dispatches one tier
  * at a time and every attempt is stamped with the tier that produced it. Who
  * belongs in which tier is decided upstream, by the pure targeting module
  * (src/lib/callout/tiers.ts); this file stays a dumb, tier-agnostic pipe.
  */
+import { Channel } from "@prisma/client";
 import { db } from "@/lib/db";
 import { emailChannel } from "./email";
 import { inAppChannel } from "./inapp";
@@ -29,12 +30,30 @@ const APP_URL = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
  */
 export const EMAIL_CHANNEL_ENABLED = false;
 
+/**
+ * Voice (IVR) calls are disabled: callouts go by SMS and in-app only (captain
+ * decision 2026-10-25, "drop phone calls for now"). Same shape as
+ * {@link EMAIL_CHANNEL_ENABLED}: the channel (./voice.ts) and its IVR webhooks
+ * stay in place, so a call placed before the switch can still be answered, and
+ * flipping this back to `true` re-enables calling and the fill dashboard's
+ * voice attempts. The UI copy that says "texts" (fill dashboard, cascade
+ * controls, /profile) would then need "and calls" again.
+ */
+export const VOICE_CHANNEL_ENABLED = false;
+
+/** Whether a channel's attempts belong in outreach views (the fill dashboard). */
+export function isChannelShown(channel: Channel): boolean {
+  if (channel === Channel.EMAIL) return EMAIL_CHANNEL_ENABLED;
+  if (channel === Channel.VOICE) return VOICE_CHANNEL_ENABLED;
+  return true;
+}
+
 /** Channel order is cosmetic here (no tiering): in-app always fires. */
 const CHANNELS: OutreachChannel[] = [
   inAppChannel,
   ...(EMAIL_CHANNEL_ENABLED ? [emailChannel] : []),
   smsChannel,
-  voiceChannel,
+  ...(VOICE_CHANNEL_ENABLED ? [voiceChannel] : []),
 ];
 
 /** Untiered outreach - a direct dispatch that is not part of a cascade. */
