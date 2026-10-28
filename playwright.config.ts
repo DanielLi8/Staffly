@@ -15,6 +15,11 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: "html",
+  // The suite runs against `next dev`, which compiles each route on its first
+  // hit: a cold page can take well over the 5 s default to render, which made
+  // first runs flaky (passing on retry). Give assertions and tests room for it.
+  timeout: 60_000,
+  expect: { timeout: 15_000 },
   use: {
     baseURL,
     trace: "on-first-retry",

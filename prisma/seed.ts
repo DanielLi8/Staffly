@@ -10,6 +10,8 @@ import {
   setMinutes,
   startOfWeek,
 } from "date-fns";
+import { TEMPLATE_PRESETS } from "../src/lib/staffing/templates";
+import { addDaysToKey, hospitalDate } from "../src/lib/timezone";
 
 const prisma = new PrismaClient();
 
@@ -25,6 +27,9 @@ async function main() {
   await prisma.shiftBid.deleteMany();
   await prisma.shift.deleteMany();
   await prisma.departmentMembership.deleteMany();
+  await prisma.staffingTargetOverride.deleteMany();
+  await prisma.staffingTarget.deleteMany();
+  await prisma.auditLog.deleteMany({ where: { targetType: "Department" } });
   await prisma.session.deleteMany();
   await prisma.account.deleteMany();
   await prisma.user.deleteMany();
@@ -61,6 +66,8 @@ async function main() {
       hireDate: new Date("2014-03-01"),
     },
   });
+
+  await seedStaffingTargets({ ER: deptER.id, ICU: deptICU.id, MED: deptMED.id }, admin.id);
 
   const admin2 = await prisma.user.create({
     data: {
@@ -555,6 +562,73 @@ async function main() {
   console.log("  Staff:      worker1@staffly.com / worker123 (Maria Santos – Emergency RN)");
   console.log("  Staff:      worker2@staffly.com / worker123 (David Kim – ICU RN)");
   console.log("  Staff:      worker3@staffly.com / worker123 (Aisha Patel – Med/Surg RN)");
+}
+
+/**
+ * Shift definitions for every department (8 h D/E/N active, the 12 h set
+ * available) plus realistic projected numbers for a ~30-bed Med/Surg unit:
+ * RN / RPN / PSW per shift, a lighter weekend, and two upcoming one-date
+ * overrides. The other departments start with no targets.
+ */
+async function seedStaffingTargets(depts: { ER: string; ICU: string; MED: string }, adminId: string) {
+  await prisma.department.update({
+    where: { id: depts.ER },
+    data: { unitLabel: "4B", location: "St. Michael's Hospital – 30 Bond St." },
+  });
+  await prisma.department.update({
+    where: { id: depts.ICU },
+    data: { unitLabel: "3A", location: "St. Michael's Hospital – 30 Bond St." },
+  });
+  await prisma.department.update({
+    where: { id: depts.MED },
+    data: { unitLabel: "5C", location: "St. Joseph's Health Centre – 30 The Queensway" },
+  });
+  await prisma.department.updateMany({ data: { shiftPattern: "EIGHT_HOUR" } });
+
+  for (const department of await prisma.department.findMany({ select: { id: true } })) {
+    for (const preset of TEMPLATE_PRESETS) {
+      const { code, ...rest } = preset;
+      await prisma.shiftTemplate.upsert({
+        where: { departmentId_code: { departmentId: department.id, code } },
+        create: { departmentId: department.id, code, ...rest },
+        update: { ...rest, leadRequired: true },
+      });
+    }
+  }
+
+  const medTemplates = await prisma.shiftTemplate.findMany({ where: { departmentId: depts.MED } });
+  const tpl = (code: string) => medTemplates.find((t) => t.code === code)!.id;
+
+  // [RN, RPN, PSW] per shift, weekday then weekend.
+  const counts: Record<string, { weekday: number[]; weekend: number[] }> = {
+    D: { weekday: [5, 2, 3], weekend: [4, 2, 2] },
+    E: { weekday: [4, 2, 2], weekend: [4, 1, 2] },
+    N: { weekday: [3, 1, 2], weekend: [3, 1, 1] },
+    D12: { weekday: [5, 2, 3], weekend: [4, 2, 2] },
+    N12: { weekday: [3, 1, 2], weekend: [3, 1, 1] },
+  };
+  const roles = ["RN", "RPN", "PSW"] as const;
+  const days = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"] as const;
+  await prisma.staffingTarget.createMany({
+    data: Object.entries(counts).flatMap(([code, c]) =>
+      days.flatMap((dayOfWeek) =>
+        roles.map((role, i) => ({
+          templateId: tpl(code),
+          dayOfWeek,
+          role,
+          count: (dayOfWeek === "SAT" || dayOfWeek === "SUN" ? c.weekend : c.weekday)[i],
+        }))
+      )
+    ),
+  });
+
+  const today = hospitalDate(new Date());
+  await prisma.staffingTargetOverride.createMany({
+    data: [
+      { templateId: tpl("D"), date: addDaysToKey(today, 3), role: "RN", count: 6, reason: "Census 31 of 30", setById: adminId },
+      { templateId: tpl("N"), date: addDaysToKey(today, 10), role: "PSW", count: 3, reason: "Two 1:1 patient watches", setById: adminId },
+    ],
+  });
 }
 
 main()

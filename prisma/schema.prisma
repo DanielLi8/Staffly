@@ -53,6 +53,34 @@ enum AvailabilityStatus {
   TENTATIVE
 }
 
+/// The roles a department's staffing targets count (captain decision
+/// role-set-and-lead). PSW is the Ontario term for a health care aide. A Lead
+/// RN is an RN with `User.isTeamLead`, never a separate count.
+enum StaffingRole {
+  RN
+  RPN
+  PSW
+}
+
+enum DayOfWeek {
+  SUN
+  MON
+  TUE
+  WED
+  THU
+  FRI
+  SAT
+}
+
+/// A department's shift length (captain decision shift-hours-default: 8 h
+/// Day/Evening/Night by default, a department can switch to 12 h). Every
+/// department keeps both template sets; this picks the set its staffing
+/// targets are counted against.
+enum ShiftPattern {
+  EIGHT_HOUR
+  TWELVE_HOUR
+}
+
 enum Channel {
   EMAIL
   SMS
@@ -129,19 +157,21 @@ model User {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  hospital              Hospital?              @relation(fields: [hospitalId], references: [id])
+  hospital              Hospital?                @relation(fields: [hospitalId], references: [id])
   bids                  ShiftBid[]
-  assignedShifts        Shift[]                @relation("AssignedWorker")
-  createdShifts         Shift[]                @relation("CreatedBy")
+  assignedShifts        Shift[]                  @relation("AssignedWorker")
+  createdShifts         Shift[]                  @relation("CreatedBy")
   notifications         Notification[]
-  activities            ShiftActivity[]        @relation("ActivityActor")
+  activities            ShiftActivity[]          @relation("ActivityActor")
   departmentMemberships DepartmentMembership[]
   availabilities        Availability[]
+  staffingTargetsSet    StaffingTarget[]
+  staffingOverridesSet  StaffingTargetOverride[]
   outreachAttempts      OutreachAttempt[]
   shiftDeclines         ShiftDecline[]
-  swapRequestsMade      ShiftSwapRequest[]     @relation("SwapRequester")
-  swapRequestsReceived  ShiftSwapRequest[]     @relation("SwapTarget")
-  swapRequestsApproved  ShiftSwapRequest[]     @relation("SwapApprovedBy")
+  swapRequestsMade      ShiftSwapRequest[]       @relation("SwapRequester")
+  swapRequestsReceived  ShiftSwapRequest[]       @relation("SwapTarget")
+  swapRequestsApproved  ShiftSwapRequest[]       @relation("SwapApprovedBy")
 
   accounts Account[]
   sessions Session[]
@@ -159,12 +189,16 @@ model Hospital {
 }
 
 model Department {
-  id        String  @id @default(cuid())
-  name      String
-  code      String  @unique
-  iconKey   String  @default("star")
-  wing      String?
-  sortOrder Int     @default(0)
+  id           String       @id @default(cuid())
+  name         String
+  code         String       @unique
+  iconKey      String       @default("star")
+  wing         String?
+  sortOrder    Int          @default(0)
+  /// Defaults for shifts entered for this department (`Shift.unit`/`location`).
+  unitLabel    String?
+  location     String?
+  shiftPattern ShiftPattern @default(EIGHT_HOUR)
 
   hospitalId String?
   hospital   Hospital? @relation(fields: [hospitalId], references: [id])
@@ -172,6 +206,71 @@ model Department {
   memberships    DepartmentMembership[]
   shifts         Shift[]
   availabilities Availability[]
+  shiftTemplates ShiftTemplate[]
+}
+
+/// A department's shift definition ("D 07:00-15:00"). Minutes are on the
+/// hospital clock, on a 15-minute grid; `endMinute <= startMinute` means the
+/// shift ends the next morning (Night 23:00-07:00). Only templates whose
+/// `pattern` matches `Department.shiftPattern` carry the department's targets;
+/// see `src/lib/staffing/`.
+model ShiftTemplate {
+  id           String       @id @default(cuid())
+  departmentId String
+  department   Department   @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  pattern      ShiftPattern
+  /// "D" | "E" | "N" (8 h) or "D12" | "N12" (12 h); unique per department.
+  code         String
+  label        String
+  startMinute  Int
+  endMinute    Int
+  /// Coverage checks that one of this shift's RNs is a Team Lead.
+  leadRequired Boolean      @default(true)
+  sortOrder    Int          @default(0)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  targets   StaffingTarget[]
+  overrides StaffingTargetOverride[]
+
+  @@unique([departmentId, code])
+}
+
+/// The usual number of `role` needed on a shift, per day of week. The editor
+/// shows Weekdays / Weekends columns by default; storage is always per day.
+/// A missing row means 0.
+model StaffingTarget {
+  id         String        @id @default(cuid())
+  templateId String
+  template   ShiftTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  dayOfWeek  DayOfWeek
+  role       StaffingRole
+  count      Int
+  setById    String?
+  setBy      User?         @relation(fields: [setById], references: [id], onDelete: SetNull)
+  updatedAt  DateTime      @updatedAt
+
+  @@unique([templateId, dayOfWeek, role])
+}
+
+/// A one-date exception to the weekly target (holiday, census spike). It wins
+/// over `StaffingTarget` for that hospital day (`effectiveTarget`).
+model StaffingTargetOverride {
+  id         String        @id @default(cuid())
+  templateId String
+  template   ShiftTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  /// Hospital day key `yyyy-MM-dd`, the same key type as the schedule views.
+  date       String
+  role       StaffingRole
+  count      Int
+  reason     String?
+  setById    String?
+  setBy      User?         @relation(fields: [setById], references: [id], onDelete: SetNull)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  @@unique([templateId, date, role])
+  @@index([date])
 }
 
 model DepartmentMembership {
