@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest";
 import {
   DEFAULT_WEEKLY_OT_THRESHOLD_HOURS,
   projectOvertime,
-  windowHours,
   workWeekBounds,
 } from "@/lib/callout/overtime";
 
@@ -28,30 +27,6 @@ function shift(id: string, isoDate: string) {
     endsAt: new Date(`${isoDate}T19:00:00Z`),
   };
 }
-
-describe("windowHours", () => {
-  it("measures a normal shift", () => {
-    expect(windowHours(TARGET)).toBe(8);
-  });
-
-  it("handles fractional hours", () => {
-    expect(
-      windowHours({
-        startsAt: new Date("2026-08-12T11:00:00Z"),
-        endsAt: new Date("2026-08-12T14:30:00Z"),
-      })
-    ).toBe(3.5);
-  });
-
-  it("never returns a negative duration", () => {
-    expect(
-      windowHours({
-        startsAt: new Date("2026-08-12T19:00:00Z"),
-        endsAt: new Date("2026-08-12T11:00:00Z"),
-      })
-    ).toBe(0);
-  });
-});
 
 describe("workWeekBounds", () => {
   it("uses a Sunday-start week by default", () => {

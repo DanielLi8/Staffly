@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { calendarDateKey, isSamePayPeriod, payPeriodFor } from "@/lib/shift-swap/pay-period";
+import { calendarDateKey, isSamePayPeriod, payPeriodFor, payPeriodLabel } from "@/lib/schedule-rules/pay-period";
 
 describe("payPeriodFor", () => {
   it("resolves the anchor period to Aug 23 - Sep 5, 2026", () => {
@@ -46,5 +46,15 @@ describe("isSamePayPeriod", () => {
     expect(
       isSamePayPeriod(new Date("2026-09-05T23:00:00-04:00"), new Date("2026-09-06T01:00:00-04:00"))
     ).toBe(false);
+  });
+});
+
+describe("payPeriodLabel", () => {
+  it("names a period inside one month", () => {
+    expect(payPeriodLabel(payPeriodFor(new Date("2026-10-20T12:00:00-04:00")))).toBe("Oct 18-31");
+  });
+
+  it("names a period across a month boundary", () => {
+    expect(payPeriodLabel(payPeriodFor(new Date("2026-08-25T12:00:00-04:00")))).toBe("Aug 23 - Sep 5");
   });
 });

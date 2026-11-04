@@ -6,7 +6,7 @@ import { X } from "lucide-react";
 import { cn, formatShiftRange } from "@/lib/utils";
 import { useModalPanel } from "@/lib/use-modal-panel";
 import { hospitalMonthDay, hospitalWeekday } from "@/lib/timezone";
-import { payPeriodFor } from "@/lib/shift-swap/pay-period";
+import { payPeriodFor } from "@/lib/schedule-rules/pay-period";
 import {
   createShiftSwapRequest,
   listMyGiveableShifts,

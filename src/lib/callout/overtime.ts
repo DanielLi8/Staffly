@@ -15,6 +15,7 @@
  * hard block - the scheduler still awards by seniority.
  */
 import { startOfWeek, endOfWeek } from "date-fns";
+import { windowHours, type HoursWindow } from "@/lib/schedule-rules/hours";
 
 /** Default weekly hours before overtime. Overridable per call. */
 export const DEFAULT_WEEKLY_OT_THRESHOLD_HOURS = 40;
@@ -24,11 +25,6 @@ export const DEFAULT_WEEKLY_OT_THRESHOLD_HOURS = 40;
  * most common North American hospital payroll week.
  */
 export const DEFAULT_WEEK_STARTS_ON = 0;
-
-export interface HoursWindow {
-  startsAt: Date;
-  endsAt: Date;
-}
 
 export interface OvertimeProjection {
   /** Inclusive start of the work week the target shift falls in. */
@@ -46,12 +42,6 @@ export interface OvertimeProjection {
   isOvertime: boolean;
   /** How far past the threshold the award would go; 0 when not in overtime. */
   overtimeHours: number;
-}
-
-/** Duration of a window in hours. Never negative. */
-export function windowHours(window: HoursWindow): number {
-  const ms = window.endsAt.getTime() - window.startsAt.getTime();
-  return ms > 0 ? ms / 3_600_000 : 0;
 }
 
 /**
