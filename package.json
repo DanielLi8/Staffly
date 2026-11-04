@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "test": "vitest run",
-    "test:db": "vitest run --config vitest.db.config.ts",
+    "test:db": "vitest run --config vitest.db.config.mts",
     "typecheck": "tsc --noEmit",
     "test:e2e": "playwright test",
     "prisma": "prisma"
@@ -21,8 +21,8 @@
     "date-fns": "^3.6.0",
     "inngest": "^4.18.0",
     "lucide-react": "^0.468.0",
-    "next": "14.2.30",
-    "next-auth": "^4.24.11",
+    "next": "14.2.35",
+    "next-auth": "^4.24.15",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "resend": "^3.5.0",
@@ -45,13 +45,50 @@
     "@vitejs/plugin-react": "^4.3.3",
     "autoprefixer": "^10.4.20",
     "eslint": "^8.57.1",
-    "eslint-config-next": "14.2.30",
+    "eslint-config-next": "14.2.35",
     "jsdom": "^25.0.1",
     "postcss": "^8.4.47",
     "prisma": "^5.22.0",
     "tailwindcss": "^3.4.14",
     "ts-node": "^10.9.2",
     "typescript": "^5.6.3",
-    "vitest": "^2.1.4"
+    "vitest": "^3.2.7"
+  },
+  "pnpm": {
+    "overrides": {
+      "@grpc/grpc-js@<1.14.5": "^1.14.5",
+      "axios@<1.20.0": "^1.20.0",
+      "brace-expansion@<1.1.20": "^1.1.20",
+      "brace-expansion@>=2.0.0 <2.1.6": "^2.1.6",
+      "brace-expansion@>=5.0.0 <5.0.11": "^5.0.11",
+      "browserslist@<4.28.7": "^4.28.7",
+      "follow-redirects@<1.16.1": "^1.16.1",
+      "form-data@>=4.0.0 <4.0.6": "^4.0.6",
+      "glob@>=10.2.0 <10.5.0": "^10.5.0",
+      "js-cookie@<3.0.7": "^3.0.7",
+      "js-yaml@>=4.0.0 <4.3.2": "^4.3.2",
+      "nanoid@<3.3.18": "^3.3.18",
+      "postcss@<8.5.18": "^8.5.18",
+      "source-map-js@<1.2.2": "^1.2.2",
+      "vite@<6.4.4": "^6.4.4",
+      "ws@>=8.0.0 <8.21.0": "^8.21.0"
+    },
+    "auditConfig": {
+      "ignoreGhsas": [
+        "GHSA-2464-fhr4-w9xw",
+        "GHSA-2xp9-vwfh-vxw4",
+        "GHSA-36qx-fr4f-26g5",
+        "GHSA-89xv-2m56-2m9x",
+        "GHSA-8h8q-6873-q5fj",
+        "GHSA-c4j6-fc7j-m34r",
+        "GHSA-h25m-26qc-wcjf",
+        "GHSA-m99w-x7hq-7vfj",
+        "GHSA-mrhx-c7xc-m3w5",
+        "GHSA-p293-qw3h-jr36",
+        "GHSA-p3m5-59mp-jv5r",
+        "GHSA-p9j2-gv94-2wf4",
+        "GHSA-q4gf-8mx6-v5v3"
+      ]
+    }
   }
 }
