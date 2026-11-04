@@ -11,7 +11,7 @@ const TYPE_LABELS: Record<ShiftType, string> = { DAY: "Day", EVENING: "Evening",
  * time, e.g. "Day 07:30-15:30".
  */
 export function formatCellLabel(shift: Pick<GridShift, "startsAt" | "endsAt">): string {
-  const type = TYPE_LABELS[classifyShiftType(shift.startsAt)];
+  const type = TYPE_LABELS[classifyShiftType(shift.startsAt, shift.endsAt)];
   return `${type} ${hospitalTime(shift.startsAt, false)}-${hospitalTime(shift.endsAt, false)}`;
 }
 

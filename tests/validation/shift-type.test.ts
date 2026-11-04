@@ -49,3 +49,17 @@ describe("classifyShiftType", () => {
     expect(classifyShiftType(startsAt)).toBe("DAY");
   });
 });
+
+describe("classifyShiftType with the shift's end", () => {
+  it("classifies a 12-hour night (19:00-07:00) as NIGHT, not EVENING", () => {
+    expect(classifyShiftType(ny(19), ny(31))).toBe("NIGHT");
+  });
+
+  it("keeps an ordinary evening (15:00-23:00) as EVENING", () => {
+    expect(classifyShiftType(ny(15), ny(23))).toBe("EVENING");
+  });
+
+  it("keeps an evening that ends before morning (19:00-03:00) as EVENING", () => {
+    expect(classifyShiftType(ny(19), ny(27))).toBe("EVENING");
+  });
+});

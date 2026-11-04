@@ -18,7 +18,7 @@ export function shiftTimeLabel(shift: HoursWindow): string {
   const start = hospitalMinutesOfDay(shift.startsAt);
   const end = hospitalMinutesOfDay(shift.endsAt);
   const wholeHours = start % 60 === 0 && end % 60 === 0;
-  return `${SHIFT_TYPE_LABELS[classifyShiftType(shift.startsAt)]} ${clock(start, wholeHours)}-${clock(end, wholeHours)}`;
+  return `${SHIFT_TYPE_LABELS[classifyShiftType(shift.startsAt, shift.endsAt)]} ${clock(start, wholeHours)}-${clock(end, wholeHours)}`;
 }
 
 /** "Day 07-15 Mon Oct 26", plus " (Surgery)" when the department is named. */
