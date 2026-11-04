@@ -6,6 +6,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * exact ShiftBid upsert and the scheduler notification without a live DB.
  */
 const dbMock = vi.hoisted(() => ({
+  // submitBid writes the bid in a transaction under a share lock on the shift
+  // row; the lock query re-reads whatever shift.findUnique is mocked to return.
+  $transaction: vi.fn(),
+  $queryRaw: vi.fn(),
   shift: { findUnique: vi.fn() },
   shiftBid: { upsert: vi.fn() },
   outreachAttempt: { updateMany: vi.fn() },
@@ -35,6 +39,11 @@ const OPEN_SHIFT = {
 beforeEach(() => {
   vi.clearAllMocks();
   dbMock.shift.findUnique.mockResolvedValue(OPEN_SHIFT);
+  dbMock.$transaction.mockImplementation(async (fn: (tx: typeof dbMock) => unknown) => fn(dbMock));
+  dbMock.$queryRaw.mockImplementation(async () => {
+    const row = await dbMock.shift.findUnique();
+    return row ? [{ status: row.status, endsAt: row.endsAt }] : [];
+  });
   dbMock.shiftBid.upsert.mockImplementation(async ({ create }: any) => ({ id: "bid-1", ...create }));
   dbMock.outreachAttempt.updateMany.mockResolvedValue({ count: 1 });
   dbMock.shiftDecline.deleteMany.mockResolvedValue({ count: 0 });

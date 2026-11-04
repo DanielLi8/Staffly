@@ -140,7 +140,7 @@ export function BidderList({ shiftId, bidders, shiftOpen }: BidderListProps) {
                 : "border-neutral-200 bg-white hover:border-neutral-300"
             )}
           >
-            <div className="flex flex-col items-center gap-1 flex-shrink-0">
+            <div className="flex w-12 flex-col items-center gap-1 flex-shrink-0">
               <Avatar name={bidder.name} size="md" />
               <span className="pill-muted" title="Seniority rank among bidders">
                 #{bidder.seniorityPosition}

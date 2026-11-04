@@ -14,8 +14,9 @@
  * Gated like a bid: once the shift no longer takes bids there is nothing left
  * to decline, and a processed (awarded) bid is never silently undone.
  */
-import type { Channel, ShiftDecline } from "@prisma/client";
+import type { Channel, ShiftDecline, ShiftStatus } from "@prisma/client";
 import { db } from "@/lib/db";
+import { guardedTransaction, Rollback } from "@/lib/db-guard";
 import { bidAcceptance, biddableShiftWhere } from "@/lib/shifts/bid-window";
 import type { BidSource } from "./accept";
 
@@ -54,21 +55,36 @@ export async function recordDecline(input: RecordDeclineInput): Promise<RecordDe
   const channel = SOURCE_CHANNEL[input.source];
   const now = new Date();
 
-  const decline = await db.$transaction(async (tx) => {
-    if (bid) {
-      // Conditional so a bid awarded since the read above is never deleted.
-      await tx.shiftBid.deleteMany({ where: { id: bid.id, status: "PENDING" } });
+  // Under a SHARE lock on the shift (like submitBid), so an award either lands
+  // first - and this refuses - or waits for the decline. And the bid is only
+  // withdrawn while still PENDING: if it was awarded since the read above, the
+  // whole decline rolls back rather than telling the worker they declined a
+  // shift they were just given.
+  const outcome = await guardedTransaction<ShiftDecline, "SHIFT_NOT_FOUND" | "SHIFT_CLOSED" | "SHIFT_ENDED" | "BID_PROCESSED">(
+    async (tx) => {
+      const [locked] = await tx.$queryRaw<{ status: ShiftStatus; endsAt: Date }[]>`
+        SELECT "status", "endsAt" FROM "Shift" WHERE "id" = ${shift.id} FOR SHARE`;
+      if (!locked) throw new Rollback("SHIFT_NOT_FOUND");
+      const stillOpen = bidAcceptance(locked);
+      if (!stillOpen.open) throw new Rollback(stillOpen.reason);
+
+      if (bid) {
+        const withdrawn = await tx.shiftBid.deleteMany({ where: { id: bid.id, status: "PENDING" } });
+        if (withdrawn.count !== 1) throw new Rollback("BID_PROCESSED");
+      }
+      await tx.outreachAttempt.updateMany({
+        where: { shiftId: shift.id, userId: input.workerId, channel },
+        data: { response: "DECLINED", respondedAt: now },
+      });
+      return tx.shiftDecline.upsert({
+        where: { shiftId_userId: { shiftId: shift.id, userId: input.workerId } },
+        create: { shiftId: shift.id, userId: input.workerId, source: channel },
+        update: { source: channel },
+      });
     }
-    await tx.outreachAttempt.updateMany({
-      where: { shiftId: shift.id, userId: input.workerId, channel },
-      data: { response: "DECLINED", respondedAt: now },
-    });
-    return tx.shiftDecline.upsert({
-      where: { shiftId_userId: { shiftId: shift.id, userId: input.workerId } },
-      create: { shiftId: shift.id, userId: input.workerId, source: channel },
-      update: { source: channel },
-    });
-  });
+  );
+  if (!outcome.ok) return { ok: false, reason: outcome.result };
+  const decline = outcome.value;
 
   return { ok: true, decline, withdrewBid: !!bid };
 }

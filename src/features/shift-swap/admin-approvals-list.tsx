@@ -24,20 +24,15 @@ export function AdminApprovalsList({ requests }: { requests: PendingShiftSwapApp
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  if (requests.length === 0) {
-    return <p className="text-sm text-neutral-500 py-4">No shift swap requests awaiting approval.</p>;
-  }
-
   function handle(action: "approve" | "deny", id: string) {
     setError(null);
     setPendingId(id);
     startTransition(async () => {
       const result = await (action === "approve" ? approveShiftSwapRequest(id) : denyShiftSwapRequest(id));
       setPendingId(null);
-      if (!result.ok) {
-        setError(result.error);
-        return;
-      }
+      // On failure too: the request was usually just decided by another admin,
+      // so refresh it off the queue (the error stays up, see below).
+      if (!result.ok) setError(result.error);
       router.refresh();
     });
   }
@@ -48,6 +43,9 @@ export function AdminApprovalsList({ requests }: { requests: PendingShiftSwapApp
         <div role="alert" className="px-4 py-3 bg-accent-50 border border-accent-200 rounded-md text-sm text-accent-700">
           {error}
         </div>
+      )}
+      {requests.length === 0 && (
+        <p className="text-sm text-neutral-500 py-4">No shift swap requests awaiting approval.</p>
       )}
       {requests.map((r) => {
         const disabled = isPending && pendingId === r.id;

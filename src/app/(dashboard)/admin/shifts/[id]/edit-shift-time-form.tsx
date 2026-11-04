@@ -17,11 +17,18 @@ interface EditShiftTimeFormProps {
   shiftId: string;
   startsAt: Date;
   endsAt: Date;
+  /** `Shift.version` as rendered; captured when editing starts. */
+  version: number;
 }
 
-export function EditShiftTimeForm({ shiftId, startsAt, endsAt }: EditShiftTimeFormProps) {
+export function EditShiftTimeForm({ shiftId, startsAt, endsAt, version }: EditShiftTimeFormProps) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
+  // Pinned when the editor opens, NOT read live from props: a live refresh
+  // carrying another admin's edit must make this save fail as stale rather
+  // than quietly adopt the new version and overwrite that edit.
+  const [editVersion, setEditVersion] = useState(version);
+  const [staleNotice, setStaleNotice] = useState("");
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState("");
   const [errors, setErrors] = useState<ShiftFieldErrors>({});
@@ -37,6 +44,8 @@ export function EditShiftTimeForm({ shiftId, startsAt, endsAt }: EditShiftTimeFo
     setEndTime(formatTimeInput(endsAt));
     setErrors({});
     setFormError("");
+    setStaleNotice("");
+    setEditVersion(version);
     setEditing(true);
   }
 
@@ -62,7 +71,12 @@ export function EditShiftTimeForm({ shiftId, startsAt, endsAt }: EditShiftTimeFo
     setErrors({});
     setLoading(true);
 
-    const result = await editShiftTime({ shiftId, startsAt: nextStartsAt, endsAt: nextEndsAt });
+    const result = await editShiftTime({
+      shiftId,
+      startsAt: nextStartsAt,
+      endsAt: nextEndsAt,
+      expectedVersion: editVersion,
+    });
 
     if (result.ok) {
       setEditing(false);
@@ -70,23 +84,38 @@ export function EditShiftTimeForm({ shiftId, startsAt, endsAt }: EditShiftTimeFo
       router.refresh();
     } else {
       setErrors(result.fieldErrors);
-      if (result.formError) setFormError(result.formError);
       setLoading(false);
+      if (Object.keys(result.fieldErrors).length === 0 && result.formError) {
+        // Not a field problem: the shift changed underneath (or can no longer
+        // be edited). Close the editor on the fresh state, with the reason.
+        setStaleNotice(result.formError);
+        setEditing(false);
+        router.refresh();
+      } else if (result.formError) {
+        setFormError(result.formError);
+      }
     }
   }
 
   if (!editing) {
     return (
-      <div className="flex items-center gap-2">
-        <span>{formatShiftRange(startsAt, endsAt)}</span>
-        <button
-          type="button"
-          onClick={startEditing}
-          className="text-neutral-500 hover:text-primary-700 transition-colors"
-          aria-label="Edit shift hours"
-        >
-          <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
-        </button>
+      <div className="space-y-1">
+        <div className="flex items-center gap-2">
+          <span>{formatShiftRange(startsAt, endsAt)}</span>
+          <button
+            type="button"
+            onClick={startEditing}
+            className="text-neutral-500 hover:text-primary-700 transition-colors"
+            aria-label="Edit shift hours"
+          >
+            <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
+          </button>
+        </div>
+        {staleNotice && (
+          <p role="alert" className="text-xs text-accent">
+            {staleNotice}
+          </p>
+        )}
       </div>
     );
   }

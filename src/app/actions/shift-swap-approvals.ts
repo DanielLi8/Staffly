@@ -3,13 +3,15 @@
 /**
  * ADMIN-side approve/deny for Shift Swap / Giveaway. Approving is the ONLY
  * point in the whole pipeline where `Shift.assignedWorkerId` actually
- * changes - both shifts trade owners for a SWAP, matching the transactional
- * `db.$transaction([...])` + `ShiftActivity` pattern `assignWorker`/
- * `cancelShift` already use in `src/app/actions/shifts.ts`. Denying is
- * terminal and never touches a `Shift` row.
+ * changes - both shifts trade owners for a SWAP, in one guarded transaction
+ * with a `ShiftActivity` row per shift, like `assignWorker`/`cancelShift` in
+ * `src/app/actions/shifts.ts`. Denying is terminal and never touches a `Shift`
+ * row.
  */
 import { revalidatePath } from "next/cache";
+import type { ShiftSwapStatus } from "@prisma/client";
 import { db } from "@/lib/db";
+import { guardedTransaction, Rollback } from "@/lib/db-guard";
 import { requireActor } from "@/lib/auth";
 import { hospitalDateTime } from "@/lib/timezone";
 import { notifyPartiesOfShiftSwapDecision } from "@/lib/notifications";
@@ -59,6 +61,28 @@ export async function listPendingShiftSwapApprovals(): Promise<PendingShiftSwapA
 
 export type SwapApprovalResult = { ok: true } | { ok: false; error: string };
 
+const DECIDED_STATUS_WORD: Partial<Record<ShiftSwapStatus, string>> = {
+  APPROVED: "approved",
+  DENIED: "denied",
+  CANCELLED: "withdrawn",
+};
+
+/**
+ * Why a request is no longer awaiting approval, naming the admin who decided
+ * it when another admin just did.
+ */
+async function describeDecidedRequest(requestId: string): Promise<string> {
+  const request = await db.shiftSwapRequest.findUnique({
+    where: { id: requestId },
+    select: { status: true, approvedBy: { select: { name: true } } },
+  });
+  if (!request) return "Request not found.";
+  const word = DECIDED_STATUS_WORD[request.status];
+  if (!word) return "This request is no longer awaiting approval.";
+  const by = request.approvedBy && request.status !== "CANCELLED" ? ` by ${request.approvedBy.name}` : "";
+  return `This request was just ${word}${by}.`;
+}
+
 async function loadPendingApproval(requestId: string) {
   const request = await db.shiftSwapRequest.findUnique({
     where: { id: requestId },
@@ -72,17 +96,29 @@ async function loadPendingApproval(requestId: string) {
 
   if (!request) return { request: null, error: "Request not found." } as const;
   if (request.status !== "PENDING_APPROVAL") {
-    return { request: null, error: "This request is no longer awaiting approval." } as const;
+    return { request: null, error: await describeDecidedRequest(requestId) } as const;
   }
   return { request, error: null } as const;
 }
 
+type ApprovalRollback = "DECIDED" | "GIVE_SHIFT" | "RECEIVE_SHIFT";
+
+const SHIFT_GONE_MESSAGE: Record<Exclude<ApprovalRollback, "DECIDED">, string> = {
+  GIVE_SHIFT: "The give shift is no longer valid for this request.",
+  RECEIVE_SHIFT: "The receive shift is no longer valid for this request.",
+};
+
 /**
- * The only mutation of `Shift.assignedWorkerId` in the whole pipeline. Both
- * shifts must still be assigned exactly as they were when the request was
- * created/accepted - either side's shift could have been cancelled or
- * reassigned in the meantime - or this fails closed with a typed error
- * rather than silently reassigning a shift out from under someone.
+ * The only mutation of `Shift.assignedWorkerId` in the whole pipeline.
+ *
+ * Everything is decided INSIDE one transaction by conditional writes, not by
+ * the pre-check above it: the request only moves PENDING_APPROVAL -> APPROVED
+ * if it is still pending (so approve racing deny, or a double click, has one
+ * winner), and each shift only changes hands if it is still ASSIGNED to the
+ * person giving it up (so two approvals moving the same shift, or an approval
+ * racing a cancel or edit, have one winner). Shifts are written in id order so
+ * two swaps touching the same pair of shifts can't deadlock. Any miss rolls the
+ * whole approval back and the loser is told what happened.
  */
 export async function approveShiftSwapRequest(requestId: string): Promise<SwapApprovalResult> {
   const actor = await requireActor("ADMIN");
@@ -90,7 +126,7 @@ export async function approveShiftSwapRequest(requestId: string): Promise<SwapAp
   if (!request) return { ok: false, error: error! };
 
   if (request.giveShift.status !== "ASSIGNED" || request.giveShift.assignedWorkerId !== request.requesterId) {
-    return { ok: false, error: "The give shift is no longer valid for this request." };
+    return { ok: false, error: SHIFT_GONE_MESSAGE.GIVE_SHIFT };
   }
   if (request.kind === "SWAP") {
     if (
@@ -98,7 +134,7 @@ export async function approveShiftSwapRequest(requestId: string): Promise<SwapAp
       request.receiveShift.status !== "ASSIGNED" ||
       request.receiveShift.assignedWorkerId !== request.targetUserId
     ) {
-      return { ok: false, error: "The receive shift is no longer valid for this request." };
+      return { ok: false, error: SHIFT_GONE_MESSAGE.RECEIVE_SHIFT };
     }
   }
 
@@ -108,53 +144,63 @@ export async function approveShiftSwapRequest(requestId: string): Promise<SwapAp
   const action = SWAP_REASSIGNED_ACTION[request.kind];
   const now = new Date();
 
-  const operations = [
-    db.shift.update({
-      where: { id: request.giveShiftId },
-      data: { assignedWorkerId: request.targetUserId },
-    }),
-    db.shiftActivity.create({
-      data: {
-        shiftId: request.giveShiftId,
-        actorId: actor.id,
-        action,
-        details: buildSwapReassignmentDetails({
-          fromName: request.requester.name,
-          toName: request.targetUser.name,
-          acceptedByName,
-          approvedByName: approverName,
-        }),
-      },
-    }),
-    db.shiftSwapRequest.update({
-      where: { id: requestId },
-      data: { status: "APPROVED", approvedById: actor.id, approvedAt: now },
-    }),
-  ];
-
-  if (request.kind === "SWAP" && request.receiveShift) {
-    operations.push(
-      db.shift.update({
-        where: { id: request.receiveShift.id },
-        data: { assignedWorkerId: request.requesterId },
+  // One entry per shift changing hands: the shift, who must still hold it,
+  // who receives it, and the audit line.
+  const moves = [
+    {
+      shiftId: request.giveShiftId,
+      from: request.requesterId,
+      to: request.targetUserId,
+      missing: "GIVE_SHIFT" as const,
+      details: buildSwapReassignmentDetails({
+        fromName: request.requester.name,
+        toName: request.targetUser.name,
+        acceptedByName,
+        approvedByName: approverName,
       }),
-      db.shiftActivity.create({
-        data: {
-          shiftId: request.receiveShift.id,
-          actorId: actor.id,
-          action,
-          details: buildSwapReassignmentDetails({
-            fromName: request.targetUser.name,
-            toName: request.requester.name,
-            acceptedByName,
-            approvedByName: approverName,
-          }),
-        },
-      })
-    );
-  }
+    },
+    ...(request.kind === "SWAP" && request.receiveShift
+      ? [
+          {
+            shiftId: request.receiveShift.id,
+            from: request.targetUserId,
+            to: request.requesterId,
+            missing: "RECEIVE_SHIFT" as const,
+            details: buildSwapReassignmentDetails({
+              fromName: request.targetUser.name,
+              toName: request.requester.name,
+              acceptedByName,
+              approvedByName: approverName,
+            }),
+          },
+        ]
+      : []),
+  ].sort((a, b) => (a.shiftId < b.shiftId ? -1 : 1));
 
-  await db.$transaction(operations);
+  const outcome = await guardedTransaction<void, ApprovalRollback>(async (tx) => {
+    const decided = await tx.shiftSwapRequest.updateMany({
+      where: { id: requestId, status: "PENDING_APPROVAL" },
+      data: { status: "APPROVED", approvedById: actor.id, approvedAt: now },
+    });
+    if (decided.count !== 1) throw new Rollback("DECIDED");
+
+    for (const move of moves) {
+      const moved = await tx.shift.updateMany({
+        where: { id: move.shiftId, status: "ASSIGNED", assignedWorkerId: move.from },
+        data: { assignedWorkerId: move.to, version: { increment: 1 } },
+      });
+      if (moved.count !== 1) throw new Rollback(move.missing);
+      await tx.shiftActivity.create({
+        data: { shiftId: move.shiftId, actorId: actor.id, action, details: move.details },
+      });
+    }
+  });
+  if (!outcome.ok) {
+    return {
+      ok: false,
+      error: outcome.result === "DECIDED" ? await describeDecidedRequest(requestId) : SHIFT_GONE_MESSAGE[outcome.result],
+    };
+  }
 
   await notifyPartiesOfShiftSwapDecision({
     requesterId: request.requesterId,
@@ -173,7 +219,7 @@ export async function approveShiftSwapRequest(requestId: string): Promise<SwapAp
   return { ok: true };
 }
 
-/** Terminal, no `Shift` row is touched. */
+/** Terminal, no `Shift` row is touched. Conditional, so it can't overwrite an approval. */
 export async function denyShiftSwapRequest(requestId: string): Promise<SwapApprovalResult> {
   const actor = await requireActor("ADMIN");
   const { request, error } = await loadPendingApproval(requestId);
@@ -182,10 +228,11 @@ export async function denyShiftSwapRequest(requestId: string): Promise<SwapAppro
   const admin = await db.user.findUnique({ where: { id: actor.id }, select: { name: true } });
   const approverName = admin?.name ?? "Admin";
 
-  await db.shiftSwapRequest.update({
-    where: { id: requestId },
+  const decided = await db.shiftSwapRequest.updateMany({
+    where: { id: requestId, status: "PENDING_APPROVAL" },
     data: { status: "DENIED", approvedById: actor.id, approvedAt: new Date() },
   });
+  if (decided.count !== 1) return { ok: false, error: await describeDecidedRequest(requestId) };
 
   await notifyPartiesOfShiftSwapDecision({
     requesterId: request.requesterId,

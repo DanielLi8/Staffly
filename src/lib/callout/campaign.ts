@@ -13,10 +13,11 @@
  *   - who is in which tier: ./tiers
  *   - what to do next, given a clock: ./decide
  */
-import type { CampaignStatus } from "@prisma/client";
+import type { CampaignStatus, Prisma } from "@prisma/client";
+import { guardedTransaction, Rollback } from "@/lib/db-guard";
 import { db } from "@/lib/db";
 import { dispatchOutreach, loadOutreachShift } from "@/lib/outreach";
-import type { OutreachRecipient } from "@/lib/outreach/types";
+import type { OutreachRecipient, OutreachShift } from "@/lib/outreach/types";
 import { notifySchedulerOfCallout } from "@/lib/notifications";
 import { isInngestConfigured, sendCalloutEvent } from "@/lib/inngest/client";
 import { buildTierRoster, nextTier, MAX_TIER, type Tier, type TierCandidate } from "./tiers";
@@ -50,7 +51,25 @@ export interface CampaignActor {
 
 export type CampaignControlResult =
   | { ok: true; status: CampaignStatus; currentTier: number }
-  | { ok: false; reason: "NO_CAMPAIGN" | "TERMINAL" | "SHIFT_CLOSED" };
+  /**
+   * CHANGED: the campaign moved since the caller looked (another admin or the
+   * engine advanced, held or resumed it first), so this transition no longer
+   * applies. Every transition below is a conditional write on the state it
+   * was decided from; this is what the loser of a race gets.
+   */
+  | { ok: false; reason: "NO_CAMPAIGN" | "TERMINAL" | "SHIFT_CLOSED" | "CHANGED" };
+
+/** Statuses outreach is still live in. */
+const LIVE: CampaignStatus[] = ["RUNNING", "PAUSED"];
+
+/**
+ * Which statuses an actor may move a campaign out of. The engine never acts on
+ * a held campaign - a hold landing between its read and its write must win -
+ * while a scheduler's explicit advance/stop also applies to a held one.
+ */
+function movableFrom(actor: CampaignActor): CampaignStatus[] {
+  return actor.automatic ? ["RUNNING"] : LIVE;
+}
 
 /* ------------------------------------------------------------------ reading */
 
@@ -174,14 +193,27 @@ export async function loadTierCandidates(shift: {
  * not re-contact anyone. Anyone who declined the shift is left out.
  */
 export async function runTierOutreach(shiftId: string, tier: Tier): Promise<number> {
+  const tierRoster = await loadTierRecipients(shiftId, tier);
+  if (!tierRoster) return 0;
+  await sendTier(tierRoster, tier);
+  return tierRoster.recipients.length;
+}
+
+interface TierRecipients {
+  outreachShift: OutreachShift;
+  recipients: OutreachRecipient[];
+}
+
+/** Who a tier targets, without contacting anyone yet. */
+async function loadTierRecipients(shiftId: string, tier: Tier): Promise<TierRecipients | null> {
   const shift = await db.shift.findUnique({
     where: { id: shiftId },
     select: { id: true, departmentId: true, startsAt: true, endsAt: true, roleNeeded: true },
   });
-  if (!shift) return 0;
+  if (!shift) return null;
 
   const outreachShift = await loadOutreachShift(shiftId);
-  if (!outreachShift) return 0;
+  if (!outreachShift) return null;
 
   const candidates = await loadTierCandidates(shift);
   const roster = buildTierRoster(shift, candidates);
@@ -192,10 +224,15 @@ export async function runTierOutreach(shiftId: string, tier: Tier): Promise<numb
       await db.shiftDecline.findMany({ where: { shiftId }, select: { userId: true } })
     ).map((d) => d.userId)
   );
-  const recipients = roster[tier].filter((r) => !declined.has(r.id));
+  return { outreachShift, recipients: roster[tier].filter((r) => !declined.has(r.id)) };
+}
 
-  await dispatchOutreach(outreachShift, recipients, { tier });
-  return recipients.length;
+/**
+ * Contact a tier. Sends are claimed one by one against the live campaign (see
+ * dispatchOutreach), so a Stop landing mid-tier halts the rest of the tier.
+ */
+async function sendTier(tierRoster: TierRecipients, tier: Tier): Promise<void> {
+  await dispatchOutreach(tierRoster.outreachShift, tierRoster.recipients, { tier });
 }
 
 /* ------------------------------------------------------------------ writing */
@@ -207,6 +244,36 @@ async function logCalloutActivity(
   details: string
 ): Promise<void> {
   await db.shiftActivity.create({ data: { shiftId, actorId, action, details } });
+}
+
+/**
+ * Apply one campaign transition: a conditional write on the state it was
+ * decided from, plus its activity row, in ONE transaction. False when the
+ * campaign had already moved (another admin or the engine won the race), in
+ * which case nothing was written. Committing the activity row with the
+ * transition is what lets a loser be told, truthfully, who beat them.
+ */
+async function transition(
+  shiftId: string,
+  where: Prisma.CalloutCampaignWhereInput,
+  data: Prisma.CalloutCampaignUpdateManyMutationInput,
+  activity: { actorId: string; action: string; details: string }
+): Promise<boolean> {
+  const outcome = await guardedTransaction<void, "LOST">(async (tx) => {
+    const moved = await tx.calloutCampaign.updateMany({ where: { ...where, shiftId }, data });
+    if (moved.count !== 1) throw new Rollback("LOST");
+    await tx.shiftActivity.create({ data: { shiftId, ...activity } });
+  });
+  return outcome.ok;
+}
+
+/** Why a conditional campaign write matched nothing, read after the fact. */
+async function lostRace(shiftId: string): Promise<CampaignControlResult> {
+  const campaign = await loadCampaignSnapshot(shiftId);
+  if (!campaign) return { ok: false, reason: "NO_CAMPAIGN" };
+  if (isCampaignTerminal(campaign.status)) return { ok: false, reason: "TERMINAL" };
+  if (campaign.shift.status !== "OPEN") return { ok: false, reason: "SHIFT_CLOSED" };
+  return { ok: false, reason: "CHANGED" };
 }
 
 /**
@@ -268,8 +335,9 @@ export async function startCalloutCampaign(shiftId: string): Promise<{ campaignI
  * This is where the deferral becomes a real guarantee rather than a pause: the
  * campaign row is RE-READ here, so a shift stopped, filled, or cancelled inside
  * the delay window ends the callout with nobody contacted at all. Clearing
- * `tier1DispatchAt` in the same breath makes it fire exactly once, however many
- * times an engine step is retried.
+ * `tier1DispatchAt` is a conditional claim (only while it is still set and the
+ * campaign RUNNING), so it fires exactly once however many times an engine step
+ * is retried or races a scheduler's advance.
  */
 export async function dispatchOpeningTier(
   shiftId: string,
@@ -284,27 +352,35 @@ export async function dispatchOpeningTier(
     return { ok: true, status: campaign.status, currentTier: campaign.currentTier };
   }
 
-  const now = new Date();
-  const updated = await db.calloutCampaign.update({
-    where: { shiftId },
-    data: { tier1DispatchAt: null, tier1EnteredAt: now },
-  });
-
-  const targeted = await runTierOutreach(shiftId, 1);
-  await logCalloutActivity(
+  const tier1 = await loadTierRecipients(shiftId, 1);
+  const targeted = tier1?.recipients.length ?? 0;
+  const claimed = await transition(
     shiftId,
-    actor.actorId,
-    "CALLOUT_TIER1_SENT",
-    `Tier 1 callout opened to ${targeted} available department staff.`
+    { status: "RUNNING", tier1DispatchAt: { not: null } },
+    { tier1DispatchAt: null, tier1EnteredAt: new Date() },
+    {
+      actorId: actor.actorId,
+      action: "CALLOUT_TIER1_SENT",
+      details: `Tier 1 callout opened to ${targeted} available department staff.`,
+    }
   );
+  if (!claimed) {
+    // Someone else sent it, or it was held/stopped since the read above.
+    const current = await lostRace(shiftId);
+    if (current.ok || current.reason !== "CHANGED") return current;
+    const fresh = await loadCampaignSnapshot(shiftId);
+    return { ok: true, status: fresh!.status, currentTier: fresh!.currentTier };
+  }
+
+  if (tier1) await sendTier(tier1, 1);
 
   // An empty tier has nobody to wait for, so widen immediately instead of
   // burning a whole window on silence.
   if (targeted === 0) {
-    return advanceCampaignTier(shiftId, actor);
+    return advanceCampaignTier(shiftId, actor, { fromTier: 1 });
   }
 
-  return { ok: true, status: updated.status, currentTier: updated.currentTier };
+  return { ok: true, status: "RUNNING", currentTier: 1 };
 }
 
 /**
@@ -312,61 +388,78 @@ export async function dispatchOpeningTier(
  * terminal campaign or a shift that is no longer open - the DB state is re-read
  * here, so a stale UI cannot resurrect a stopped campaign.
  *
+ * Race-safe: the tier only moves FROM `fromTier` (the tier the scheduler saw,
+ * or the engine decided on) and only while outreach is live, in one
+ * conditional write. So a concurrent Stop always wins (once it commits, this
+ * matches nothing; if this commits first, Stop then ends it and the claim
+ * check in dispatchOutreach halts the new tier's sends), and two Advances from
+ * the same tier move it once, not twice.
+ *
  * A tier that targets nobody is skipped straight through rather than sat on for
  * its window; if every remaining tier is empty the campaign ends EXHAUSTED.
  */
 export async function advanceCampaignTier(
   shiftId: string,
-  actor: CampaignActor
+  actor: CampaignActor,
+  opts: { fromTier?: number } = {}
 ): Promise<CampaignControlResult> {
   const campaign = await loadCampaignSnapshot(shiftId);
   if (!campaign) return { ok: false, reason: "NO_CAMPAIGN" };
   if (isCampaignTerminal(campaign.status)) return { ok: false, reason: "TERMINAL" };
   if (campaign.shift.status !== "OPEN") return { ok: false, reason: "SHIFT_CLOSED" };
 
-  const target = nextTier(campaign.currentTier);
+  const fromTier = opts.fromTier ?? campaign.currentTier;
+  const from = movableFrom(actor);
+  if (campaign.currentTier !== fromTier || !from.includes(campaign.status)) {
+    return { ok: false, reason: "CHANGED" };
+  }
+
+  const target = nextTier(fromTier);
   if (target === null) {
     // Already at the widest tier: there is nobody left to call.
-    return exhaustCampaign(shiftId, actor);
+    return exhaustCampaign(shiftId, actor, { fromTier });
   }
 
   const now = new Date();
-
   // Widening while the opening outreach is still held back: whoever is asking
   // wants MORE reach, so tier 1 goes out now rather than being skipped entirely.
-  // Done inline (not via dispatchOpeningTier) so an empty tier 1 cannot recurse
-  // back into this function and double-advance.
-  if (campaign.tier1DispatchAt) {
-    await db.calloutCampaign.update({
-      where: { shiftId },
-      data: { tier1DispatchAt: null, tier1EnteredAt: now },
-    });
-    await runTierOutreach(shiftId, 1);
-  }
-
-  const updated = await db.calloutCampaign.update({
-    where: { shiftId },
-    data: {
+  const tier1Pending = campaign.tier1DispatchAt !== null;
+  const widened = await loadTierRecipients(shiftId, target);
+  const targeted = widened?.recipients.length ?? 0;
+  const moved = await transition(
+    shiftId,
+    { currentTier: fromTier, status: { in: from } },
+    {
       currentTier: target,
       // Advancing also lifts a hold - the scheduler is explicitly acting.
       status: "RUNNING",
       [TIER_ENTERED_FIELD[target]]: now,
+      ...(tier1Pending ? { tier1DispatchAt: null, tier1EnteredAt: now } : {}),
     },
-  });
-
-  const targeted = await runTierOutreach(shiftId, target);
-  await logCalloutActivity(
-    shiftId,
-    actor.actorId,
-    "CALLOUT_ESCALATED",
-    targeted === 0
-      ? `Tier ${target} had no candidates; widening further.`
-      : `${actor.automatic ? "Auto-escalated" : "Escalated"} to tier ${target}; ${targeted} staff contacted.`
+    {
+      actorId: actor.actorId,
+      action: "CALLOUT_ESCALATED",
+      details:
+        targeted === 0
+          ? `Tier ${target} had no candidates; widening further.`
+          : `${actor.automatic ? "Auto-escalated" : "Escalated"} to tier ${target}; ${targeted} staff contacted.`,
+    }
   );
+  if (!moved) return lostRace(shiftId);
+
+  // Done inline (not via dispatchOpeningTier) so an empty tier 1 cannot recurse
+  // back into this function and double-advance. Claims make it a no-op if the
+  // engine dispatched tier 1 at the same moment.
+  if (tier1Pending) await runTierOutreach(shiftId, 1);
+  if (widened) await sendTier(widened, target);
 
   if (targeted === 0) {
-    // Nothing to wait for. Recursion is bounded by the tier count.
-    return advanceCampaignTier(shiftId, actor);
+    // Nothing to wait for. Recursion is bounded by the tier count. If a Stop
+    // landed meanwhile the next step refuses, but THIS advance did happen.
+    const further = await advanceCampaignTier(shiftId, actor, { fromTier: target });
+    if (further.ok) return further;
+    const fresh = await loadCampaignSnapshot(shiftId);
+    return { ok: true, status: fresh?.status ?? "RUNNING", currentTier: fresh?.currentTier ?? target };
   }
 
   await notifySchedulerOfCallout({
@@ -378,7 +471,8 @@ export async function advanceCampaignTier(
   });
   await sendCalloutEvent("callout/control", { shiftId, reason: `advanced to tier ${target}` });
 
-  return { ok: true, status: updated.status, currentTier: updated.currentTier };
+  const fresh = await loadCampaignSnapshot(shiftId);
+  return { ok: true, status: fresh?.status ?? "RUNNING", currentTier: fresh?.currentTier ?? target };
 }
 
 /** Put the cascade on hold. The engine keeps waiting but will not widen. */
@@ -387,6 +481,7 @@ export async function holdCampaign(
   actor: CampaignActor
 ): Promise<CampaignControlResult> {
   return setCampaignStatus(shiftId, "PAUSED", actor, {
+    from: ["RUNNING"],
     action: "CALLOUT_HELD",
     details: "Cascade put on hold; no further tiers will open automatically.",
   });
@@ -407,25 +502,26 @@ export async function resumeCampaign(
   // Held before anyone was contacted: what restarts is the posting delay, not a
   // tier window. Stamping a tier entry here would strand the pending dispatch.
   const pending = campaign.tier1DispatchAt !== null;
-  const updated = await db.calloutCampaign.update({
-    where: { shiftId },
-    data: pending
+  const resumed = await transition(
+    shiftId,
+    { status: "PAUSED" },
+    pending
       ? {
           status: "RUNNING",
           tier1DispatchAt: new Date(now.getTime() + TIER1_DISPATCH_DELAY_SECONDS * 1000),
         }
       : { status: "RUNNING", [TIER_ENTERED_FIELD[tier]]: now },
-  });
-  await logCalloutActivity(
-    shiftId,
-    actor.actorId,
-    "CALLOUT_RESUMED",
-    pending
-      ? `Cascade resumed; tier 1 outreach re-held for ${TIER1_DISPATCH_DELAY_SECONDS}s.`
-      : `Cascade resumed on tier ${tier}.`
+    {
+      actorId: actor.actorId,
+      action: "CALLOUT_RESUMED",
+      details: pending
+        ? `Cascade resumed; tier 1 outreach re-held for ${TIER1_DISPATCH_DELAY_SECONDS}s.`
+        : `Cascade resumed on tier ${tier}.`,
+    }
   );
+  if (!resumed) return lostRace(shiftId);
   await sendCalloutEvent("callout/control", { shiftId, reason: "resumed" });
-  return { ok: true, status: updated.status, currentTier: updated.currentTier };
+  return { ok: true, status: "RUNNING", currentTier: campaign.currentTier };
 }
 
 /**
@@ -433,12 +529,17 @@ export async function resumeCampaign(
  * authoritative kill switch for OUTREACH only - the shift stays OPEN and keeps
  * taking bids (in the app, and by reply to earlier texts and calls) until it
  * is awarded or cancelled. See `bidAcceptance`.
+ *
+ * Stop always wins a race: it applies from any live status and any tier, so a
+ * concurrent advance/hold/resume can never undo it (they all match only live
+ * rows), and every send after it is refused at claim time.
  */
 export async function stopCampaign(
   shiftId: string,
   actor: CampaignActor
 ): Promise<CampaignControlResult> {
   return setCampaignStatus(shiftId, "CANCELLED", actor, {
+    from: LIVE,
     action: "CALLOUT_STOPPED",
     details: "Outreach stopped by scheduler; no further texts or calls will be sent. Bidding stays open.",
     endsCampaign: true,
@@ -503,9 +604,12 @@ export async function markCampaignFilled(
 /** All tiers have been through their window with no fill. */
 export async function exhaustCampaign(
   shiftId: string,
-  actor: CampaignActor
+  actor: CampaignActor,
+  opts: { fromTier?: number } = {}
 ): Promise<CampaignControlResult> {
   const result = await setCampaignStatus(shiftId, "EXHAUSTED", actor, {
+    from: movableFrom(actor),
+    fromTier: opts.fromTier,
     action: "CALLOUT_EXHAUSTED",
     details: `All ${MAX_TIER} tiers contacted with no fill.`,
     endsCampaign: true,
@@ -534,10 +638,18 @@ export async function raisePastStartReminder(shiftId: string): Promise<boolean> 
   const campaign = await loadCampaignSnapshot(shiftId);
   if (!campaign || campaign.pastStartReminderAt) return false;
 
-  await db.calloutCampaign.update({
-    where: { shiftId },
-    data: { pastStartReminderAt: new Date() },
-  });
+  // Claimed conditionally so two engine steps (or a retry) remind once.
+  const claimed = await transition(
+    shiftId,
+    { pastStartReminderAt: null },
+    { pastStartReminderAt: new Date() },
+    {
+      actorId: campaign.shift.createdById,
+      action: "CALLOUT_PAST_START",
+      details: "Shift start passed while unfilled; scheduler reminded (callout left open).",
+    }
+  );
+  if (!claimed) return false;
   await notifySchedulerOfCallout({
     schedulerId: campaign.shift.createdById,
     type: "CALLOUT_REMINDER",
@@ -545,12 +657,6 @@ export async function raisePastStartReminder(shiftId: string): Promise<boolean> 
     message: `${campaign.shift.title} has passed its start time and is still unfilled. It remains open for bidding.`,
     shiftId,
   });
-  await logCalloutActivity(
-    shiftId,
-    campaign.shift.createdById,
-    "CALLOUT_PAST_START",
-    "Shift start passed while unfilled; scheduler reminded (callout left open)."
-  );
   return true;
 }
 
@@ -559,6 +665,10 @@ async function setCampaignStatus(
   status: CampaignStatus,
   actor: CampaignActor,
   opts: {
+    /** Statuses this transition applies from; the write is conditional on them. */
+    from: CampaignStatus[];
+    /** When set, also only from this tier (an exhaust decided at the last tier). */
+    fromTier?: number;
     action: string;
     details: string;
     endsCampaign?: boolean;
@@ -570,17 +680,17 @@ async function setCampaignStatus(
   if (campaign.shift.status !== "OPEN") return { ok: false, reason: "SHIFT_CLOSED" };
 
   const now = new Date();
-  const updated = await db.calloutCampaign.update({
-    where: { shiftId },
-    data: {
-      status,
-      ...(opts.endsCampaign ? { endedAt: now } : {}),
-    },
-  });
-  await logCalloutActivity(shiftId, actor.actorId, opts.action, opts.details);
+  const moved = await transition(
+    shiftId,
+    { status: { in: opts.from }, ...(opts.fromTier !== undefined ? { currentTier: opts.fromTier } : {}) },
+    { status, ...(opts.endsCampaign ? { endedAt: now } : {}) },
+    { actorId: actor.actorId, action: opts.action, details: opts.details }
+  );
+  if (!moved) return lostRace(shiftId);
   await sendCalloutEvent("callout/control", { shiftId, reason: status });
 
-  return { ok: true, status: updated.status, currentTier: updated.currentTier };
+  const fresh = await loadCampaignSnapshot(shiftId);
+  return { ok: true, status, currentTier: fresh?.currentTier ?? campaign.currentTier };
 }
 
 /* ------------------------------------------------------------------- engine */
@@ -601,11 +711,13 @@ export async function applyDecision(
     case "DISPATCH":
       await dispatchOpeningTier(shiftId, actor);
       break;
+    // Pinned to the tier the decision was made on, so a scheduler's advance
+    // landing between the engine's read and its write is not doubled.
     case "ADVANCE":
-      await advanceCampaignTier(shiftId, actor);
+      await advanceCampaignTier(shiftId, actor, { fromTier: (decision.toTier ?? 2) - 1 });
       break;
     case "EXHAUST":
-      await exhaustCampaign(shiftId, actor);
+      await exhaustCampaign(shiftId, actor, { fromTier: MAX_TIER });
       break;
     case "FILL":
       await markCampaignFilled(shiftId, actor);

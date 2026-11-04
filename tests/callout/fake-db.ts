@@ -56,6 +56,7 @@ export interface FakeCampaign {
 }
 
 export interface FakeAttempt {
+  id: string;
   shiftId: string;
   tier: number;
   userId: string;
@@ -134,7 +135,14 @@ export function createFakeState(
 /** The subset of a Prisma `where` on CalloutCampaign that the service uses. */
 function campaignMatches(
   campaign: FakeCampaign,
-  where: { shiftId?: string; status?: CampaignStatus | { in: CampaignStatus[] }; endedAt?: null }
+  where: {
+    shiftId?: string;
+    status?: CampaignStatus | { in: CampaignStatus[] };
+    endedAt?: null;
+    currentTier?: number;
+    tier1DispatchAt?: { not: null };
+    pastStartReminderAt?: null;
+  }
 ): boolean {
   if (where.shiftId !== undefined && campaign.shiftId !== where.shiftId) return false;
   if (where.status !== undefined) {
@@ -142,7 +150,16 @@ function campaignMatches(
     if (!allowed.includes(campaign.status)) return false;
   }
   if (where.endedAt === null && campaign.endedAt !== null) return false;
+  if (where.currentTier !== undefined && campaign.currentTier !== where.currentTier) return false;
+  if (where.tier1DispatchAt !== undefined && campaign.tier1DispatchAt === null) return false;
+  if (where.pastStartReminderAt === null && campaign.pastStartReminderAt !== null) return false;
   return true;
+}
+
+type AttemptKey = Pick<FakeAttempt, "shiftId" | "tier" | "userId" | "channel">;
+
+function sameAttemptKey(a: AttemptKey, b: AttemptKey): boolean {
+  return a.shiftId === b.shiftId && a.tier === b.tier && a.userId === b.userId && a.channel === b.channel;
 }
 
 function overlaps(
@@ -155,11 +172,22 @@ function overlaps(
 /** Build the fake `db` object. Mutating `state` between calls is the point. */
 export function createFakeDb(state: FakeState) {
   let campaignSeq = 0;
+  let attemptSeq = 0;
 
-  const fakeDb = {
-    // Interactive transactions run straight against the fake (no rollback).
-    async $transaction<T>(fn: (tx: never) => Promise<T>): Promise<T> {
-      return fn(fakeDb as never);
+  const fake = {
+    /** Interactive transactions run straight through: single-threaded, no isolation needed. */
+    async $transaction<T>(fn: (tx: unknown) => Promise<T>): Promise<T> {
+      return fn(fake);
+    },
+
+    /** Only the shift share-lock `submitBid` takes; any other raw query is unsupported. */
+    async $queryRaw(strings: TemplateStringsArray, ...values: unknown[]) {
+      const sql = strings.join("?");
+      if (!/FROM "Shift" WHERE "id" = \? FOR SHARE/.test(sql)) {
+        throw new Error(`fake-db: unsupported raw query: ${sql}`);
+      }
+      const s = state.shift;
+      return values[0] === s.id ? [{ status: s.status, endsAt: s.endsAt }] : [];
     },
 
     department: {
@@ -299,6 +327,35 @@ export function createFakeDb(state: FakeState) {
     },
 
     outreachAttempt: {
+      /** The send claim: unique on (shift, tier, user, channel), duplicates skipped. */
+      async createMany({ data }: { data: Omit<FakeAttempt, "id" | "response" | "respondedAt" | "providerMessageId">[] }) {
+        let count = 0;
+        for (const row of data) {
+          if (state.attempts.some((a) => sameAttemptKey(a, row))) continue;
+          state.attempts.push({ ...row, id: `attempt-${++attemptSeq}`, providerMessageId: null, response: null, respondedAt: null });
+          count++;
+        }
+        return { count };
+      },
+      async findUniqueOrThrow({
+        where,
+      }: {
+        where: { shiftId_tier_userId_channel: Pick<FakeAttempt, "shiftId" | "tier" | "userId" | "channel"> };
+      }) {
+        const row = state.attempts.find((a) => sameAttemptKey(a, where.shiftId_tier_userId_channel));
+        if (!row) throw new Error("fake-db: no attempt");
+        return { id: row.id };
+      },
+      async update({ where, data }: { where: { id: string }; data: Partial<FakeAttempt> }) {
+        const row = state.attempts.find((a) => a.id === where.id);
+        if (!row) throw new Error("fake-db: no attempt " + where.id);
+        Object.assign(row, data);
+        return row;
+      },
+      async delete({ where }: { where: { id: string } }) {
+        state.attempts = state.attempts.filter((a) => a.id !== where.id);
+        return {};
+      },
       async findMany({
         where,
       }: {
@@ -330,38 +387,6 @@ export function createFakeDb(state: FakeState) {
             a.tier === where.tier &&
             where.userId.in.includes(a.userId)
         );
-      },
-      async upsert({
-        where,
-        create,
-        update,
-      }: {
-        where: {
-          shiftId_tier_userId_channel: {
-            shiftId: string;
-            tier: number;
-            userId: string;
-            channel: string;
-          };
-        };
-        create: Omit<FakeAttempt, "response" | "respondedAt">;
-        update: { status: string; providerMessageId: string | null };
-      }) {
-        const key = where.shiftId_tier_userId_channel;
-        const existing = state.attempts.find(
-          (a) =>
-            a.shiftId === key.shiftId &&
-            a.tier === key.tier &&
-            a.userId === key.userId &&
-            a.channel === key.channel
-        );
-        if (existing) {
-          Object.assign(existing, update);
-          return existing;
-        }
-        const row: FakeAttempt = { ...create, response: null, respondedAt: null };
-        state.attempts.push(row);
-        return row;
       },
       async updateMany({
         where,
@@ -476,5 +501,5 @@ export function createFakeDb(state: FakeState) {
       },
     },
   };
-  return fakeDb;
+  return fake;
 }

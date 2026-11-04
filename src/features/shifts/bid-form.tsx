@@ -9,6 +9,7 @@ import { declineShift, placeBid, withdrawBid } from "@/app/actions/bids";
 import type { BidStatus } from "@/types";
 import type { BidAcceptance } from "@/lib/shifts/bid-window";
 import { cn } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 
 function toDatetimeLocalValue(d: Date) {
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -86,6 +87,7 @@ export function BidForm({
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [isPending, startTransition] = useTransition();
+  const router = useRouter();
 
   const minLocal = toDatetimeLocalValue(shiftStart);
   const maxLocal = toDatetimeLocalValue(shiftEnd);
@@ -122,7 +124,7 @@ export function BidForm({
     setSuccess("");
     startTransition(async () => {
       try {
-        await placeBid({
+        const result = await placeBid({
           shiftId,
           note: note.trim() || undefined,
           durationScope,
@@ -130,6 +132,11 @@ export function BidForm({
             durationScope === "PARTIAL" ? parseLocalToIso(partialStart) : undefined,
           partialEndsAt: durationScope === "PARTIAL" ? parseLocalToIso(partialEnd) : undefined,
         });
+        if (!result.ok) {
+          setError(result.error);
+          router.refresh();
+          return;
+        }
         setSuccess("Your bid was submitted. You will be notified if you are selected.");
         setStarted(true);
       } catch (err: unknown) {
@@ -142,7 +149,12 @@ export function BidForm({
     setError("");
     startTransition(async () => {
       try {
-        await withdrawBid(shiftId);
+        const result = await withdrawBid(shiftId);
+        if (!result.ok) {
+          setError(result.error);
+          router.refresh();
+          return;
+        }
         setNote("");
         setSuccess("Your bid has been withdrawn.");
       } catch (err: unknown) {
